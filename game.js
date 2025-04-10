@@ -27,6 +27,10 @@ let activePaylines = PAYLINES.length; // All paylines active by default
 let winningLines = []; // Tracks which paylines resulted in wins
 let payTable = [];
 let spinHistory = [];
+let backgroundParticles = [];
+let lastTime = 0;
+let winAnimationActive = false;
+let confettiParticles = [];
 
 // Sound effects
 let spinSound;
@@ -49,11 +53,56 @@ let historyElement;
 
 // Symbol paths and their multipliers
 const SYMBOLS = [
-    { name: "Seven", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23f44336'/%3E%3Cpath d='M40 30L80 30L60 90L40 90' stroke='white' stroke-width='8' fill='none'/%3E%3C/svg%3E", multiplier: 10 },
-    { name: "Bell", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffc107'/%3E%3Ccircle cx='60' cy='50' r='30' fill='%23ffeb3b'/%3E%3Crect x='55' y='80' width='10' height='20' fill='%23795548'/%3E%3Ccircle cx='60' cy='105' r='5' fill='%23795548'/%3E%3C/svg%3E", multiplier: 5 },
-    { name: "Cherry", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%234caf50'/%3E%3Ccircle cx='40' cy='80' r='20' fill='%23e53935'/%3E%3Ccircle cx='80' cy='80' r='20' fill='%23e53935'/%3E%3Cpath d='M60 30L40 80M60 30L80 80' stroke='%23795548' stroke-width='6' fill='none'/%3E%3C/svg%3E", multiplier: 4 },
-    { name: "Bar", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233f51b5'/%3E%3Crect x='20' y='40' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='60' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='80' width='80' height='15' fill='gold'/%3E%3C/svg%3E", multiplier: 3 },
-    { name: "Lemon", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffeb3b'/%3E%3Cellipse cx='60' cy='60' rx='40' ry='30' fill='%23fff176'/%3E%3C/svg%3E", multiplier: 2 }
+    { 
+        name: "Seven", 
+        path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23f44336'/%3E%3Cpath d='M40 30L80 30L60 90L40 90' stroke='white' stroke-width='8' fill='none'/%3E%3C/svg%3E", 
+        multiplier: 10,
+        winAnimation: {
+            frames: 8,
+            currentFrame: 0,
+            frameRate: 100 // ms per frame
+        }
+    },
+    { 
+        name: "Bell", 
+        path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffc107'/%3E%3Ccircle cx='60' cy='50' r='30' fill='%23ffeb3b'/%3E%3Crect x='55' y='80' width='10' height='20' fill='%23795548'/%3E%3Ccircle cx='60' cy='105' r='5' fill='%23795548'/%3E%3C/svg%3E", 
+        multiplier: 5,
+        winAnimation: {
+            frames: 8,
+            currentFrame: 0,
+            frameRate: 110 // ms per frame
+        }
+    },
+    { 
+        name: "Cherry", 
+        path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%234caf50'/%3E%3Ccircle cx='40' cy='80' r='20' fill='%23e53935'/%3E%3Ccircle cx='80' cy='80' r='20' fill='%23e53935'/%3E%3Cpath d='M60 30L40 80M60 30L80 80' stroke='%23795548' stroke-width='6' fill='none'/%3E%3C/svg%3E", 
+        multiplier: 4,
+        winAnimation: {
+            frames: 8,
+            currentFrame: 0,
+            frameRate: 120 // ms per frame
+        }
+    },
+    { 
+        name: "Bar", 
+        path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233f51b5'/%3E%3Crect x='20' y='40' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='60' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='80' width='80' height='15' fill='gold'/%3E%3C/svg%3E", 
+        multiplier: 3,
+        winAnimation: {
+            frames: 8,
+            currentFrame: 0,
+            frameRate: 130 // ms per frame
+        }
+    },
+    { 
+        name: "Lemon", 
+        path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffeb3b'/%3E%3Cellipse cx='60' cy='60' rx='40' ry='30' fill='%23fff176'/%3E%3C/svg%3E", 
+        multiplier: 2,
+        winAnimation: {
+            frames: 8,
+            currentFrame: 0,
+            frameRate: 140 // ms per frame
+        }
+    }
 ];
 
 // Initialize game when all content is loaded
@@ -262,25 +311,64 @@ function generateReelSymbols() {
 }
 
 // Main drawing function
-function drawGame() {
+function drawGame(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawBackground();
+    drawBackground(timestamp);
     drawReels();
+    
     if (!spinning) {
         drawWinLine();
     }
+    
+    // Draw confetti celebration if active
+    if (winAnimationActive) {
+        drawWinCelebration();
+    }
+    
+    // Calculate delta time for smooth animations
+    if (!lastTime) lastTime = timestamp;
+    const deltaTime = timestamp - lastTime;
+    lastTime = timestamp;
+    
     requestAnimationFrame(drawGame);
 }
 
 // Draw background
-function drawBackground() {
-    // Draw slot machine body
+function drawBackground(timestamp) {
+    // Draw slot machine body with gradient
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     gradient.addColorStop(0, '#2c3e50');
     gradient.addColorStop(1, '#1a1a2e');
     
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Create floating particles in background
+    if (backgroundParticles.length < 20 && Math.random() < 0.05) {
+        backgroundParticles.push({
+            x: Math.random() * canvas.width,
+            y: canvas.height + 10,
+            size: Math.random() * 5 + 2,
+            speed: Math.random() * 1 + 0.5,
+            color: `rgba(255, 215, ${Math.floor(Math.random() * 100) + 100}, ${Math.random() * 0.7 + 0.3})`
+        });
+    }
+    
+    // Animate existing particles
+    backgroundParticles.forEach((particle, index) => {
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Move particle upward
+        particle.y -= particle.speed;
+        
+        // Remove particles that have moved off-screen
+        if (particle.y < -10) {
+            backgroundParticles.splice(index, 1);
+        }
+    });
     
     // Draw decorative elements
     ctx.fillStyle = '#ffcc00';
@@ -413,8 +501,44 @@ function drawWinLine() {
                 ctx.arc(x + reelWidth - 15, y + 15, 8, 0, Math.PI * 2);
                 ctx.fill();
             }
-        });
-    });    // Display total win amount - moved lower below the slot window
+        });    });
+    
+    // Animate winning symbols with pulsing effect
+    winningLines.forEach((winLine) => {
+        const symbolIndex = winLine.symbolIndex;
+        const symbol = symbols[symbolIndex];
+        
+        // Update animation frame
+        if (symbol.winAnimation) {
+            if (!symbol.winAnimation.lastUpdate || Date.now() - symbol.winAnimation.lastUpdate > symbol.winAnimation.frameRate) {
+                symbol.winAnimation.currentFrame = (symbol.winAnimation.currentFrame + 1) % symbol.winAnimation.frames;
+                symbol.winAnimation.lastUpdate = Date.now();
+            }
+            
+            // Apply visual effect based on current frame
+            winLine.positions.forEach(pos => {
+                const x = startX + pos.reelIndex * (reelWidth + reelSpacing);
+                const y = startY + pos.rowIndex * SYMBOL_SIZE;
+                
+                // Pulse effect - scale symbol up and down
+                const scale = 1 + Math.sin(symbol.winAnimation.currentFrame / symbol.winAnimation.frames * Math.PI) * 0.2;
+                
+                ctx.save();
+                ctx.translate(x + SYMBOL_SIZE/2, y + SYMBOL_SIZE/2);
+                ctx.scale(scale, scale);
+                ctx.translate(-(x + SYMBOL_SIZE/2), -(y + SYMBOL_SIZE/2));
+                
+                // Draw scaled symbol
+                if (symbol.image) {
+                    ctx.drawImage(symbol.image, x, y, SYMBOL_SIZE, SYMBOL_SIZE);
+                }
+                
+                ctx.restore();
+            });
+        }
+    });
+    
+    // Display total win amount - moved lower below the slot window
     const totalWin = winningLines.reduce((sum, line) => sum + line.amount, 0);
     ctx.fillStyle = '#ffcc00';
     ctx.font = 'bold 24px Arial';
@@ -431,6 +555,31 @@ function drawWinLine() {
             startY + SYMBOL_SIZE * 3 + yOffset
         );
         yOffset += 25;
+    });
+}
+
+// Draw win celebration with confetti
+function drawWinCelebration() {
+    confettiParticles.forEach((particle, index) => {
+        ctx.save();
+        ctx.translate(particle.x, particle.y);
+        ctx.rotate(particle.rotation * Math.PI / 180);
+        
+        ctx.fillStyle = particle.color;
+        ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size/3);
+        
+        ctx.restore();
+        
+        // Update particle position
+        particle.x += particle.speedX;
+        particle.y += particle.speedY;
+        particle.speedY += 0.2; // Gravity
+        particle.rotation += particle.rotSpeed;
+        
+        // Remove particles that are off-screen
+        if (particle.y > canvas.height + 100) {
+            confettiParticles.splice(index, 1);
+        }
     });
 }
 
@@ -564,6 +713,11 @@ function spinCompleted() {
         
         // Add to history
         addToHistory(true, win.symbolName, win.count, winAmount);
+        
+        // Trigger win celebration for big wins
+        if (winAmount >= betAmount * 5) {
+            triggerWinCelebration(winAmount);
+        }
     } else {
         // Add loss to history
         const resultSymbols = currentReelResults.map(index => symbols[index].name).join(', ');
@@ -666,6 +820,31 @@ function checkWin() {
     }
     
     return bestMatch;
+}
+
+// Trigger win celebration with confetti
+function triggerWinCelebration(amount) {
+    winAnimationActive = true;
+    
+    // Create confetti
+    for (let i = 0; i < amount / 10; i++) {
+        confettiParticles.push({
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            size: Math.random() * 10 + 5,
+            color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+            speedX: (Math.random() - 0.5) * 10,
+            speedY: (Math.random() - 0.5) * 10 - 7,
+            rotation: Math.random() * 360,
+            rotSpeed: (Math.random() - 0.5) * 10
+        });
+    }
+    
+    // End celebration after 3 seconds
+    setTimeout(() => {
+        winAnimationActive = false;
+        confettiParticles = [];
+    }, 3000);
 }
 
 // Decrease bet amount
