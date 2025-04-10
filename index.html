@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucky Spins Slot Machine</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="game-title">Lucky Spins</h1>
+        
+        <div class="game-area">
+            <div class="canvas-container">
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
+            </div>
+
+            <div class="game-controls">
+                <div class="balance-section">
+                    <div class="balance-display">
+                        <span>Balance:</span>
+                        <span id="balance">1000</span>
+                    </div>
+                    <button id="addCreditBtn">Add Credit</button>
+                </div>
+                
+                <div class="bet-section">
+                    <div class="bet-controls">
+                        <button id="decreaseBet">-</button>
+                        <span>Bet: <span id="betAmount">10</span></span>
+                        <button id="increaseBet">+</button>
+                    </div>
+                    <button id="spinButton">SPIN</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-info">
+            <div class="paytable">
+                <h2>Paytable</h2>
+                <div class="paytable-content" id="paytableContent">
+                    <!-- Paytable will be filled with JavaScript -->
+                </div>
+            </div>
+            
+            <div class="history">
+                <h2>Spin History</h2>
+                <div class="history-content" id="spinHistory">
+                    <!-- History will be filled with JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
