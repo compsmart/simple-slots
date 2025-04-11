@@ -43,13 +43,33 @@ let buttonEffects = {
 };
 
 // Sound effects
-let spinSound;
-let winSound;
-let buttonClickSound;
 let soundEnabled = true;
 let audioContext;
 let audioBuffers = {}; // Store decoded audio buffers
 let hasUserInteraction = false; // Track if user has interacted with the page
+let backgroundMusicSource = null; // For tracking and controlling background music
+let currentThemeSounds = { // Track which theme sounds are currently loaded
+    theme: null,
+    backgroundLoaded: false,
+    spinLoaded: false,
+    winLoaded: false
+};
+let muteState = false; // Track if sound is muted
+
+// Create a variable to store the spin sound source
+let spinSoundSource = null;
+
+// Function to stop the spin sound
+function stopSpinSound() {
+    if (spinSoundSource) {
+        try {
+            spinSoundSource.stop();
+            spinSoundSource = null;
+        } catch (error) {
+            console.error("Error stopping spin sound:", error);
+        }
+    }
+}
 
 // DOM Elements
 let balanceElement;
@@ -261,14 +281,16 @@ async function loadThemeVisuals(themeName) {
 }
 
 // --- Sound Loading and Playing (Using Web Audio API) ---
-// ... (loadSounds, loadAudioBuffer, playSound functions remain the same) ...
 function loadSounds() {
     try {
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         audioContext = new AudioContext();
-        loadAudioBuffer('spin', 'sounds/spin.wav');
-        loadAudioBuffer('win', 'sounds/win.wav');
+
+        // Load generic button click sound
         loadAudioBuffer('click', 'sounds/button-click.wav');
+
+        // Load initial theme sounds
+        loadThemeSounds(currentThemeName);
 
         // User interaction listener to unlock audio
         const unlockAudio = () => {
@@ -280,6 +302,11 @@ function loadSounds() {
             document.removeEventListener('touchstart', unlockAudio);
             document.removeEventListener('keydown', unlockAudio);
             console.log("Audio context resumed by user interaction.");
+
+            // Start playing background music after user interaction
+            if (currentThemeSounds.theme && currentThemeSounds.backgroundLoaded) {
+                playBackgroundMusic(currentThemeSounds.theme);
+            }
         };
         document.addEventListener('click', unlockAudio, { once: true });
         document.addEventListener('touchstart', unlockAudio, { once: true });
@@ -288,6 +315,110 @@ function loadSounds() {
     } catch (e) {
         console.warn('Web Audio API not supported. Sound effects disabled.', e);
         soundEnabled = false;
+    }
+}
+
+function loadThemeSounds(themeName) {
+    // Reset theme sound tracking
+    currentThemeSounds = {
+        theme: themeName,
+        backgroundLoaded: false,
+        spinLoaded: false,
+        winLoaded: false
+    };
+
+    console.log(`Loading sounds for theme: ${themeName}`);
+
+    // Stop any currently playing background music
+    stopBackgroundMusic();
+
+    // Define theme-specific sound paths
+    const themePath = `sounds/themes/${themeName.toLowerCase().replace(/\s+/g, '-')}`;
+
+    // Load background music
+    loadAudioBuffer('background', `${themePath}/background.mp3`)
+        .then(() => {
+            currentThemeSounds.backgroundLoaded = true;
+            // If user has already interacted, start playing background music
+            if (hasUserInteraction) {
+                playBackgroundMusic(themeName);
+            }
+        }).catch(error => {
+            console.warn(`Could not load theme background music: ${error}`);
+            // Try to load default background music
+            loadAudioBuffer('background', 'sounds/themes/classic/background.mp3')
+                .then(() => {
+                    currentThemeSounds.backgroundLoaded = true;
+                    if (hasUserInteraction) {
+                        playBackgroundMusic(themeName); // Use current theme name, not hardcoded 'classic'
+                    }
+                });
+        });
+
+    // Load spin sound
+    loadAudioBuffer('spin', `${themePath}/spin.mp3`)
+        .then(() => {
+            currentThemeSounds.spinLoaded = true;
+        })
+        .catch(error => {
+            console.warn(`Could not load theme spin sound: ${error}`);
+            // Try to load default spin sound
+            loadAudioBuffer('spin', 'sounds/spin.wav');
+        });
+
+    // Load win sound
+    loadAudioBuffer('win', `${themePath}/win.mp3`)
+        .then(() => {
+            currentThemeSounds.winLoaded = true;
+        })
+        .catch(error => {
+            console.warn(`Could not load theme win sound: ${error}`);
+            // Try to load default win sound
+            loadAudioBuffer('win', 'sounds/win.wav');
+        });
+}
+
+function playBackgroundMusic(themeName) {
+    if (!soundEnabled || !hasUserInteraction || !audioContext || !audioBuffers['background']) {
+        console.log("Background music couldn't play: Sound disabled or not loaded");
+        return;
+    }
+
+    // Stop any existing background music
+    stopBackgroundMusic();
+
+    try {
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                startBackgroundMusicLoop();
+            });
+        } else {
+            startBackgroundMusicLoop();
+        }
+    } catch (error) {
+        console.error("Error playing background music:", error);
+    }
+}
+
+function startBackgroundMusicLoop() {
+    if (!audioBuffers['background']) return;
+
+    backgroundMusicSource = audioContext.createBufferSource();
+    backgroundMusicSource.buffer = audioBuffers['background'];
+    backgroundMusicSource.loop = true;
+    backgroundMusicSource.connect(audioContext.destination);
+    backgroundMusicSource.start(0);
+    console.log("Background music started");
+}
+
+function stopBackgroundMusic() {
+    if (backgroundMusicSource) {
+        try {
+            backgroundMusicSource.stop();
+        } catch (e) {
+            // Ignore errors if sound was already stopped
+        }
+        backgroundMusicSource = null;
     }
 }
 
@@ -332,6 +463,11 @@ function playSoundInternal(id) {
         source.buffer = audioBuffers[id];
         source.connect(audioContext.destination);
         source.start(0);
+
+        // Store reference to spin sound so we can stop it later
+        if (id === 'spin') {
+            spinSoundSource = source;
+        }
     } catch (error) {
         console.error(`Error playing sound ${id} (internal):`, error);
     }
@@ -932,9 +1068,16 @@ function spinReels() {
         console.error("Cannot spin: Reels not properly initialized with valid strips.");
         return;
     }
+    // Only play spin sound for the configured duration (4 seconds)
+    if (soundEnabled) {
+        playSound('spin');
 
+        // Set a timeout to stop the spin sound after the configured duration
+        setTimeout(() => {
+            stopSpinSound();
+        }, SPIN_DURATION + 1000);
+    }
 
-    playSound('spin');
     balance -= betAmount;
     updateBalanceDisplay();
 
@@ -1286,6 +1429,64 @@ function drawUIElements() {
     // Amount aligned right
     drawText(balance.toLocaleString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle'); // Use toLocaleString for formatting
 
+    // Draw Mute Button
+    const muteBtnSize = 40;
+    const muteBtnX = 20;
+    const muteBtnY = 20;
+    const muteBtnColor = muteState ? '#ff3366' : '#ffcc00';
+    const muteBtnStroke = '#ffffff';
+
+    drawRoundedRect(muteBtnX, muteBtnY, muteBtnSize, muteBtnSize, 8, 'rgba(0, 0, 0, 0.6)', muteBtnColor, 2);
+
+    // Draw sound icon or muted icon based on state
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    if (muteState) {
+        // Draw muted speaker icon
+        // Speaker base
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(muteBtnX + 10, muteBtnY + 17, 6, 6);
+        // Speaker cone outline
+        ctx.moveTo(muteBtnX + 16, muteBtnY + 17);
+        ctx.lineTo(muteBtnX + 22, muteBtnY + 12);
+        ctx.lineTo(muteBtnX + 22, muteBtnY + 28);
+        ctx.lineTo(muteBtnX + 16, muteBtnY + 23);
+        ctx.closePath();
+        ctx.fill();
+
+        // X over the speaker
+        ctx.beginPath();
+        ctx.moveTo(muteBtnX + 26, muteBtnY + 14);
+        ctx.lineTo(muteBtnX + 32, muteBtnY + 26);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(muteBtnX + 26, muteBtnY + 26);
+        ctx.lineTo(muteBtnX + 32, muteBtnY + 14);
+        ctx.stroke();
+    } else {
+        // Draw unmuted speaker icon
+        // Speaker base
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(muteBtnX + 10, muteBtnY + 17, 6, 6);
+        // Speaker cone outline
+        ctx.moveTo(muteBtnX + 16, muteBtnY + 17);
+        ctx.lineTo(muteBtnX + 22, muteBtnY + 12);
+        ctx.lineTo(muteBtnX + 22, muteBtnY + 28);
+        ctx.lineTo(muteBtnX + 16, muteBtnY + 23);
+        ctx.closePath();
+        ctx.fill();
+
+        // Sound waves
+        ctx.beginPath();
+        ctx.arc(muteBtnX + 22, muteBtnY + 20, 5, -Math.PI / 3, Math.PI / 3);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(muteBtnX + 22, muteBtnY + 20, 9, -Math.PI / 3, Math.PI / 3);
+        ctx.stroke();
+    }
+
     // Draw Bet Display and Buttons
     const betWidth = 150;
     const betHeight = 50;
@@ -1418,6 +1619,12 @@ function handleMouseMove(e) {
     }
     const { mouseX, mouseY } = getMousePos(e);
 
+    // Check Mute Button
+    const muteBtnSize = 40;
+    const muteBtnX = 20;
+    const muteBtnY = 20;
+    const isOverMuteBtn = isMouseOver(mouseX, mouseY, muteBtnX, muteBtnY, muteBtnSize, muteBtnSize);
+
     // Check Spin Button
     const spinBtnWidth = 120;
     const spinBtnHeight = 50;
@@ -1442,6 +1649,16 @@ function handleMouseDown(e) {
     if (spinning) return; // Ignore clicks while spinning
 
     const { mouseX, mouseY } = getMousePos(e);
+
+    // Check Mute Button Click
+    const muteBtnSize = 40;
+    const muteBtnX = 20;
+    const muteBtnY = 20;
+    if (isMouseOver(mouseX, mouseY, muteBtnX, muteBtnY, muteBtnSize, muteBtnSize)) {
+        playSound('click');
+        toggleMute();
+        return;
+    }
 
     // Check Spin Button Click
     const spinBtnWidth = 120;
@@ -1757,7 +1974,7 @@ async function loadThemeSymbols(themeName) {
 
     if (!themeData || !themeData.symbols) {
         console.error(`Theme "${themeName}" not found or is invalid! Falling back to Classic.`);
-        themeName = "Classic"; // Default fallback theme name
+        themeName = "Classic"; // Default fallback theme
         themeData = THEMES[themeName];
         if (!themeData || !themeData.symbols) {
             console.error("CRITICAL: Fallback theme 'Classic' also not found or invalid!");
@@ -1939,19 +2156,28 @@ function populatePaytable() {
 // Update theme change logic
 function changeTheme(newThemeName) {
     if (spinning || newThemeName === currentThemeName) {
-        // ... (revert dropdown if needed) ...
+        // Revert dropdown if needed
+        if (themeSwitcherElement) {
+            const dropdown = themeSwitcherElement.querySelector('select');
+            if (dropdown) dropdown.value = currentThemeName;
+        }
         return;
     }
 
-    console.log(`Changing theme visuals to: ${newThemeName}`);
-    // Load ONLY the visuals
+    console.log(`Changing theme to: ${newThemeName}`);
+
+    // Load theme visuals
     loadThemeVisuals(newThemeName).then(() => {
-        console.log("Theme visuals loaded successfully, updating paytable.");
-        // Reels don't need re-initialization as config is the same
-        populatePaytable(); // Update paytable display with new visuals/names
-        // Force redraw if needed
+        console.log("Theme visuals loaded successfully.");
+
+        // Load theme sounds
+        loadThemeSounds(newThemeName);
+
+        // Update paytable display with new visuals/names
+        populatePaytable();
+
     }).catch(error => {
-        console.error(`Failed to change theme visuals to ${newThemeName}:`, error);
+        console.error(`Failed to change theme to ${newThemeName}:`, error);
         // Revert dropdown selection if loading failed
         if (themeSwitcherElement) {
             const dropdown = themeSwitcherElement.querySelector('select');
@@ -2051,4 +2277,21 @@ function addToHistory(isWin, details, count, amount) {
     // ... (limit history items, store in spinHistory array) ...
     spinHistory.unshift({ isWin, details: displayDetails, count, betAmount, winAmount: amount, time: timestamp, theme: currentThemeName });
     if (spinHistory.length > 100) spinHistory.pop();
+}
+
+// --- Mute Toggle ---
+function toggleMute() {
+    muteState = !muteState;
+    soundEnabled = !muteState;
+
+    // If muting, stop any currently playing background music
+    if (muteState && backgroundMusicSource) {
+        stopBackgroundMusic();
+    }
+    // If unmuting and user has already interacted, restart background music
+    else if (!muteState && hasUserInteraction && currentThemeSounds.backgroundLoaded) {
+        playBackgroundMusic(currentThemeSounds.theme);
+    }
+
+    console.log(`Sound ${muteState ? 'muted' : 'unmuted'}`);
 }
