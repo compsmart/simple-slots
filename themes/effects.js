@@ -75,62 +75,65 @@ export const EffectDefaults = {
     }
 };
 
-// Helper functions for the effects system
+// Common helper functions for visual effects
 export const EffectsHelper = {
-    // Calculate pulse value based on time
-    getPulseValue: (time, speed, min = 0, max = 1) => {
-        const value = (Math.sin(time / speed * Math.PI) + 1) / 2;
-        return min + value * (max - min);
+    // Get a pulsing value based on timestamp
+    getPulseValue(timestamp, speed = 1000, min = 0, max = 1) {
+        return min + (Math.sin(timestamp / speed) * 0.5 + 0.5) * (max - min);
     },
 
-    // Generate random number in range
-    random: (min, max) => Math.random() * (max - min) + min,
-
-    // Create a color with opacity
-    rgba: (color, alpha) => {
-        // Handle hex colors
-        if (color.startsWith('#')) {
-            const r = parseInt(color.slice(1, 3), 16);
-            const g = parseInt(color.slice(3, 5), 16);
-            const b = parseInt(color.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
-        // Handle rgb colors
-        if (color.startsWith('rgb(')) {
-            const rgb = color.match(/\d+/g);
-            return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
-        }
-        // Handle named colors or other formats - just add opacity
-        return color;
-    },
-
-    // Create a neon shadow CSS string
-    createNeonShadow: (color, size, intensity) => {
-        const adjustedSize = size * intensity;
-        return `0 0 ${adjustedSize * 0.5}px ${color}, 
-                0 0 ${adjustedSize}px ${color}, 
-                0 0 ${adjustedSize * 2}px ${color}`;
-    },
-
-    // Draw electric arc between two points
-    drawElectricArc: (ctx, x1, y1, x2, y2, segments = 12, jitter = 15, color = '#00ffff', width = 2) => {
+    // Draw an electric arc between two points
+    drawElectricArc(ctx, x1, y1, x2, y2, segments = 8, jitter = 5, color = '#ffffff', thickness = 2) {
         ctx.strokeStyle = color;
-        ctx.lineWidth = width;
+        ctx.lineWidth = thickness;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
 
-        // Create a jagged line with random offsets
-        const dx = (x2 - x1) / segments;
-        const dy = (y2 - y1) / segments;
-
+        // Create segments with random jitter for electric look
+        const segmentLength = 1 / segments;
         for (let i = 1; i < segments; i++) {
-            const x = x1 + dx * i + (Math.random() - 0.5) * jitter;
-            const y = y1 + dy * i + (Math.random() - 0.5) * jitter;
-            ctx.lineTo(x, y);
+            const t = i * segmentLength;
+            // Interpolate position along the line
+            const x = x1 + (x2 - x1) * t;
+            const y = y1 + (y2 - y1) * t;
+            // Add random jitter perpendicular to the line
+            const angle = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+            const jitterAmount = (Math.random() - 0.5) * jitter * 2;
+            const jitterX = Math.cos(angle) * jitterAmount;
+            const jitterY = Math.sin(angle) * jitterAmount;
+
+            ctx.lineTo(x + jitterX, y + jitterY);
         }
 
         ctx.lineTo(x2, y2);
         ctx.stroke();
+    },
+
+    // Draw a leaf shape (used by themes like Aztec and Fantasy Forest)
+    drawLeaf(ctx, x, y, color, timestamp) {
+        ctx.save();
+
+        // Rotate the leaf slightly based on time
+        ctx.translate(x, y);
+        ctx.rotate(Math.sin(timestamp / 3000) * 0.2);
+
+        // Draw a simple leaf shape
+        ctx.beginPath();
+        ctx.fillStyle = color;
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(5, -10, 15, -5, 0, 15);
+        ctx.bezierCurveTo(-15, -5, -5, -10, 0, 0);
+        ctx.fill();
+
+        // Add vein to leaf
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, 10);
+        ctx.stroke();
+
+        ctx.restore();
     }
 };
 

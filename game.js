@@ -714,147 +714,15 @@ function drawBackgroundParticles(timestamp, settings = {}) {
 function drawThemeSpecificBackgroundEffects(timestamp, themeEffects) {
     const specific = themeEffects.themeSpecific;
 
-    // Space Warp effect (for space theme)
-    if (specific?.spaceWarp?.enabled) {
-        const warpSettings = specific.spaceWarp;
-        const speed = warpSettings.speed || 1;
-        const starCount = warpSettings.starCount || 100;
-        // Draw space warp effect - stars streaking from center
-        if (!warpStars || warpStars.length !== starCount) {
-            // Initialize warp stars
-            warpStars = [];
-            for (let i = 0; i < starCount; i++) {
-                warpStars.push({
-                    angle: Math.random() * Math.PI * 2,
-                    distance: Math.random() * 20 + 5,
-                    speed: Math.random() * 2 + 0.5,
-                    size: Math.random() * 3 + 1,
-                    color: warpSettings.colorShift ?
-                        `hsl(${Math.random() * 60 + 200}, 100%, 70%)` : '#ffffff'
-                });
-            }
-        }
+    // Get the current theme object
+    const currentTheme = THEMES[currentThemeName];
 
-        // Draw warp stars
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
-
-        ctx.save();
-        warpStars.forEach(star => {
-            // Update position
-            star.distance += star.speed * speed;
-            if (star.distance > maxDist) {
-                // Reset star when it goes off screen
-                star.distance = Math.random() * 20 + 5;
-                star.angle = Math.random() * Math.PI * 2;
-                if (warpSettings.colorShift) {
-                    star.color = `hsl(${Math.random() * 60 + 200}, 100%, 70%)`;
-                }
-            }
-
-            // Calculate position
-            const x = centerX + Math.cos(star.angle) * star.distance;
-            const y = centerY + Math.sin(star.angle) * star.distance;
-
-            // Calculate trail length based on distance from center
-            const trailLength = (star.distance / maxDist) * 50 * speed;
-
-            // Draw star with trail
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(
-                centerX + Math.cos(star.angle) * (star.distance - trailLength),
-                centerY + Math.sin(star.angle) * (star.distance - trailLength)
-            );
-            ctx.strokeStyle = star.color;
-            ctx.lineWidth = star.size * (1 - star.distance / maxDist);
-            ctx.stroke();
-        });
-        ctx.restore();
-    }
-
-    // Sandstorm effect (for Egyptian theme)
-    if (specific?.sandStorm?.enabled) {
-        const stormSettings = specific.sandStorm;
-        const intensity = stormSettings.intensity || 0.3;
-        const color = stormSettings.color || '#d4b683';
-
-        // Draw horizontal sand streaks
-        ctx.save();
-        ctx.globalAlpha = 0.1 + Math.sin(timestamp / 2000) * 0.05;
-
-        const sandCount = Math.floor(30 * intensity);
-        const time = timestamp / 3000;
-
-        for (let i = 0; i < sandCount; i++) {
-            const y = (Math.sin(i * 517 + time) * 0.5 + 0.5) * canvas.height;
-            const width = Math.random() * 200 + 100;
-            const height = Math.random() * 6 + 2;
-
-            ctx.fillStyle = color;
-            ctx.globalAlpha = Math.random() * 0.1 + 0.05;
-            ctx.fillRect(
-                Math.sin(i * 0.1 + time) * canvas.width,
-                y,
-                width,
-                height
-            );
-        }
-        ctx.restore();
-    }
-
-    // Gem sparkle effect (for Gemstone theme)
-    if (specific?.gemSparkle?.enabled) {
-        const sparkleSettings = specific.gemSparkle;
-        const intensity = sparkleSettings.intensity || 0.7;
-        const colors = sparkleSettings.colors || ['#ffffff'];
-
-        // Draw random sparkles around the screen
-        ctx.save();
-
-        const sparkleCount = Math.floor(20 * intensity);
-        const time = timestamp / 500;
-
-        for (let i = 0; i < sparkleCount; i++) {
-            const x = (Math.sin(i * 123 + time) * 0.5 + 0.5) * canvas.width;
-            const y = (Math.cos(i * 456 + time * 0.7) * 0.5 + 0.5) * canvas.height;
-            const size = Math.random() * 4 + 3;
-            const color = colors[Math.floor(Math.random() * colors.length)];
-
-            // Draw a sparkle
-            const opacity = (Math.sin(time + i) * 0.5 + 0.5) * intensity;
-
-            // Star shape
-            ctx.globalAlpha = opacity;
-            ctx.translate(x, y);
-            ctx.rotate(time * 0.1 + i);
-
-            ctx.beginPath();
-            for (let j = 0; j < 5; j++) {
-                ctx.rotate(Math.PI * 2 / 5);
-                ctx.lineTo(0, size);
-                ctx.rotate(Math.PI * 2 / 10);
-                ctx.lineTo(0, size * 2.5);
-            }
-            ctx.closePath();
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            // Add glow
-            ctx.globalAlpha = opacity * 0.5;
-            ctx.filter = `blur(${size}px)`;
-            ctx.beginPath();
-            ctx.arc(0, 0, size * 2, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            // Reset transformations
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.filter = 'none';
-        }
-
-        ctx.restore();
+    // First check if the theme has a custom renderer function
+    if (currentTheme && typeof currentTheme.renderThemeEffects === 'function') {
+        // Call the theme's own renderer if it exists
+        currentTheme.renderThemeEffects(ctx, canvas, timestamp, specific);
+    } else {
+        console.warn("Theme has no renderThemeEffects implementation");
     }
 }
 
@@ -2294,4 +2162,31 @@ function toggleMute() {
     }
 
     console.log(`Sound ${muteState ? 'muted' : 'unmuted'}`);
+}
+
+// Helper function to draw a leaf
+function drawLeaf(x, y, color, timestamp) {
+    ctx.save();
+
+    // Rotate the leaf slightly based on time
+    ctx.translate(x, y);
+    ctx.rotate(Math.sin(timestamp / 3000) * 0.2);
+
+    // Draw a simple leaf shape
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(5, -10, 15, -5, 0, 15);
+    ctx.bezierCurveTo(-15, -5, -5, -10, 0, 0);
+    ctx.fill();
+
+    // Add vein to leaf
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 10);
+    ctx.stroke();
+
+    ctx.restore();
 }
