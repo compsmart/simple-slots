@@ -1,5 +1,6 @@
 // Import themes FIRST
 import { THEMES } from './themes/index.js'; // <-- Added Import
+import { EffectsHelper } from './themes/effects.js'; // <-- Import EffectsHelper
 import {
     reelStrips,
     symbolNumberMultipliers,
@@ -388,12 +389,10 @@ function drawGame(timestamp) {
     // Throttle updates if delta time is too large (e.g., tabbed out)
     // const maxDeltaTime = 0.1; // 100ms max step
     // const clampedDeltaTime = Math.min(deltaTime, maxDeltaTime);
-    // Use clampedDeltaTime for physics/animation updates if needed
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Use clampedDeltaTime for physics/animation updates if needed    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     drawBackground(timestamp); // Draw static or animated background
-    drawReels(deltaTime); // Update and draw reels
+    drawReels(deltaTime, timestamp); // Update and draw reels, passing timestamp for effects
     drawReelMask(); // Draw mask/overlay over reels if needed
     drawUIElements(); // Draw balance, bet, buttons
 
@@ -723,7 +722,7 @@ function drawThemeSpecificBackgroundEffects(timestamp, themeEffects) {
     }
 }
 
-function drawReels(deltaTime) {
+function drawReels(deltaTime, timestamp) {
     const reelWidth = SYMBOL_SIZE;
     const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1); // Dynamic spacing
     const startX = reelSpacing;
@@ -772,9 +771,34 @@ function drawReels(deltaTime) {
             const symbolTopY = startY + (j * SYMBOL_SIZE) - verticalOffset;
 
             // Check if the symbol is within the vertical bounds (+ buffer) before drawing
-            if (symbolTopY + SYMBOL_SIZE >= startY && symbolTopY <= startY + reelViewportHeight) {
-                // Draw the symbol if we have valid data
+            if (symbolTopY + SYMBOL_SIZE >= startY && symbolTopY <= startY + reelViewportHeight) {            // Draw the symbol if we have valid data
                 if (symbol) {
+                    // Get theme effects for rendering
+                    const themeEffects = THEMES[currentThemeName]?.visualEffects;
+                    const effectsEnabled = themeEffects?.enabled !== false;
+                    const neonGlowSettings = themeEffects?.neonGlow;
+                    const electricEdgesSettings = themeEffects?.electricEdges;
+
+                    // Apply neon glow effect if enabled
+                    if (effectsEnabled && neonGlowSettings?.enabled && !spinning) {
+                        ctx.save();
+                        const glowSize = neonGlowSettings.size || 10;
+                        const glowColor = neonGlowSettings.color || '#00ffff';
+                        const intensity = neonGlowSettings.intensity || 0.8;
+
+                        // Create pulsing effect
+                        const pulseSpeed = neonGlowSettings.pulseSpeed || 1000;
+                        const pulseValue = EffectsHelper.getPulseValue(timestamp, pulseSpeed, 0.7, 1);
+                        const adjustedSize = glowSize * intensity * pulseValue;
+
+                        // Apply shadow for glow effect
+                        ctx.shadowBlur = adjustedSize;
+                        ctx.shadowColor = glowColor;
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 0;
+                    }
+
+                    // Draw the base symbol image or fallback
                     if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) { // Check if image is actually loaded
                         ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
                     } else {
@@ -786,6 +810,73 @@ function drawReels(deltaTime) {
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
+                    }
+
+                    // Reset shadow effects if applied
+                    if (effectsEnabled && neonGlowSettings?.enabled && !spinning) {
+                        ctx.restore();
+                    }
+
+                    // Draw electric edges if enabled
+                    if (effectsEnabled && electricEdgesSettings?.enabled && !spinning) {
+                        const arcs = electricEdgesSettings.arcs || 5;
+                        const color = electricEdgesSettings.color || '#ffffff';
+                        const speed = electricEdgesSettings.speed || 800;
+                        const intensity = electricEdgesSettings.intensity || 0.7;
+
+                        ctx.save();
+
+                        // Calculate time-based offset for animation
+                        const timeOffset = timestamp % (speed * 2);
+                        const animPhase = timeOffset / speed;
+
+                        // Draw electric arcs around the symbol edges
+                        for (let e = 0; e < arcs; e++) {
+                            // Determine positions along edges based on time
+                            const arcPhase = (e / arcs + animPhase) % 1;
+                            const arcPos = Math.floor(arcPhase * 4); // 0-3 for four sides
+
+                            let x1, y1, x2, y2;
+                            const jitter = 5 * intensity;
+
+                            switch (arcPos) {
+                                case 0: // Top edge
+                                    x1 = reelX + arcPhase * SYMBOL_SIZE;
+                                    y1 = symbolTopY;
+                                    x2 = x1 + SYMBOL_SIZE / 4;
+                                    y2 = y1;
+                                    break;
+                                case 1: // Right edge
+                                    x1 = reelX + SYMBOL_SIZE;
+                                    y1 = symbolTopY + (arcPhase - 0.25) * 4 * SYMBOL_SIZE;
+                                    x2 = x1;
+                                    y2 = y1 + SYMBOL_SIZE / 4;
+                                    break;
+                                case 2: // Bottom edge
+                                    x1 = reelX + SYMBOL_SIZE - (arcPhase - 0.5) * 4 * SYMBOL_SIZE;
+                                    y1 = symbolTopY + SYMBOL_SIZE;
+                                    x2 = x1 - SYMBOL_SIZE / 4;
+                                    y2 = y1;
+                                    break;
+                                case 3: // Left edge
+                                    x1 = reelX;
+                                    y1 = symbolTopY + SYMBOL_SIZE - (arcPhase - 0.75) * 4 * SYMBOL_SIZE;
+                                    x2 = x1;
+                                    y2 = y1 - SYMBOL_SIZE / 4;
+                                    break;
+                            }
+
+                            // Use the helper function to draw the electric arc
+                            EffectsHelper.drawElectricArc(
+                                ctx, x1, y1, x2, y2,
+                                8, // segments
+                                jitter,
+                                color,
+                                1.5 * intensity
+                            );
+                        }
+
+                        ctx.restore();
                     }
                 } else {
                     // Draw placeholder if symbol ID is somehow invalid for the current theme
