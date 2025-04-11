@@ -32,6 +32,7 @@ let winningLines = []; // Tracks which paylines resulted in wins
 let payTable = [];
 let spinHistory = [];
 let backgroundParticles = [];
+let warpStars = []; // For space theme star warping effect
 let lastTime = 0;
 let winAnimationActive = false;
 let confettiParticles = [];
@@ -72,39 +73,58 @@ let symbols = []; // Holds the currently loaded symbol objects for the active th
 window.addEventListener('load', initGame);
 
 function initGame() {
+    console.log("[DEBUG] initGame - START"); // <-- Log Start
+
     // Get DOM elements
     canvas = document.getElementById('gameCanvas');
+    // Check if canvas exists immediately
+    if (!canvas) {
+        console.error("CRITICAL: Canvas element with ID 'gameCanvas' not found!");
+        return; // Stop if no canvas
+    }
     ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error("CRITICAL: Failed to get 2D context from canvas!");
+        return; // Stop if no context
+    }
+    console.log("[DEBUG] initGame - Canvas and Context obtained.");
+
     balanceElement = document.getElementById('balance');
     betAmountElement = document.getElementById('betAmount');
-    spinButton = document.getElementById('spinButton'); // Keep reference for potential DOM button
-    decreaseBetButton = document.getElementById('decreaseBet'); // Keep reference
-    increaseBetButton = document.getElementById('increaseBet'); // Keep reference
+    spinButton = document.getElementById('spinButton');
+    decreaseBetButton = document.getElementById('decreaseBet');
+    increaseBetButton = document.getElementById('increaseBet');
     addCreditButton = document.getElementById('addCreditBtn');
     paytableElement = document.getElementById('paytableContent');
     historyElement = document.getElementById('spinHistory');
     themeSwitcherElement = document.getElementById('themeSwitcher');
+    console.log("[DEBUG] initGame - DOM elements retrieved.");
 
     // Load sound effects
-    loadSounds();
+    console.log("[DEBUG] initGame - Loading sounds...");
+    loadSounds(); // Assuming this doesn't block indefinitely
 
     // Set up event listeners
+    console.log("[DEBUG] initGame - Setting up event listeners...");
     if (spinButton) spinButton.addEventListener('click', () => { if (!spinning) spinReels(); });
     if (decreaseBetButton) decreaseBetButton.addEventListener('click', decreaseBet);
     if (increaseBetButton) increaseBetButton.addEventListener('click', increaseBet);
-    addCreditButton.addEventListener('click', addCredit);
+    if (addCreditButton) addCreditButton.addEventListener('click', addCredit);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mouseup', handleMouseUp);
 
     // Set up the theme switcher UI
+    console.log("[DEBUG] initGame - Setting up theme switcher...");
     setupThemeSwitcher();
 
-    // --- Corrected Initialization Flow ---
     // 1. Validate shared config first
-    if (!validateConfiguration()) {
+    console.log("[DEBUG] initGame - Validating configuration...");
+    const isConfigValid = validateConfiguration();
+    console.log(`[DEBUG] initGame - Configuration valid: ${isConfigValid}`); // <-- Log validation result
+    if (!isConfigValid) {
         console.error("CRITICAL: Initial configuration validation failed. Game cannot start.");
-        if (ctx) { // Display error on canvas if possible
+        if (ctx) {
             ctx.fillStyle = 'red'; ctx.font = '24px Arial'; ctx.textAlign = 'center';
             ctx.fillText("Configuration Error!", canvas.width / 2, canvas.height / 2);
         }
@@ -112,23 +132,34 @@ function initGame() {
     }
 
     // 2. Load initial theme's VISUALS
+    console.log(`[DEBUG] initGame - Loading visuals for theme: ${currentThemeName}...`);
     loadThemeVisuals(currentThemeName).then(() => {
+        console.log("[DEBUG] initGame - Theme visuals loaded successfully."); // <-- Log success
+
         // 3. Initialize reels using the validated GLOBAL config
+        console.log("[DEBUG] initGame - Initializing reels...");
         initReels();
+        console.log("[DEBUG] initGame - Reels initialized.");
+
         // 4. Update displays
+        console.log("[DEBUG] initGame - Updating balance/bet displays...");
         updateBalanceDisplay();
         updateBetDisplay(); // Also calls populatePaytable
+
         // 5. Start the game loop
+        console.log("[DEBUG] initGame - Starting game loop (requestAnimationFrame)..."); // <-- Log before final step
         requestAnimationFrame(drawGame);
+        console.log("[DEBUG] initGame - Game loop requested.");
+
     }).catch(error => {
-        console.error("Failed to initialize game after loading theme visuals:", error);
+        console.error("CRITICAL: Failed to initialize game after loading theme visuals:", error); // Log the actual error
         // Handle initialization error (e.g., display error on canvas)
         if (ctx) {
             ctx.fillStyle = 'red'; ctx.font = '20px Arial'; ctx.textAlign = 'center';
             ctx.fillText("Theme Loading Error!", canvas.width / 2, canvas.height / 2);
         }
     });
-    // --- End Corrected Flow ---
+    console.log("[DEBUG] initGame - End of synchronous part (loadThemeVisuals promise pending)."); // <-- Log end of sync code
 }
 
 function validateConfiguration() {
@@ -380,15 +411,316 @@ function drawGame(timestamp) {
 // --- Drawing Functions ---
 // ... (drawBackground, drawReels, drawReelMask functions remain the same) ...
 function drawBackground(timestamp) {
-    // Simple gradient background
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#1a1a2e'); // Dark blue top
-    gradient.addColorStop(1, '#2c3e50'); // Lighter slate bottom
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Check if current theme has visual effects enabled
+    const themeEffects = THEMES[currentThemeName]?.visualEffects;
+    const effectsEnabled = themeEffects?.enabled !== false;
 
-    // Optional: Add subtle background particles (keep simple)
-    // ... (particle logic can be added back if desired) ...
+    // Get background effect settings or use defaults
+    const bgEffects = themeEffects?.backgroundEffects;
+    const usePulse = effectsEnabled && bgEffects?.pulse?.enabled !== false;
+    const useParticles = effectsEnabled && bgEffects?.particles?.enabled !== false;
+
+    // Base background - enhanced with pulse if enabled
+    const baseColor = bgEffects?.pulse?.color || '#1a1a2e';
+    let topColor = baseColor;
+    let bottomColor = bgEffects?.pulse?.color2 || '#2c3e50';    // Add pulsing effect if enabled
+    if (usePulse && bgEffects && bgEffects.pulse) {
+        const pulseSpeed = bgEffects.pulse.speed || 3000;
+        const pulseIntensity = bgEffects.pulse.intensity || 0.3;
+        const pulseValue = Math.sin(timestamp / pulseSpeed) * pulseIntensity;
+
+        // Create slightly shifting colors for the pulse effect
+        topColor = shiftColor(baseColor, pulseValue * 30);
+        bottomColor = shiftColor(bottomColor, -pulseValue * 20);
+
+        // Add subtle radial pulse
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const maxRadius = Math.max(canvas.width, canvas.height);
+        const pulseRadius = maxRadius * (0.7 + pulseValue * 0.3);
+
+        const radialGradient = ctx.createRadialGradient(
+            centerX, centerY, 10,
+            centerX, centerY, pulseRadius
+        );
+        radialGradient.addColorStop(0, shiftColor(baseColor, pulseValue * 50, 0.8));
+        radialGradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = radialGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Draw the base gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, topColor);
+    gradient.addColorStop(1, bottomColor);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);    // Draw particles if enabled
+    if (useParticles && bgEffects?.particles) {
+        // Initialize particles if they don't exist or theme changed
+        if (!backgroundParticles.length || backgroundParticles.themeId !== currentThemeName) {
+            initBackgroundParticles(bgEffects.particles);
+        }
+
+        // Update and draw existing particles
+        drawBackgroundParticles(timestamp, bgEffects.particles);
+    }
+
+    // Draw theme-specific background effects
+    if (effectsEnabled && themeEffects?.themeSpecific) {
+        drawThemeSpecificBackgroundEffects(timestamp, themeEffects);
+    }
+}
+
+// Helper function to shift color for pulsing effects
+function shiftColor(color, amount, alpha = undefined) {
+    // Handle hex colors
+    if (color.startsWith('#')) {
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+
+        // Apply the shift within bounds
+        const newR = Math.max(0, Math.min(255, r + amount));
+        const newG = Math.max(0, Math.min(255, g + amount));
+        const newB = Math.max(0, Math.min(255, b + amount));
+
+        if (alpha !== undefined) {
+            return `rgba(${Math.round(newR)}, ${Math.round(newG)}, ${Math.round(newB)}, ${alpha})`;
+        } else {
+            return `rgb(${Math.round(newR)}, ${Math.round(newG)}, ${Math.round(newB)})`;
+        }
+    }
+    // Handle other color formats - just return the original
+    return alpha !== undefined ? `${color.split(')')[0]}, ${alpha})` : color;
+}
+
+// Initialize background particles based on theme settings
+function initBackgroundParticles(particleSettings = {}) {
+    const count = particleSettings?.count || 50;
+    const baseColor = particleSettings?.color || '#ffffff';
+    const sizeRange = particleSettings?.size || { min: 1, max: 5 };
+    const sparkle = particleSettings?.sparkle || false;
+
+    backgroundParticles = [];
+    backgroundParticles.themeId = currentThemeName;
+
+    for (let i = 0; i < count; i++) {
+        const size = Math.random() * (sizeRange.max - sizeRange.min) + sizeRange.min;
+        let color = baseColor;
+
+        // Add color variance if sparkle is enabled
+        if (sparkle) {
+            const hue = Math.random() * 360;
+            color = `hsl(${hue}, 100%, 70%)`;
+        }
+
+        backgroundParticles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: size,
+            speedX: (Math.random() - 0.5) * 0.8,
+            speedY: (Math.random() - 0.5) * 0.8,
+            color: color,
+            opacity: Math.random() * 0.5 + 0.3,
+            // For sparkle effect
+            twinkle: sparkle ? {
+                active: true,
+                speed: Math.random() * 0.05 + 0.02,
+                phase: Math.random() * Math.PI * 2
+            } : null
+        });
+    }
+}
+
+// Draw the background particles
+function drawBackgroundParticles(timestamp, settings = {}) {
+    const sparkle = settings?.sparkle || false;
+
+    backgroundParticles.forEach(particle => {
+        // Update position
+        particle.x += particle.speedX;
+        particle.y += particle.speedY;
+
+        // Wrap around screen edges
+        if (particle.x < 0) particle.x = canvas.width;
+        if (particle.x > canvas.width) particle.x = 0;
+        if (particle.y < 0) particle.y = canvas.height;
+        if (particle.y > canvas.height) particle.y = 0;
+
+        // Calculate opacity for twinkling effect
+        let opacity = particle.opacity;
+        if (sparkle && particle.twinkle) {
+            particle.twinkle.phase += particle.twinkle.speed;
+            opacity = particle.opacity * (0.5 + Math.sin(particle.twinkle.phase) * 0.5);
+        }
+
+        // Draw the particle
+        ctx.fillStyle = sparkle ? particle.color : `rgba(255, 255, 255, ${opacity})`;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Add glow for larger particles if we have sparkle effect
+        if (sparkle && particle.size > 3) {
+            ctx.save();
+            ctx.globalAlpha = opacity * 0.4;
+            ctx.filter = `blur(${particle.size}px)`;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = particle.color;
+            ctx.fill();
+            ctx.restore();
+        }
+    });
+}
+
+// Draw theme-specific background effects
+function drawThemeSpecificBackgroundEffects(timestamp, themeEffects) {
+    const specific = themeEffects.themeSpecific;
+
+    // Space Warp effect (for space theme)
+    if (specific?.spaceWarp?.enabled) {
+        const warpSettings = specific.spaceWarp;
+        const speed = warpSettings.speed || 1;
+        const starCount = warpSettings.starCount || 100;
+        // Draw space warp effect - stars streaking from center
+        if (!warpStars || warpStars.length !== starCount) {
+            // Initialize warp stars
+            warpStars = [];
+            for (let i = 0; i < starCount; i++) {
+                warpStars.push({
+                    angle: Math.random() * Math.PI * 2,
+                    distance: Math.random() * 20 + 5,
+                    speed: Math.random() * 2 + 0.5,
+                    size: Math.random() * 3 + 1,
+                    color: warpSettings.colorShift ?
+                        `hsl(${Math.random() * 60 + 200}, 100%, 70%)` : '#ffffff'
+                });
+            }
+        }
+
+        // Draw warp stars
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
+
+        ctx.save();
+        warpStars.forEach(star => {
+            // Update position
+            star.distance += star.speed * speed;
+            if (star.distance > maxDist) {
+                // Reset star when it goes off screen
+                star.distance = Math.random() * 20 + 5;
+                star.angle = Math.random() * Math.PI * 2;
+                if (warpSettings.colorShift) {
+                    star.color = `hsl(${Math.random() * 60 + 200}, 100%, 70%)`;
+                }
+            }
+
+            // Calculate position
+            const x = centerX + Math.cos(star.angle) * star.distance;
+            const y = centerY + Math.sin(star.angle) * star.distance;
+
+            // Calculate trail length based on distance from center
+            const trailLength = (star.distance / maxDist) * 50 * speed;
+
+            // Draw star with trail
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(
+                centerX + Math.cos(star.angle) * (star.distance - trailLength),
+                centerY + Math.sin(star.angle) * (star.distance - trailLength)
+            );
+            ctx.strokeStyle = star.color;
+            ctx.lineWidth = star.size * (1 - star.distance / maxDist);
+            ctx.stroke();
+        });
+        ctx.restore();
+    }
+
+    // Sandstorm effect (for Egyptian theme)
+    if (specific?.sandStorm?.enabled) {
+        const stormSettings = specific.sandStorm;
+        const intensity = stormSettings.intensity || 0.3;
+        const color = stormSettings.color || '#d4b683';
+
+        // Draw horizontal sand streaks
+        ctx.save();
+        ctx.globalAlpha = 0.1 + Math.sin(timestamp / 2000) * 0.05;
+
+        const sandCount = Math.floor(30 * intensity);
+        const time = timestamp / 3000;
+
+        for (let i = 0; i < sandCount; i++) {
+            const y = (Math.sin(i * 517 + time) * 0.5 + 0.5) * canvas.height;
+            const width = Math.random() * 200 + 100;
+            const height = Math.random() * 6 + 2;
+
+            ctx.fillStyle = color;
+            ctx.globalAlpha = Math.random() * 0.1 + 0.05;
+            ctx.fillRect(
+                Math.sin(i * 0.1 + time) * canvas.width,
+                y,
+                width,
+                height
+            );
+        }
+        ctx.restore();
+    }
+
+    // Gem sparkle effect (for Gemstone theme)
+    if (specific?.gemSparkle?.enabled) {
+        const sparkleSettings = specific.gemSparkle;
+        const intensity = sparkleSettings.intensity || 0.7;
+        const colors = sparkleSettings.colors || ['#ffffff'];
+
+        // Draw random sparkles around the screen
+        ctx.save();
+
+        const sparkleCount = Math.floor(20 * intensity);
+        const time = timestamp / 500;
+
+        for (let i = 0; i < sparkleCount; i++) {
+            const x = (Math.sin(i * 123 + time) * 0.5 + 0.5) * canvas.width;
+            const y = (Math.cos(i * 456 + time * 0.7) * 0.5 + 0.5) * canvas.height;
+            const size = Math.random() * 4 + 3;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            // Draw a sparkle
+            const opacity = (Math.sin(time + i) * 0.5 + 0.5) * intensity;
+
+            // Star shape
+            ctx.globalAlpha = opacity;
+            ctx.translate(x, y);
+            ctx.rotate(time * 0.1 + i);
+
+            ctx.beginPath();
+            for (let j = 0; j < 5; j++) {
+                ctx.rotate(Math.PI * 2 / 5);
+                ctx.lineTo(0, size);
+                ctx.rotate(Math.PI * 2 / 10);
+                ctx.lineTo(0, size * 2.5);
+            }
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // Add glow
+            ctx.globalAlpha = opacity * 0.5;
+            ctx.filter = `blur(${size}px)`;
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 2, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // Reset transformations
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.filter = 'none';
+        }
+
+        ctx.restore();
+    }
 }
 
 function drawReels(deltaTime) {
