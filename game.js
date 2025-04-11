@@ -32,6 +32,7 @@ let currentReelResults = []; // Stores final symbol IDs [reelIndex][rowIndex] af
 let winningLines = []; // Tracks which paylines resulted in wins
 let payTable = [];
 let spinHistory = [];
+let historyCurrentPage = 0; // Track current page for history pagination
 let backgroundParticles = [];
 let warpStars = []; // For space theme star warping effect
 let lastTime = 0;
@@ -55,6 +56,9 @@ let currentThemeSounds = { // Track which theme sounds are currently loaded
     winLoaded: false
 };
 let muteState = false; // Track if sound is muted
+let showPaylines = false; // Track if paylines should be visible
+let showHistory = false; // Track if history modal should be visible
+let showPaytable = false; // Track if paytable modal should be visible
 
 // Create a variable to store the spin sound source
 let spinSoundSource = null;
@@ -78,9 +82,7 @@ let spinButton;
 let decreaseBetButton;
 let increaseBetButton;
 let addCreditButton;
-let paytableElement;
-let historyElement;
-let themeSwitcherElement; // <-- Added for clarity
+let themeSwitcherElement; // <-- Theme switcher element
 
 // --- Game State Variable ---
 let currentThemeName = "Classic"; // Default theme
@@ -108,16 +110,12 @@ function initGame() {
         console.error("CRITICAL: Failed to get 2D context from canvas!");
         return; // Stop if no context
     }
-    console.log("[DEBUG] initGame - Canvas and Context obtained.");
-
-    balanceElement = document.getElementById('balance');
+    console.log("[DEBUG] initGame - Canvas and Context obtained."); balanceElement = document.getElementById('balance');
     betAmountElement = document.getElementById('betAmount');
     spinButton = document.getElementById('spinButton');
     decreaseBetButton = document.getElementById('decreaseBet');
     increaseBetButton = document.getElementById('increaseBet');
     addCreditButton = document.getElementById('addCreditBtn');
-    paytableElement = document.getElementById('paytableContent');
-    historyElement = document.getElementById('spinHistory');
     themeSwitcherElement = document.getElementById('themeSwitcher');
     console.log("[DEBUG] initGame - DOM elements retrieved.");
 
@@ -536,9 +534,16 @@ function drawGame(timestamp) {
         drawWinLines(timestamp); // Draw winning line highlights
     }
 
+    if (showPaylines) {
+        drawAllPaylines(timestamp); // Draw all paylines if toggled on
+    }
+
     if (winAnimationActive) {
         drawWinCelebration(deltaTime); // Draw confetti etc.
     }
+
+    drawPaytableModal(); // Draw Pay Table modal if active
+    drawHistoryModal(); // Draw History modal if active
 
     requestAnimationFrame(drawGame);
 }
@@ -1093,12 +1098,21 @@ function checkWinAndFinalize() {
     // Check for wins using the stored currentReelResults
     const winInfo = checkWin(); // Returns null or win details object
 
-    if (winInfo && winInfo.totalAmount > 0) {
+    // Create a result object for history tracking
+    const spinResult = {
+        reels: currentReelResults,
+        totalWin: winInfo ? winInfo.totalAmount : 0,
+        winningLines: winInfo ? winInfo.allLines : []
+    };
+
+    // Add to game history for the history modal
+    addSpinToHistory(spinResult); if (winInfo && winInfo.totalAmount > 0) {
         balance += winInfo.totalAmount;
         updateBalanceDisplay();
         playSound('win');
-        // Add to history (use info from winInfo or winningLines)
-        addToHistory(true, winInfo.bestMatch.symbolName, winInfo.bestMatch.count, winInfo.totalAmount);
+        // Add to history display (use info from winInfo or winningLines)
+        // Pass the number of winning paylines instead of symbol count
+        addToHistory(true, winInfo.bestMatch.symbolName, winInfo.allLines.length, winInfo.totalAmount);
         // Trigger win celebration if significant win
         if (winInfo.totalAmount >= betAmount * 5) { // Example threshold
             triggerWinCelebration(winInfo.totalAmount);
@@ -1290,12 +1304,38 @@ function drawUIElements() {
     const balanceX = 50;
     const balanceY = canvas.height - 80;
     const balanceWidth = 200;
-    const balanceHeight = 50;
-    drawRoundedRect(balanceX, balanceY, balanceWidth, balanceHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2);
+    const balanceHeight = 50; drawRoundedRect(balanceX, balanceY, balanceWidth, balanceHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2);
     // Label aligned left
     drawText('BALANCE:', balanceX + padding, balanceY + balanceHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle');
     // Amount aligned right
-    drawText(balance.toLocaleString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle'); // Use toLocaleString for formatting
+    drawText(balance.toLocaleString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle'); // Use toLocaleString for formatting    // Draw Buttons for Paylines, Pay Table, and History
+    const btnHeight = 40;
+    const btnSpacing = 10;
+    const btnY = 20;
+
+    // Paylines Button
+    const paylinesBtnWidth = 130;
+    const paylinesBtnX = canvas.width - paylinesBtnWidth - 10;
+    const paylinesBtnColor = showPaylines ? '#ff9900' : '#ffcc00';
+
+    drawRoundedRect(paylinesBtnX, btnY, paylinesBtnWidth, btnHeight, 8, 'rgba(0, 0, 0, 0.6)', paylinesBtnColor, 2);
+    drawText('SHOW PAYLINES', paylinesBtnX + paylinesBtnWidth / 2, btnY + btnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
+
+    // Pay Table Button
+    const paytableBtnWidth = 110;
+    const paytableBtnX = paylinesBtnX - paytableBtnWidth - btnSpacing;
+    const paytableBtnColor = showPaytable ? '#ff9900' : '#ffcc00';
+
+    drawRoundedRect(paytableBtnX, btnY, paytableBtnWidth, btnHeight, 8, 'rgba(0, 0, 0, 0.6)', paytableBtnColor, 2);
+    drawText('PAY TABLE', paytableBtnX + paytableBtnWidth / 2, btnY + btnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
+
+    // History Button
+    const historyBtnWidth = 90;
+    const historyBtnX = paytableBtnX - historyBtnWidth - btnSpacing;
+    const historyBtnColor = showHistory ? '#ff9900' : '#ffcc00';
+
+    drawRoundedRect(historyBtnX, btnY, historyBtnWidth, btnHeight, 8, 'rgba(0, 0, 0, 0.6)', historyBtnColor, 2);
+    drawText('HISTORY', historyBtnX + historyBtnWidth / 2, btnY + btnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
 
     // Draw Mute Button
     const muteBtnSize = 40;
@@ -1513,10 +1553,63 @@ function handleMouseMove(e) {
     buttonEffects.bet.increaseActive = isMouseOver(mouseX, mouseY, increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize);
 }
 
-function handleMouseDown(e) {
-    if (spinning) return; // Ignore clicks while spinning
+// Handle all interactions when a modal is displayed
+function handleModalInteractions(mouseX, mouseY) {
+    // Modal dimensions
+    const modalWidth = 800;
+    const modalHeight = 600; // Updated height
+    const modalX = canvas.width / 2 - modalWidth / 2;
+    const modalY = canvas.height / 2 - modalHeight / 2;
 
+    // Modal close button dimensions
+    const closeBtnSize = 40;
+    const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
+    const closeBtnY = modalY + 10;
+
+    // Check if close button was clicked
+    if (isMouseOver(mouseX, mouseY, closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)) {
+        playSound('click');
+        showPaytable = false;
+        showHistory = false;
+        return;
+    }
+
+    // Handle history pagination if history modal is shown
+    if (showHistory) {
+        // Pagination button dimensions
+        const pageBtnWidth = 80;
+        const pageBtnHeight = 40;
+        const pageBtnY = canvas.height - 80;
+        const prevBtnX = canvas.width / 2 - pageBtnWidth - 20;
+        const nextBtnX = canvas.width / 2 + 20;
+
+        // Calculate total pages
+        const totalPages = Math.ceil(spinHistory.length / RESULTS_PER_PAGE);
+
+        // Check Previous button click
+        if (historyCurrentPage > 0 && isMouseOver(mouseX, mouseY, prevBtnX, pageBtnY, pageBtnWidth, pageBtnHeight)) {
+            playSound('click');
+            historyCurrentPage--;
+            return;
+        }
+
+        // Check Next button click
+        if (historyCurrentPage < totalPages - 1 && isMouseOver(mouseX, mouseY, nextBtnX, pageBtnY, pageBtnWidth, pageBtnHeight)) {
+            playSound('click');
+            historyCurrentPage++;
+            return;
+        }
+    }
+}
+
+function handleMouseDown(e) {
     const { mouseX, mouseY } = getMousePos(e);
+
+    // If a modal is open, only handle modal-specific interactions
+    if (showPaytable || showHistory) {
+        handleModalInteractions(mouseX, mouseY);
+        return;
+    }
 
     // Check Mute Button Click
     const muteBtnSize = 40;
@@ -1525,6 +1618,40 @@ function handleMouseDown(e) {
     if (isMouseOver(mouseX, mouseY, muteBtnX, muteBtnY, muteBtnSize, muteBtnSize)) {
         playSound('click');
         toggleMute();
+        return;
+    }
+
+    // Button measurements for all top buttons
+    const btnHeight = 40;
+    const btnY = 20;
+    const btnSpacing = 10;
+
+    // Check Paylines Button Click
+    const paylinesBtnWidth = 130;
+    const paylinesBtnX = canvas.width - paylinesBtnWidth - 10;
+    if (isMouseOver(mouseX, mouseY, paylinesBtnX, btnY, paylinesBtnWidth, btnHeight)) {
+        playSound('click');
+        showPaylines = !showPaylines; // Toggle paylines visibility
+        return;
+    }
+
+    // Check Pay Table Button Click
+    const paytableBtnWidth = 110;
+    const paytableBtnX = paylinesBtnX - paytableBtnWidth - btnSpacing;
+    if (isMouseOver(mouseX, mouseY, paytableBtnX, btnY, paytableBtnWidth, btnHeight)) {
+        playSound('click');
+        showPaytable = true;
+        showHistory = false; // Close other modal if open
+        return;
+    }
+
+    // Check History Button Click
+    const historyBtnWidth = 90;
+    const historyBtnX = paytableBtnX - historyBtnWidth - btnSpacing;
+    if (isMouseOver(mouseX, mouseY, historyBtnX, btnY, historyBtnWidth, btnHeight)) {
+        playSound('click');
+        showHistory = true;
+        showPaytable = false; // Close other modal if open
         return;
     }
 
@@ -1688,6 +1815,67 @@ function drawWinLines(timestamp) {
     }
 }
 
+// Draw all configured paylines when the Show Paylines button is toggled on
+function drawAllPaylines(timestamp) {
+    if (!showPaylines) return;
+
+    const reelWidth = SYMBOL_SIZE;
+    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
+    const startX = reelSpacing;
+    const startY = 100;
+    const symbolCenterOffsetY = SYMBOL_SIZE / 2;
+    const symbolCenterOffsetX = SYMBOL_SIZE / 2;
+
+    const flash = Math.floor(timestamp / 300) % 2 === 0; // Flash effect toggle
+
+    // Define line colors for different paylines
+    const lineColors = ['#ff3366', '#ffcc00', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#00bcd4', '#e91e63'];
+
+    // Draw each payline with a unique color
+    PAYLINES.forEach((payline, lineIndex) => {
+        const color = lineColors[lineIndex % lineColors.length]; // Cycle colors per line
+
+        ctx.strokeStyle = flash ? color : '#ffffff'; // Alternate between color and white
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = 0.7;
+
+        ctx.beginPath();
+        for (let i = 0; i < payline.length; i++) {
+            const pos = payline[i];
+            const x = startX + pos.reel * (reelWidth + reelSpacing) + symbolCenterOffsetX;
+            const y = startY + pos.row * SYMBOL_SIZE + symbolCenterOffsetY;
+
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+
+        // Add line number indicator at the first position
+        const firstPos = payline[0];
+        const labelX = startX + firstPos.reel * (reelWidth + reelSpacing) + symbolCenterOffsetX - 15;
+        const labelY = startY + firstPos.row * SYMBOL_SIZE + symbolCenterOffsetY;
+
+        // Draw small circle with line number
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(labelX, labelY, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw line number
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lineIndex + 1, labelX, labelY);
+    });
+
+    ctx.globalAlpha = 1.0; // Reset alpha
+}
 
 // --- Win Celebration ---
 // ... (triggerWinCelebration, drawWinCelebration functions remain the same) ...
@@ -1917,109 +2105,286 @@ async function loadThemeSymbols(themeName) {
 }
 
 function populatePaytable() {
-    if (!paytableElement) return;
-    paytableElement.innerHTML = ''; // Clear existing content
-
-    // --- Add Explanatory Text Section (Keep as is) ---
-    const infoContainer = document.createElement('div');
-    infoContainer.className = 'paytable-info';
-    const title = document.createElement('h3');
-    title.className = 'paytable-title';
-    title.textContent = 'How to Play & Win';
-    infoContainer.appendChild(title);
-    const explanation1 = document.createElement('p');
-    explanation1.className = 'paytable-explanation';
-    explanation1.innerHTML = `Spin the reels and try to land <strong>matching symbols</strong> on consecutive reels, starting from the <strong>leftmost reel</strong> (Reel 1).`;
-    infoContainer.appendChild(explanation1);
-    const explanation2 = document.createElement('p');
-    explanation2.className = 'paytable-explanation';
-    explanation2.innerHTML = `You need <strong>3, 4, or 5 identical symbols</strong> lined up adjacently from left-to-right on any of the three rows to score a win!`;
-    infoContainer.appendChild(explanation2);
-    const explanation3 = document.createElement('p');
-    explanation3.className = 'paytable-explanation';
-    explanation3.innerHTML = `The table below shows the <strong>Multiplier</strong> applied to your <strong>Total Bet</strong> for each winning combination. Higher multipliers mean bigger wins!`;
-    infoContainer.appendChild(explanation3);
-    const themeNote = document.createElement('p');
-    themeNote.className = 'paytable-note';
-    themeNote.innerHTML = `<i>While the symbols change with each exciting theme, the core payout rules remain the same.</i>`;
-    infoContainer.appendChild(themeNote);
-    // No separator needed if using a table border
-    // const separator = document.createElement('hr');
-    // separator.className = 'paytable-separator';
-    // infoContainer.appendChild(separator);
-    paytableElement.appendChild(infoContainer);
-    // --- End of Explanatory Text Section ---
-
-
-    // --- Generate Paytable Grid using HTML Table ---
-
-    // Basic validation (keep as is)
-    if (!symbols || symbols.length !== 5) {
-        paytableElement.innerHTML += '<div>Error: Theme visuals not loaded.</div>';
-        return;
-    }
-    if (!symbolNumberMultipliers || !PAYOUT_RULES) {
-        paytableElement.innerHTML += '<div>Error: Paytable config missing.</div>';
-        return;
-    }
-
-    // Create the table element
-    const table = document.createElement('table');
-    table.className = 'paytable-grid'; // Add class for styling
-
-    // Create Table Header (<thead>)
-    const thead = table.createTHead();
-    const headerRow = thead.insertRow();
-
-    // Define header cells
-    const headers = ['Symbol', 'x3', 'x4', 'x5'];
-    headers.forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-    });
-
-    // Create Table Body (<tbody>)
-    const tbody = table.createTBody();
-
-    // Populate Table Rows
-    symbols.forEach((visualSymbol, symbolNumber) => {
-        const row = tbody.insertRow();
-
-        // Cell 1: Symbol Image & Name
-        const cellSymbol = row.insertCell();
-        cellSymbol.className = 'paytable-symbol-cell'; // Keep class for specific styling
-        if (visualSymbol.image && visualSymbol.image.complete && visualSymbol.image.naturalHeight !== 0) {
-            const img = document.createElement('img');
-            img.src = visualSymbol.path;
-            img.alt = visualSymbol.name;
-            img.className = 'paytable-symbol-img'; // Keep class
-            cellSymbol.appendChild(img);
-            cellSymbol.appendChild(document.createTextNode(` ${visualSymbol.name}`));
-        } else {
-            // Fallback display
-            cellSymbol.innerHTML = `<span class="paytable-fallback-color" style="background-color:${visualSymbol.color || '#ccc'}"></span> ${visualSymbol.name}`;
-        }
-
-        // Cells 2, 3, 4: Multipliers (x3, x4, x5)
-        const baseMultiplier = symbolNumberMultipliers[symbolNumber] ?? 0; // Get base multiplier from config
-
-        [3, 4, 5].forEach(count => { // Iterate for 3, 4, 5 consecutive symbols
-            const cellMultiplier = row.insertCell();
-            cellMultiplier.className = 'paytable-multiplier-cell'; // Add class for styling values
-
-            const countMultiplierRule = PAYOUT_RULES[count] ?? 0; // Get rule (e.g., 1, 3, 10)
-            const finalMultiplier = baseMultiplier * countMultiplierRule; // Calculate final multiplier
-
-            // Display the calculated multiplier value
-            cellMultiplier.textContent = finalMultiplier > 0 ? `${finalMultiplier}x` : '-';
-        });
-    });
-
-    // Append the complete table to the paytable element
-    paytableElement.appendChild(table);
+    // This function now does nothing as we're only using the canvas-based modal
+    // The pay table information is drawn directly in drawPaytableModal function
 }
 
+// Draw the Pay Table modal
+function drawPaytableModal() {
+    if (!showPaytable) return;
+
+    // Draw semi-transparent overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw modal content container
+    const modalWidth = 800;
+    const modalHeight = 600;
+    const modalX = canvas.width / 2 - modalWidth / 2;
+    const modalY = canvas.height / 2 - modalHeight / 2;
+
+    // Draw modal background
+    drawRoundedRect(modalX, modalY, modalWidth, modalHeight, 15,
+        'rgba(40, 40, 60, 0.95)', '#ffcc00', 3);
+
+    // Draw title
+    drawText('PAY TABLE', canvas.width / 2, modalY + 40, 'bold 28px Arial', '#ffffff', 'center', 'middle');
+
+    // Draw close button
+    const closeBtnSize = 40;
+    const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
+    const closeBtnY = modalY + 10;
+    drawRoundedRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize, 8, '#ff3366', '#ffffff', 2);
+
+    // Draw X
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(closeBtnX + 12, closeBtnY + 12);
+    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + closeBtnSize - 12);
+    ctx.moveTo(closeBtnX + 12, closeBtnY + closeBtnSize - 12);
+    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + 12);
+    ctx.stroke();
+
+    // Draw pay table content
+    const contentX = modalX + 50;
+    const contentY = modalY + 80;
+    const symbolWidth = 60;
+    const rowHeight = 70;
+    const colWidth = 200;    // Use the loaded symbols array from the global scope instead of trying to read from THEMES
+    // The global 'symbols' array already contains the loaded images and other properties
+
+    // Draw columns headers
+    drawText('Symbol', contentX + symbolWidth / 2, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');
+    drawText('3 of a kind', contentX + colWidth, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');
+    drawText('4 of a kind', contentX + colWidth * 2, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');
+    drawText('5 of a kind', contentX + colWidth * 3, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');    // Draw divider line
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(contentX, contentY + 20);
+    ctx.lineTo(contentX + colWidth * 3.5, contentY + 20);
+    ctx.stroke();
+
+    // Draw symbols and payouts - increase vertical offset from header for better spacing
+    let currentY = contentY + 60; // Increased from 40 to 60 to add more space after header
+    // First draw info about paylines
+    drawText('Active Paylines: ' + PAYLINES.length, contentX, modalY + modalHeight - 60, 'bold 18px Arial', '#ffffff', 'left', 'middle');
+    // Calculate bet per line (total bet divided by number of paylines)
+    const betPerLine = PAYLINES.length > 0 ? (betAmount / PAYLINES.length).toFixed(2) : betAmount;
+    drawText('Bet per Line: ' + betPerLine, contentX, modalY + modalHeight - 30, 'bold 18px Arial', '#ffffff', 'left', 'middle');
+
+    // Draw payline illustrations in a grid at the bottom
+    const paylineGridX = contentX + colWidth * 2;
+    const paylineGridY = modalY + modalHeight - 100;
+    drawText('Paylines:', paylineGridX, paylineGridY, 'bold 18px Arial', '#ffffff', 'left', 'middle');
+
+    // Draw each symbol and its payouts
+    if (symbols.length > 0) {
+        for (let i = 0; i < symbols.length; i++) {
+            const symbol = symbols[i];
+            if (i >= 8) break; // Maximum 8 symbols to display
+
+            // Draw symbol
+            if (symbol.image) {
+                ctx.drawImage(symbol.image, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+            } else {
+                // Placeholder if image not loaded
+                ctx.fillStyle = '#888888';
+                ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+            }
+            // Draw payouts (3, 4, 5 of a kind) - Fixed to use symbolNumberMultipliers and PAYOUT_RULES
+            // Find the symbol index in the current theme
+            const symbolIndex = i; // Symbol index matches the loop counter
+            const baseMultiplier = symbolNumberMultipliers[symbolIndex] || 0;
+
+            // Calculate final multipliers for 3, 4, and 5 matches
+            const multiplier3 = baseMultiplier * (PAYOUT_RULES[3] || 0);
+            const multiplier4 = baseMultiplier * (PAYOUT_RULES[4] || 0);
+            const multiplier5 = baseMultiplier * (PAYOUT_RULES[5] || 0);
+
+            // Display the calculated multiplier values
+            drawText(multiplier3 + 'x', contentX + colWidth, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle');
+            drawText(multiplier4 + 'x', contentX + colWidth * 2, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle');
+            drawText(multiplier5 + 'x', contentX + colWidth * 3, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle');
+
+            currentY += rowHeight;
+        }
+    }
+}
+
+// Define a simple data structure to store game history
+const gameHistory = [];
+const MAX_HISTORY_ENTRIES = 50;
+
+// Function to add a spin result to history
+function addSpinToHistory(result) {
+    // Create a history entry with timestamp, bet amount, win amount, and symbols
+    const historyEntry = {
+        timestamp: new Date().toLocaleTimeString(),
+        totalBet: betAmount,  // Use the global betAmount directly
+        winAmount: result.totalWin,
+        symbols: JSON.parse(JSON.stringify(result.reels)),
+        winningLines: result.winningLines ? result.winningLines.length : 0
+    };
+
+    // Add to the beginning of the array
+    gameHistory.unshift(historyEntry);
+
+    // Keep array at max size
+    if (gameHistory.length > MAX_HISTORY_ENTRIES) {
+        gameHistory.pop();
+    }
+}
+
+// Draw the History modal
+function drawHistoryModal() {
+    if (!showHistory) return;
+
+    // Draw semi-transparent overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw modal content container
+    const modalWidth = 800;
+    const modalHeight = 600;
+    const modalX = canvas.width / 2 - modalWidth / 2;
+    const modalY = canvas.height / 2 - modalHeight / 2;
+
+    // Draw modal background
+    drawRoundedRect(modalX, modalY, modalWidth, modalHeight, 15,
+        'rgba(40, 40, 60, 0.95)', '#ffcc00', 3);
+
+    // Draw title
+    drawText('GAME HISTORY', canvas.width / 2, modalY + 40, 'bold 28px Arial', '#ffffff', 'center', 'middle');
+
+    // Draw close button
+    const closeBtnSize = 40;
+    const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
+    const closeBtnY = modalY + 10;
+    drawRoundedRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize, 8, '#ff3366', '#ffffff', 2);
+
+    // Draw X
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(closeBtnX + 12, closeBtnY + 12);
+    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + closeBtnSize - 12);
+    ctx.moveTo(closeBtnX + 12, closeBtnY + closeBtnSize - 12);
+    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + 12);
+    ctx.stroke();
+
+    // Draw history table header
+    const contentX = modalX + 30;
+    const contentY = modalY + 80;
+    const rowHeight = 40;
+
+    ctx.font = 'bold 16px Arial';
+    ctx.fillStyle = '#ffcc00';
+    ctx.textAlign = 'left';
+    ctx.fillText('Time', contentX, contentY);
+    ctx.fillText('Bet', contentX + 150, contentY);
+    ctx.fillText('Win', contentX + 250, contentY);
+    ctx.fillText('Paylines Hit', contentX + 350, contentY);
+    ctx.fillText('Return %', contentX + 500, contentY);
+
+    // Draw divider line
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(contentX, contentY + 10);
+    ctx.lineTo(contentX + 700, contentY + 10);
+    ctx.stroke();    // Draw history entries
+    let currentY = contentY + 40;
+
+    if (gameHistory.length === 0) {
+        drawText('No game history available', contentX + modalWidth / 2 - 100, currentY + 50, '20px Arial', '#ffffff', 'left', 'middle');
+    } else {
+        const entriesPerPage = 10;
+        const startIndex = historyCurrentPage * entriesPerPage;
+        const endIndex = Math.min(startIndex + entriesPerPage, gameHistory.length);
+        const totalPages = Math.ceil(gameHistory.length / entriesPerPage);
+
+        for (let i = startIndex; i < endIndex; i++) {
+            const entry = gameHistory[i];
+            const winPercentage = entry.totalBet > 0 ? Math.round((entry.winAmount / entry.totalBet) * 100) : 0;
+            const color = entry.winAmount > 0 ? '#4caf50' : '#ffffff';
+
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'left';            // Convert stored timestamp to readable date - fixing the invalid date issue
+            const date = new Date(parseInt(entry.time));
+            ctx.fillText(entry.timestamp || date.toLocaleTimeString(), contentX, currentY);
+            ctx.fillText(entry.totalBet, contentX + 150, currentY);
+
+            // Use green text for wins
+            ctx.fillStyle = color;
+            ctx.fillText(entry.winAmount, contentX + 250, currentY);
+            ctx.fillText(entry.count || 0, contentX + 350, currentY);
+            ctx.fillText(winPercentage + '%', contentX + 500, currentY);
+
+            currentY += rowHeight;
+        }
+
+        // Draw pagination controls
+        currentY = modalY + modalHeight - 100;
+
+        // Page indicator
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Page ${historyCurrentPage + 1} of ${totalPages}`, contentX + 350, currentY);
+
+        // Previous page button
+        const prevBtnX = contentX + 250;
+        const nextBtnX = contentX + 450;
+        const pageBtnY = currentY - 5;
+        const pageBtnWidth = 80;
+        const pageBtnHeight = 30;
+
+        // Only draw Previous button if not on first page
+        if (historyCurrentPage > 0) {
+            ctx.fillStyle = '#444444';
+            ctx.fillRect(prevBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
+            ctx.strokeStyle = '#888888';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(prevBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('< Prev', prevBtnX + pageBtnWidth / 2, pageBtnY + pageBtnHeight / 2 + 6);
+        }
+
+        // Only draw Next button if not on last page
+        if (historyCurrentPage < totalPages - 1) {
+            ctx.fillStyle = '#444444';
+            ctx.fillRect(nextBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
+            ctx.strokeStyle = '#888888';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(nextBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('Next >', nextBtnX + pageBtnWidth / 2, pageBtnY + pageBtnHeight / 2 + 6);
+        }
+    }
+
+    // Draw stats at the bottom
+    let totalBet = 0;
+    let totalWin = 0;
+    gameHistory.forEach(entry => {
+        totalBet += entry.totalBet;
+        totalWin += entry.winAmount;
+    });
+
+    const overallReturn = totalBet > 0 ? (totalWin / totalBet) * 100 : 0;
+
+    ctx.font = 'bold 18px Arial';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Session Summary: Spins: ${gameHistory.length}`, contentX, modalY + modalHeight - 60);
+    ctx.fillText(`Total Bet: ${totalBet}  Total Win: ${totalWin}  Return: ${overallReturn.toFixed(2)}%`, contentX, modalY + modalHeight - 30);
+}
 
 // Update theme change logic
 function changeTheme(newThemeName) {
@@ -2142,8 +2507,7 @@ function addToHistory(isWin, details, count, amount) {
     }
 
     historyElement.prepend(item); // Add to top
-    // ... (limit history items, store in spinHistory array) ...
-    spinHistory.unshift({ isWin, details: displayDetails, count, betAmount, winAmount: amount, time: timestamp, theme: currentThemeName });
+    // ... (limit history items, store in spinHistory array) ...    spinHistory.unshift({ isWin, details: displayDetails, count, betAmount, winAmount: amount, time: new Date().getTime(), theme: currentThemeName });
     if (spinHistory.length > 100) spinHistory.pop();
 }
 
