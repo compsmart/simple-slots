@@ -18,7 +18,6 @@ let ctx;
 let balance = DEFAULT_BALANCE;
 let betAmount = DEFAULT_BET;
 let spinning = false;
-let symbols = []; // Holds loaded symbol objects { name, path, image, multiplier, ... }
 let reels = []; // Holds reel state objects { position, symbols[], targetPosition, spinning, ... }
 let currentReelResults = []; // Stores final symbol IDs [reelIndex][rowIndex] after spin
 let winningLines = []; // Tracks which paylines resulted in wins
@@ -51,6 +50,9 @@ let increaseBetButton;
 let addCreditButton;
 let paytableElement;
 let historyElement;
+// --- Game State Variable ---
+let currentThemeName = "Classic"; // Default theme
+let symbols = []; // Holds the currently loaded symbol objects for the active theme
 
 // Symbol paths and their multipliers
 const SYMBOLS = [
@@ -60,6 +62,54 @@ const SYMBOLS = [
     { name: "Bar", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233f51b5'/%3E%3Crect x='20' y='40' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='60' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='80' width='80' height='15' fill='gold'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
     { name: "Lemon", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffeb3b'/%3E%3Cellipse cx='60' cy='60' rx='40' ry='30' fill='%23fff176'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
 ];
+
+const REEL_SETS = {
+    "Classic": [
+        // Your original set
+        { name: "Seven", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23f44336'/%3E%3Cpath d='M40 30L80 30L60 90L40 90' stroke='white' stroke-width='8' fill='none'/%3E%3C/svg%3E", multiplier: 10, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
+        { name: "Bell", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffc107'/%3E%3Ccircle cx='60' cy='50' r='30' fill='%23ffeb3b'/%3E%3Crect x='55' y='80' width='10' height='20' fill='%23795548'/%3E%3Ccircle cx='60' cy='105' r='5' fill='%23795548'/%3E%3C/svg%3E", multiplier: 5, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
+        { name: "Cherry", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%234caf50'/%3E%3Ccircle cx='40' cy='80' r='20' fill='%23e53935'/%3E%3Ccircle cx='80' cy='80' r='20' fill='%23e53935'/%3E%3Cpath d='M60 30L40 80M60 30L80 80' stroke='%23795548' stroke-width='6' fill='none'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
+        { name: "Bar", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233f51b5'/%3E%3Crect x='20' y='40' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='60' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='80' width='80' height='15' fill='gold'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
+        { name: "Lemon", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffeb3b'/%3E%3Cellipse cx='60' cy='60' rx='40' ry='30' fill='%23fff176'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
+    ],
+
+    "AncientEgypt": [
+        // Theme: Pyramids, Pharaohs, Hieroglyphs. Slightly higher top multiplier.
+        { name: "Pharaoh Mask", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23DAA520'/%3E%3Crect x='35' y='30' width='50' height='60' rx='10' ry='10' fill='%23005792'/%3E%3Crect x='45' y='35' width='30' height='40' fill='%23FDBE34'/%3E%3Crect x='40' y='85' width='40' height='10' fill='%23005792'/%3E%3Ccircle cx='50' cy='60' r='5' fill='white'/%3E%3Ccircle cx='70' cy='60' r='5' fill='white'/%3E%3C/svg%3E", multiplier: 12, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
+        { name: "Scarab Beetle", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%2300838f'/%3E%3Cellipset cx='60' cy='60' rx='35' ry='25' fill='%2300bcd4'/%3E%3Cpath d='M60 35 V 85 M40 45 L 80 75 M 80 45 L 40 75' stroke='%23263238' stroke-width='4'/%3E%3C/svg%3E", multiplier: 6, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
+        { name: "Eye of Horus", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%238d6e63'/%3E%3Cpath d='M30 60 Q 60 40 90 60 Q 60 80 30 60 Z' fill='white' stroke='black' stroke-width='3'/%3E%3Ccircle cx='60' cy='60' r='10' fill='%231e88e5'/%3E%3Cpath d='M60 70 L 50 90 M60 70 L 75 85 Q 90 95 90 80' stroke='black' stroke-width='4' fill='none'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
+        { name: "Ankh", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffab00'/%3E%3Cpath d='M60 55 V 100 M 40 75 H 80' stroke='%233e2723' stroke-width='8'/%3E%3Cellipse cx='60' cy='40' rx='15' ry='20' stroke='%233e2723' stroke-width='8' fill='none'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
+        { name: "Papyrus Scroll", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23c8e6c9'/%3E%3Crect x='30' y='30' width='60' height='60' rx='5' ry='5' fill='%23f5f5dc' stroke='%238d6e63' stroke-width='3'/%3E%3Cpath d='M35 40 h 50 M 35 50 h 40 M 35 60 h 50 M 35 70 h 30 M 35 80 h 45' stroke='%235d4037' stroke-width='2'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
+    ],
+
+    "SpaceAdventure": [
+        // Theme: Sci-Fi, Aliens, Planets. Balanced multipliers.
+        { name: "Rocket Ship", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%231a237e'/%3E%3Cpath d='M60 20 L 75 50 L 75 90 L 45 90 L 45 50 Z' fill='%23e0e0e0'/%3E%3Cpolygon points='60 10, 50 25, 70 25' fill='%23f44336'/%3E%3Cpolygon points='45 90, 35 105, 55 90' fill='%23bdbdbd'/%3E%3Cpolygon points='75 90, 85 105, 65 90' fill='%23bdbdbd'/%3E%3Cellipse cx='60' cy='60' rx='10' ry='15' fill='%2300bcd4'/%3E%3C/svg%3E", multiplier: 10, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
+        { name: "Green Alien", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23424242'/%3E%3Cellipse cx='60' cy='55' rx='30' ry='25' fill='%234caf50'/%3E%3Ccircle cx='50' cy='50' r='8' fill='black'/%3E%3Ccircle cx='70' cy='50' r='8' fill='black'/%3E%3Crect x='55' y='80' width='10' height='20' fill='%237cb342'/%3E%3Cpath d='M40 90 H 80' stroke='%237cb342' stroke-width='5'/%3E%3C/svg%3E", multiplier: 6, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
+        { name: "Ringed Planet", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%230d47a1'/%3E%3Ccircle cx='60' cy='60' r='30' fill='%23ff9800'/%3E%3Cellipse cx='60' cy='60' rx='50' ry='15' stroke='%23fff3e0' stroke-width='5' fill='none' transform='rotate(-20 60 60)'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
+        { name: "Ray Gun", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23607d8b'/%3E%3Cpath d='M30 70 L 70 70 L 90 50 L 80 40 L 50 70' fill='%23ff5722'/%3E%3Crect x='30' y='70' width='30' height='20' rx='5' fill='%23bdbdbd'/%3E%3Ccircle cx='85' cy='45' r='5' fill='yellow'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
+        { name: "Asteroid", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23263238'/%3E%3Cpath d='M40 40 L 65 30 L 80 50 L 90 70 L 70 90 L 45 85 L 30 60 Z' fill='%23795548' stroke='%234e342e' stroke-width='3'/%3E%3Ccircle cx='55' cy='55' r='5' fill='%23a1887f'/%3E%3Ccircle cx='70' cy='75' r='8' fill='%23a1887f'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
+    ],
+
+    "FantasyForest": [
+        // Theme: Magic, Creatures, Nature. Higher top multiplier for a more volatile feel.
+        { name: "Dragon Head", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23004d40'/%3E%3Cpath d='M80 30 C 100 40, 100 70, 80 90 L 40 90 C 20 70, 30 40, 40 35 Q 60 25 80 30 Z' fill='%23d32f2f'/%3E%3Cpolygon points='80 30, 85 20, 90 30' fill='%23ffc107'/%3E%3Cpolygon points='75 35, 80 25, 85 35' fill='%23ffc107'/%3E%3Cpath d='M50 70 Q 60 75 70 70' stroke='white' stroke-width='3' fill='none'/%3E%3Ccircle cx='75' cy='50' r='5' fill='yellow'/%3E%3C/svg%3E", multiplier: 15, winAnimation: { frames: 8, currentFrame: 0, frameRate: 95 } },
+        { name: "Magic Potion", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23311b92'/%3E%3Cpath d='M50 30 h 20 v 20 L 80 50 C 80 70, 75 85, 60 95 C 45 85, 40 70, 40 50 L 50 50 Z' fill='%23ede7f6' stroke='%23b39ddb' stroke-width='3'/%3E%3Cpath d='M45 55 Q 60 65 75 55 V 90 Q 60 92 45 90 Z' fill='%237e57c2' opacity='0.8'/%3E%3Ccircle cx='55' cy='70' r='3' fill='white' opacity='0.7'/><circle cx='65' cy='80' r='2' fill='white' opacity='0.7'/><circle cx='60' cy='60' r='4' fill='white' opacity='0.7'/><rect x='48' y='25' width='24' height='5' fill='%23795548'/><path d='M50 30 Q 60 20 70 30' stroke='%23795548' stroke-width='3' fill='none'/></svg%3E", multiplier: 7, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
+        { name: "Elf Bow", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%231b5e20'/%3E%3Cpath d='M40 20 Q 80 60 40 100' stroke='%23795548' stroke-width='8' fill='none'/%3E%3Cpath d='M40 20 L 40 100' stroke='%23bdbdbd' stroke-width='3'/%3E%3Cpath d='M40 60 L 60 60 L 85 55 L 80 60 L 85 65 Z' fill='%23ffeb3b' stroke='%23795548' stroke-width='2'/%3E%3C/svg%3E", multiplier: 5, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
+        { name: "Glowing Mushroom", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233e2723'/%3E%3Cpath d='M40 70 Q 60 40 80 70 Z' fill='%2300e676'/%3E%3Crect x='55' y='70' width='10' height='30' fill='%23e0e0e0'/%3E%3Ccircle cx='50' cy='60' r='5' fill='white' opacity='0.8'/><circle cx='70' cy='60' r='5' fill='white' opacity='0.8'/><circle cx='60' cy='50' r='5' fill='white' opacity='0.8'/></svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
+        { name: "Ancient Rune", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23455a64'/%3E%3Crect x='35' y='35' width='50' height='50' rx='5' ry='5' fill='%2390a4ae'/%3E%3Cpath d='M50 50 L 70 50 L 60 70 L 70 90 M 60 70 L 50 90' stroke='%23263238' stroke-width='6' fill='none'/%3E%3C/svg%3E", multiplier: 1, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
+    ],
+
+    "Gemstones": [
+        // Theme: Jewels, Wealth. Higher overall multipliers, potentially fewer low wins.
+        { name: "Diamond", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%231565c0'/%3E%3Cpolygon points='60 25, 30 55, 45 60, 75 60, 90 55' fill='%23e3f2fd'/%3E%3Cpolygon points='30 55, 60 95, 45 60' fill='%2390caf9'/%3E%3Cpolygon points='90 55, 60 95, 75 60' fill='%23bbdefb'/%3E%3Cpolygon points='45 60, 60 95, 75 60' fill='%2364b5f6'/%3E%3Cpath d='M30 55 L 45 60 L 75 60 L 90 55 M 45 60 L 60 95 L 75 60' stroke='%230d47a1' stroke-width='2' fill='none'/%3E%3C/svg%3E", multiplier: 12, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
+        { name: "Ruby", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23c62828'/%3E%3Crect x='35' y='35' width='50' height='50' rx='10' ry='10' fill='%23ef9a9a' stroke='%23b71c1c' stroke-width='3'/%3E%3Cpath d='M35 60 L 85 60 M 60 35 L 60 85' stroke='%23ffcdd2' stroke-width='5' opacity='0.7'/%3E%3C/svg%3E", multiplier: 8, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
+        { name: "Emerald", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%232e7d32'/%3E%3Crect x='40' y='30' width='40' height='60' fill='%23a5d6a7' stroke='%231b5e20' stroke-width='3'/%3E%3Cpath d='M40 40 L 80 40 M 40 50 L 80 50 M 40 60 L 80 60 M 40 70 L 80 70 M 40 80 L 80 80' stroke='%23e8f5e9' stroke-width='3' opacity='0.6'/%3E%3C/svg%3E", multiplier: 6, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
+        { name: "Sapphire", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%230277bd'/%3E%3Cellipse cx='60' cy='60' rx='35' ry='25' fill='%2390caf9' stroke='%2301579b' stroke-width='3'/%3E%3Cellipse cx='60' cy='60' rx='20' ry='12' fill='%23e3f2fd' opacity='0.8'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
+        { name: "Amethyst", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%236a1b9a'/%3E%3Cpolygon points='60 30, 80 50, 70 80, 50 80, 40 50' fill='%23e1bee7' stroke='%234a148c' stroke-width='3'/%3E%3Cpolygon points='60 30, 70 80, 50 80' fill='%23ce93d8'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
+    ]
+};
+
 
 // --- Initialize game when all content is loaded ---
 window.addEventListener('load', initGame);
@@ -89,6 +139,18 @@ function initGame() {
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mouseup', handleMouseUp); // Needed to reset pressed state
+
+    // Add UI for theme switching (e.g., buttons or a dropdown)
+    setupThemeSwitcher();
+
+    // Load initial theme's symbols
+    loadThemeSymbols(currentThemeName).then(() => {
+        initReels(); // Initialize reels using the loaded symbols
+        updateBalanceDisplay();
+        updateBetDisplay();
+        populatePaytable(); // Populate paytable based on current theme
+        requestAnimationFrame(drawGame);
+    });
 
     // Load symbols
     loadSymbols().then(() => {
@@ -1080,28 +1142,66 @@ function updateBetDisplay() {
     betAmountElement.textContent = betAmount;
 }
 
+// NEW function to load symbols for a specific theme
+async function loadThemeSymbols(themeName) {
+    const themeSymbolsData = REEL_SETS[themeName];
+    if (!themeSymbolsData) {
+        console.error(`Theme "${themeName}" not found! Falling back to Classic.`);
+        themeName = "Classic";
+        themeSymbolsData = REEL_SETS[themeName];
+    }
+    currentThemeName = themeName; // Update the current theme name state
+    symbols = []; // Clear existing symbols
 
-// --- Paytable and History ---
+    const symbolPromises = themeSymbolsData.map(symbolData => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = symbolData.path;
+            img.onload = () => {
+                symbols.push({ ...symbolData, image: img }); // Add the loaded symbol object
+                resolve();
+            };
+            img.onerror = () => {
+                console.error(`Failed to load ${symbolData.name} image for theme ${themeName}`);
+                symbols.push({ ...symbolData, image: null, color: getRandomColor() }); // Add fallback
+                resolve(); // Still resolve so game doesn't halt
+            };
+        });
+    });
 
+    await Promise.all(symbolPromises);
+
+    // Ensure symbols array is in the same order as the theme definition
+    symbols.sort((a, b) => themeSymbolsData.findIndex(s => s.name === a.name) - themeSymbolsData.findIndex(s => s.name === b.name));
+
+    if (symbols.length === 0) {
+        console.error(`CRITICAL: No symbols loaded for theme ${themeName}!`);
+    }
+    console.log(`Loaded symbols for theme: ${themeName}`);
+}
+
+// Modify populatePaytable - Needs to use the current theme's symbols
 function populatePaytable() {
     paytableElement.innerHTML = ''; // Clear existing
+    const currentSymbols = symbols; // Use the currently loaded symbols
 
     // Header
     const header = document.createElement('div');
     header.className = 'paytable-header';
+    // Basic Paytable - Assumes 3x, 4x, 5x logic from checkWin
+    // You might want to make multipliers explicit per count in REEL_SETS later
     header.innerHTML = `
         <span>Symbol</span>
-        <span>3x</span>
-        <span>4x</span>
-        <span>5x</span>`;
+        <span>3x -> ${betAmount}</span> <!-- Show payout for current bet -->
+        <span>4x -> ${betAmount}</span>
+        <span>5x -> ${betAmount}</span>`;
     paytableElement.appendChild(header);
 
-    // Rows for each symbol
-    symbols.forEach(symbol => {
+    // Rows for each symbol in the current theme
+    currentSymbols.forEach(symbol => {
         const row = document.createElement('div');
         row.className = 'paytable-row';
 
-        // Symbol Image/Name
         const symbolCell = document.createElement('span');
         symbolCell.className = 'paytable-symbol-cell';
         if (symbol.image) {
@@ -1111,18 +1211,18 @@ function populatePaytable() {
             img.className = 'paytable-symbol-img';
             symbolCell.appendChild(img);
         } else {
-            symbolCell.textContent = symbol.name; // Fallback to name
+            symbolCell.textContent = symbol.name;
         }
 
-        // Multipliers
+        // Calculate payouts based on the current bet and multipliers
         const mult3x = document.createElement('span');
-        mult3x.textContent = `${symbol.multiplier}x`;
+        mult3x.textContent = `${symbol.multiplier * betAmount}`; // 3x payout
 
         const mult4x = document.createElement('span');
-        mult4x.textContent = `${symbol.multiplier * 3}x`;
+        mult4x.textContent = `${symbol.multiplier * 3 * betAmount}`; // 4x payout (using your 3x rule)
 
         const mult5x = document.createElement('span');
-        mult5x.textContent = `${symbol.multiplier * 10}x`;
+        mult5x.textContent = `${symbol.multiplier * 10 * betAmount}`; // 5x payout (using your 10x rule)
 
         row.appendChild(symbolCell);
         row.appendChild(mult3x);
@@ -1130,6 +1230,41 @@ function populatePaytable() {
         row.appendChild(mult5x);
         paytableElement.appendChild(row);
     });
+}
+
+// Add a function to handle theme changes
+function changeTheme(newThemeName) {
+    if (spinning || newThemeName === currentThemeName) return; // Don't change while spinning or if it's the same theme
+
+    console.log(`Changing theme to: ${newThemeName}`);
+    // Optional: Add loading indicator?
+    loadThemeSymbols(newThemeName).then(() => {
+        initReels(); // Re-initialize reels with new symbol strips
+        populatePaytable(); // Update paytable display
+        // Force redraw if needed, though requestAnimationFrame should handle it
+        // Optional: Reset spin history? Or keep it mixed?
+    });
+}
+
+// Example function to set up theme switcher buttons (add these to your HTML)
+function setupThemeSwitcher() {
+    const themeContainer = document.getElementById('themeSwitcher'); // Assuming you have a div with this ID
+    if (!themeContainer) return;
+
+    Object.keys(REEL_SETS).forEach(themeName => {
+        const button = document.createElement('button');
+        button.textContent = themeName;
+        button.className = 'theme-button'; // Add CSS for styling
+        button.onclick = () => changeTheme(themeName);
+        themeContainer.appendChild(button);
+    });
+}
+
+// Make sure to call populatePaytable() whenever the betAmount changes too,
+// so the payout values update.
+function updateBetDisplay() {
+    betAmountElement.textContent = betAmount;
+    populatePaytable(); // Update paytable when bet changes
 }
 
 function addToHistory(isWin, details, count, amount) {
