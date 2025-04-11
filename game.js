@@ -992,36 +992,46 @@ function drawWinLines(timestamp) {
             ctx.lineWidth = highlightLineWidth;
             ctx.strokeRect(x + highlightInset, y + highlightInset, reelWidth - 2 * highlightInset, SYMBOL_SIZE - 2 * highlightInset);
         });
-    });
-
-    // --- Display Win Breakdown Text ---
+    });    // --- Display Win Amount with Pulsing and Glowing Effects ---
     const totalWin = winningLines.reduce((sum, line) => sum + line.amount, 0);
-    let winTextY = startY + SYMBOL_SIZE * VISIBLE_ROWS + 40; // Initial Y position below reels
+    let winTextY = startY + SYMBOL_SIZE * VISIBLE_ROWS + 60; // Position below reels
 
     if (totalWin > 0) {
-        // Display Total Win First
-        drawText(`WIN: ${totalWin}`, canvas.width / 2, winTextY, 'bold 28px Arial', '#ffdd44', 'center', 'middle');
-        winTextY += 35; // Move down for breakdown
+        // Create pulsing animation based on timestamp
+        const pulse = Math.sin(timestamp / 200) * 0.15 + 1; // Scale between 0.85 and 1.15
+        const fontSize = Math.floor(38 * pulse);
 
-        // Display Individual Line Wins
-        ctx.font = 'bold 16px Arial'; // Smaller font for breakdown
+        // Calculate glow intensity (alternating)
+        const glowIntensity = Math.abs(Math.sin(timestamp / 300)) * 15 + 5;
+
+        // Create color cycling effect
+        const hue = (timestamp / 50) % 360;
+        const mainColor = `hsl(${hue}, 100%, 65%)`;
+
+        ctx.save();
+        // Apply scaling effect centered on text position
+        ctx.translate(canvas.width / 2, winTextY);
+        ctx.scale(pulse, pulse);
+        ctx.translate(-canvas.width / 2, -winTextY);
+
+        // Draw text shadow/glow effects (multiple layers for stronger effect)
+        ctx.font = `bold ${fontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff'; // White color for breakdown text
 
-        winningLines.forEach(line => {
-            // Find the symbol image path for display if needed
-            const symbolImagePath = symbols[line.symbolIndex]?.path;
+        // Outer glow
+        ctx.shadowColor = mainColor;
+        ctx.shadowBlur = glowIntensity * 2;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        drawText(`WIN: ${totalWin}`, canvas.width / 2, winTextY, `bold ${fontSize}px Arial`, '#ffffff', 'center', 'middle');
 
-            drawText(
-                `${line.count}x ${line.symbolName} = ${line.amount}`,
-                canvas.width / 2,
-                winTextY
-            );
-            winTextY += 22; // Space between breakdown lines
-        });
+        // Inner bright text
+        ctx.shadowBlur = 0;
+        drawText(`WIN: ${totalWin}`, canvas.width / 2, winTextY, `bold ${fontSize}px Arial`, mainColor, 'center', 'middle');
+
+        ctx.restore();
     }
-    // --- End of Win Breakdown Text ---
+    // --- End of Win Amount Display ---
 }
 
 // --- Win Celebration ---
@@ -1251,13 +1261,33 @@ function setupThemeSwitcher() {
     const themeContainer = document.getElementById('themeSwitcher'); // Assuming you have a div with this ID
     if (!themeContainer) return;
 
+    // Clear any existing content
+    themeContainer.innerHTML = '';
+
+    // Create a dropdown (select element)
+    const dropdown = document.createElement('select');
+    dropdown.id = 'themeSelect';
+    dropdown.className = 'theme-dropdown';
+
+    // Add options for each theme
     Object.keys(REEL_SETS).forEach(themeName => {
-        const button = document.createElement('button');
-        button.textContent = themeName;
-        button.className = 'theme-button'; // Add CSS for styling
-        button.onclick = () => changeTheme(themeName);
-        themeContainer.appendChild(button);
+        const option = document.createElement('option');
+        option.value = themeName;
+        option.textContent = themeName;
+        // Set current theme as selected
+        if (themeName === currentThemeName) {
+            option.selected = true;
+        }
+        dropdown.appendChild(option);
     });
+
+    // Add change event listener
+    dropdown.addEventListener('change', (e) => {
+        changeTheme(e.target.value);
+    });
+
+    // Add dropdown to the container
+    themeContainer.appendChild(dropdown);
 }
 
 // Make sure to call populatePaytable() whenever the betAmount changes too,
