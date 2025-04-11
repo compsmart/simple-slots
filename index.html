@@ -1,15 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lucky Spins Slot Machine</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="game-container">
         <h1 class="game-title">Lucky Spins</h1>
-        
+
+        <div class="theme-switcher-container">
+
+            <div id="themeSwitcher" class="theme-switcher">
+                <!-- Buttons will be added by JavaScript -->
+            </div>
+        </div>
+
         <div class="game-area">
             <div class="canvas-container">
                 <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -23,7 +32,7 @@
                     </div>
                     <button id="addCreditBtn">Add Credit</button>
                 </div>
-                
+
                 <div class="bet-section">
                     <div class="bet-controls">
                         <button id="decreaseBet">-</button>
@@ -42,7 +51,7 @@
                     <!-- Paytable will be filled with JavaScript -->
                 </div>
             </div>
-            
+
             <div class="history">
                 <h2>Spin History</h2>
                 <div class="history-content" id="spinHistory">
@@ -52,6 +61,8 @@
         </div>
     </div>
 
-    <script src="game.js"></script>
+    <script type="module" src="game.js"></script>
+
 </body>
+
 </html>

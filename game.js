@@ -1,6 +1,14 @@
-// Game constants and variables
+// Import themes FIRST
+import { THEMES } from './themes/index.js'; // <-- Added Import
+import {
+    reelStrips,
+    symbolNumberMultipliers,
+    PAYOUT_RULES,
+    PAYLINES,             // <-- Import PAYLINES
+    MIN_WIN_LENGTH        // <-- Import MIN_WIN_LENGTH
+} from './themes/config.js';// Game constants and variables
 const REEL_COUNT = 5;
-const SYMBOL_COUNT = 5; // Number of unique symbol types
+// const SYMBOL_COUNT = 5; // No longer needed directly, derived from theme
 const SYMBOL_SIZE = 100; // Pixel size of each symbol
 const REEL_SPIN_SPEED_FACTOR = 50; // Controls max speed (higher = faster) - ADJUST AS NEEDED
 const SPIN_DURATION = 4000; // Base duration in ms
@@ -50,66 +58,15 @@ let increaseBetButton;
 let addCreditButton;
 let paytableElement;
 let historyElement;
+let themeSwitcherElement; // <-- Added for clarity
+
 // --- Game State Variable ---
 let currentThemeName = "Classic"; // Default theme
 let symbols = []; // Holds the currently loaded symbol objects for the active theme
 
-// Symbol paths and their multipliers
-const SYMBOLS = [
-    { name: "Seven", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23f44336'/%3E%3Cpath d='M40 30L80 30L60 90L40 90' stroke='white' stroke-width='8' fill='none'/%3E%3C/svg%3E", multiplier: 10, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
-    { name: "Bell", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffc107'/%3E%3Ccircle cx='60' cy='50' r='30' fill='%23ffeb3b'/%3E%3Crect x='55' y='80' width='10' height='20' fill='%23795548'/%3E%3Ccircle cx='60' cy='105' r='5' fill='%23795548'/%3E%3C/svg%3E", multiplier: 5, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
-    { name: "Cherry", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%234caf50'/%3E%3Ccircle cx='40' cy='80' r='20' fill='%23e53935'/%3E%3Ccircle cx='80' cy='80' r='20' fill='%23e53935'/%3E%3Cpath d='M60 30L40 80M60 30L80 80' stroke='%23795548' stroke-width='6' fill='none'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
-    { name: "Bar", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233f51b5'/%3E%3Crect x='20' y='40' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='60' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='80' width='80' height='15' fill='gold'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
-    { name: "Lemon", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffeb3b'/%3E%3Cellipse cx='60' cy='60' rx='40' ry='30' fill='%23fff176'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
-];
-
-const REEL_SETS = {
-    "Classic": [
-        // Your original set
-        { name: "Seven", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23f44336'/%3E%3Cpath d='M40 30L80 30L60 90L40 90' stroke='white' stroke-width='8' fill='none'/%3E%3C/svg%3E", multiplier: 10, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
-        { name: "Bell", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffc107'/%3E%3Ccircle cx='60' cy='50' r='30' fill='%23ffeb3b'/%3E%3Crect x='55' y='80' width='10' height='20' fill='%23795548'/%3E%3Ccircle cx='60' cy='105' r='5' fill='%23795548'/%3E%3C/svg%3E", multiplier: 5, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
-        { name: "Cherry", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%234caf50'/%3E%3Ccircle cx='40' cy='80' r='20' fill='%23e53935'/%3E%3Ccircle cx='80' cy='80' r='20' fill='%23e53935'/%3E%3Cpath d='M60 30L40 80M60 30L80 80' stroke='%23795548' stroke-width='6' fill='none'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
-        { name: "Bar", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233f51b5'/%3E%3Crect x='20' y='40' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='60' width='80' height='15' fill='gold'/%3E%3Crect x='20' y='80' width='80' height='15' fill='gold'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
-        { name: "Lemon", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffeb3b'/%3E%3Cellipse cx='60' cy='60' rx='40' ry='30' fill='%23fff176'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
-    ],
-
-    "AncientEgypt": [
-        // Theme: Pyramids, Pharaohs, Hieroglyphs. Slightly higher top multiplier.
-        { name: "Pharaoh Mask", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23DAA520'/%3E%3Crect x='35' y='30' width='50' height='60' rx='10' ry='10' fill='%23005792'/%3E%3Crect x='45' y='35' width='30' height='40' fill='%23FDBE34'/%3E%3Crect x='40' y='85' width='40' height='10' fill='%23005792'/%3E%3Ccircle cx='50' cy='60' r='5' fill='white'/%3E%3Ccircle cx='70' cy='60' r='5' fill='white'/%3E%3C/svg%3E", multiplier: 12, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
-        { name: "Scarab Beetle", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%2300838f'/%3E%3Cellipset cx='60' cy='60' rx='35' ry='25' fill='%2300bcd4'/%3E%3Cpath d='M60 35 V 85 M40 45 L 80 75 M 80 45 L 40 75' stroke='%23263238' stroke-width='4'/%3E%3C/svg%3E", multiplier: 6, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
-        { name: "Eye of Horus", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%238d6e63'/%3E%3Cpath d='M30 60 Q 60 40 90 60 Q 60 80 30 60 Z' fill='white' stroke='black' stroke-width='3'/%3E%3Ccircle cx='60' cy='60' r='10' fill='%231e88e5'/%3E%3Cpath d='M60 70 L 50 90 M60 70 L 75 85 Q 90 95 90 80' stroke='black' stroke-width='4' fill='none'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
-        { name: "Ankh", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffab00'/%3E%3Cpath d='M60 55 V 100 M 40 75 H 80' stroke='%233e2723' stroke-width='8'/%3E%3Cellipse cx='60' cy='40' rx='15' ry='20' stroke='%233e2723' stroke-width='8' fill='none'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
-        { name: "Papyrus Scroll", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23c8e6c9'/%3E%3Crect x='30' y='30' width='60' height='60' rx='5' ry='5' fill='%23f5f5dc' stroke='%238d6e63' stroke-width='3'/%3E%3Cpath d='M35 40 h 50 M 35 50 h 40 M 35 60 h 50 M 35 70 h 30 M 35 80 h 45' stroke='%235d4037' stroke-width='2'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
-    ],
-
-    "SpaceAdventure": [
-        // Theme: Sci-Fi, Aliens, Planets. Balanced multipliers.
-        { name: "Rocket Ship", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%231a237e'/%3E%3Cpath d='M60 20 L 75 50 L 75 90 L 45 90 L 45 50 Z' fill='%23e0e0e0'/%3E%3Cpolygon points='60 10, 50 25, 70 25' fill='%23f44336'/%3E%3Cpolygon points='45 90, 35 105, 55 90' fill='%23bdbdbd'/%3E%3Cpolygon points='75 90, 85 105, 65 90' fill='%23bdbdbd'/%3E%3Cellipse cx='60' cy='60' rx='10' ry='15' fill='%2300bcd4'/%3E%3C/svg%3E", multiplier: 10, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
-        { name: "Green Alien", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23424242'/%3E%3Cellipse cx='60' cy='55' rx='30' ry='25' fill='%234caf50'/%3E%3Ccircle cx='50' cy='50' r='8' fill='black'/%3E%3Ccircle cx='70' cy='50' r='8' fill='black'/%3E%3Crect x='55' y='80' width='10' height='20' fill='%237cb342'/%3E%3Cpath d='M40 90 H 80' stroke='%237cb342' stroke-width='5'/%3E%3C/svg%3E", multiplier: 6, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
-        { name: "Ringed Planet", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%230d47a1'/%3E%3Ccircle cx='60' cy='60' r='30' fill='%23ff9800'/%3E%3Cellipse cx='60' cy='60' rx='50' ry='15' stroke='%23fff3e0' stroke-width='5' fill='none' transform='rotate(-20 60 60)'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
-        { name: "Ray Gun", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23607d8b'/%3E%3Cpath d='M30 70 L 70 70 L 90 50 L 80 40 L 50 70' fill='%23ff5722'/%3E%3Crect x='30' y='70' width='30' height='20' rx='5' fill='%23bdbdbd'/%3E%3Ccircle cx='85' cy='45' r='5' fill='yellow'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
-        { name: "Asteroid", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23263238'/%3E%3Cpath d='M40 40 L 65 30 L 80 50 L 90 70 L 70 90 L 45 85 L 30 60 Z' fill='%23795548' stroke='%234e342e' stroke-width='3'/%3E%3Ccircle cx='55' cy='55' r='5' fill='%23a1887f'/%3E%3Ccircle cx='70' cy='75' r='8' fill='%23a1887f'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
-    ],
-
-    "FantasyForest": [
-        // Theme: Magic, Creatures, Nature. Higher top multiplier for a more volatile feel.
-        { name: "Dragon Head", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23004d40'/%3E%3Cpath d='M80 30 C 100 40, 100 70, 80 90 L 40 90 C 20 70, 30 40, 40 35 Q 60 25 80 30 Z' fill='%23d32f2f'/%3E%3Cpolygon points='80 30, 85 20, 90 30' fill='%23ffc107'/%3E%3Cpolygon points='75 35, 80 25, 85 35' fill='%23ffc107'/%3E%3Cpath d='M50 70 Q 60 75 70 70' stroke='white' stroke-width='3' fill='none'/%3E%3Ccircle cx='75' cy='50' r='5' fill='yellow'/%3E%3C/svg%3E", multiplier: 15, winAnimation: { frames: 8, currentFrame: 0, frameRate: 95 } },
-        { name: "Magic Potion", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23311b92'/%3E%3Cpath d='M50 30 h 20 v 20 L 80 50 C 80 70, 75 85, 60 95 C 45 85, 40 70, 40 50 L 50 50 Z' fill='%23ede7f6' stroke='%23b39ddb' stroke-width='3'/%3E%3Cpath d='M45 55 Q 60 65 75 55 V 90 Q 60 92 45 90 Z' fill='%237e57c2' opacity='0.8'/%3E%3Ccircle cx='55' cy='70' r='3' fill='white' opacity='0.7'/><circle cx='65' cy='80' r='2' fill='white' opacity='0.7'/><circle cx='60' cy='60' r='4' fill='white' opacity='0.7'/><rect x='48' y='25' width='24' height='5' fill='%23795548'/><path d='M50 30 Q 60 20 70 30' stroke='%23795548' stroke-width='3' fill='none'/></svg%3E", multiplier: 7, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
-        { name: "Elf Bow", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%231b5e20'/%3E%3Cpath d='M40 20 Q 80 60 40 100' stroke='%23795548' stroke-width='8' fill='none'/%3E%3Cpath d='M40 20 L 40 100' stroke='%23bdbdbd' stroke-width='3'/%3E%3Cpath d='M40 60 L 60 60 L 85 55 L 80 60 L 85 65 Z' fill='%23ffeb3b' stroke='%23795548' stroke-width='2'/%3E%3C/svg%3E", multiplier: 5, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
-        { name: "Glowing Mushroom", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%233e2723'/%3E%3Cpath d='M40 70 Q 60 40 80 70 Z' fill='%2300e676'/%3E%3Crect x='55' y='70' width='10' height='30' fill='%23e0e0e0'/%3E%3Ccircle cx='50' cy='60' r='5' fill='white' opacity='0.8'/><circle cx='70' cy='60' r='5' fill='white' opacity='0.8'/><circle cx='60' cy='50' r='5' fill='white' opacity='0.8'/></svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
-        { name: "Ancient Rune", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23455a64'/%3E%3Crect x='35' y='35' width='50' height='50' rx='5' ry='5' fill='%2390a4ae'/%3E%3Cpath d='M50 50 L 70 50 L 60 70 L 70 90 M 60 70 L 50 90' stroke='%23263238' stroke-width='6' fill='none'/%3E%3C/svg%3E", multiplier: 1, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
-    ],
-
-    "Gemstones": [
-        // Theme: Jewels, Wealth. Higher overall multipliers, potentially fewer low wins.
-        { name: "Diamond", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%231565c0'/%3E%3Cpolygon points='60 25, 30 55, 45 60, 75 60, 90 55' fill='%23e3f2fd'/%3E%3Cpolygon points='30 55, 60 95, 45 60' fill='%2390caf9'/%3E%3Cpolygon points='90 55, 60 95, 75 60' fill='%23bbdefb'/%3E%3Cpolygon points='45 60, 60 95, 75 60' fill='%2364b5f6'/%3E%3Cpath d='M30 55 L 45 60 L 75 60 L 90 55 M 45 60 L 60 95 L 75 60' stroke='%230d47a1' stroke-width='2' fill='none'/%3E%3C/svg%3E", multiplier: 12, winAnimation: { frames: 8, currentFrame: 0, frameRate: 100 } },
-        { name: "Ruby", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23c62828'/%3E%3Crect x='35' y='35' width='50' height='50' rx='10' ry='10' fill='%23ef9a9a' stroke='%23b71c1c' stroke-width='3'/%3E%3Cpath d='M35 60 L 85 60 M 60 35 L 60 85' stroke='%23ffcdd2' stroke-width='5' opacity='0.7'/%3E%3C/svg%3E", multiplier: 8, winAnimation: { frames: 8, currentFrame: 0, frameRate: 110 } },
-        { name: "Emerald", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%232e7d32'/%3E%3Crect x='40' y='30' width='40' height='60' fill='%23a5d6a7' stroke='%231b5e20' stroke-width='3'/%3E%3Cpath d='M40 40 L 80 40 M 40 50 L 80 50 M 40 60 L 80 60 M 40 70 L 80 70 M 40 80 L 80 80' stroke='%23e8f5e9' stroke-width='3' opacity='0.6'/%3E%3C/svg%3E", multiplier: 6, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
-        { name: "Sapphire", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%230277bd'/%3E%3Cellipse cx='60' cy='60' rx='35' ry='25' fill='%2390caf9' stroke='%2301579b' stroke-width='3'/%3E%3Cellipse cx='60' cy='60' rx='20' ry='12' fill='%23e3f2fd' opacity='0.8'/%3E%3C/svg%3E", multiplier: 4, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
-        { name: "Amethyst", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%236a1b9a'/%3E%3Cpolygon points='60 30, 80 50, 70 80, 50 80, 40 50' fill='%23e1bee7' stroke='%234a148c' stroke-width='3'/%3E%3Cpolygon points='60 30, 70 80, 50 80' fill='%23ce93d8'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
-    ]
-};
-
+// --- REMOVED OLD SYMBOLS and REEL_SETS ---
+// const SYMBOLS = [ ... ]; // REMOVED
+// const REEL_SETS = { ... }; // REMOVED
 
 // --- Initialize game when all content is loaded ---
 window.addEventListener('load', initGame);
@@ -120,50 +77,159 @@ function initGame() {
     ctx = canvas.getContext('2d');
     balanceElement = document.getElementById('balance');
     betAmountElement = document.getElementById('betAmount');
-    spinButton = document.getElementById('spinButton');
-    decreaseBetButton = document.getElementById('decreaseBet');
-    increaseBetButton = document.getElementById('increaseBet');
+    spinButton = document.getElementById('spinButton'); // Keep reference for potential DOM button
+    decreaseBetButton = document.getElementById('decreaseBet'); // Keep reference
+    increaseBetButton = document.getElementById('increaseBet'); // Keep reference
     addCreditButton = document.getElementById('addCreditBtn');
     paytableElement = document.getElementById('paytableContent');
     historyElement = document.getElementById('spinHistory');
+    themeSwitcherElement = document.getElementById('themeSwitcher');
 
     // Load sound effects
     loadSounds();
 
     // Set up event listeners
-    spinButton.addEventListener('click', spinReels); // Connect HTML button
-    decreaseBetButton.addEventListener('click', decreaseBet);
-    increaseBetButton.addEventListener('click', increaseBet);
+    if (spinButton) spinButton.addEventListener('click', () => { if (!spinning) spinReels(); });
+    if (decreaseBetButton) decreaseBetButton.addEventListener('click', decreaseBet);
+    if (increaseBetButton) increaseBetButton.addEventListener('click', increaseBet);
     addCreditButton.addEventListener('click', addCredit);
-    // Add listeners to canvas for interactive UI (spin, bet +/-)
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mouseup', handleMouseUp); // Needed to reset pressed state
+    canvas.addEventListener('mouseup', handleMouseUp);
 
-    // Add UI for theme switching (e.g., buttons or a dropdown)
+    // Set up the theme switcher UI
     setupThemeSwitcher();
 
-    // Load initial theme's symbols
-    loadThemeSymbols(currentThemeName).then(() => {
-        initReels(); // Initialize reels using the loaded symbols
+    // --- Corrected Initialization Flow ---
+    // 1. Validate shared config first
+    if (!validateConfiguration()) {
+        console.error("CRITICAL: Initial configuration validation failed. Game cannot start.");
+        if (ctx) { // Display error on canvas if possible
+            ctx.fillStyle = 'red'; ctx.font = '24px Arial'; ctx.textAlign = 'center';
+            ctx.fillText("Configuration Error!", canvas.width / 2, canvas.height / 2);
+        }
+        return; // Stop initialization
+    }
+
+    // 2. Load initial theme's VISUALS
+    loadThemeVisuals(currentThemeName).then(() => {
+        // 3. Initialize reels using the validated GLOBAL config
+        initReels();
+        // 4. Update displays
         updateBalanceDisplay();
-        updateBetDisplay();
-        populatePaytable(); // Populate paytable based on current theme
+        updateBetDisplay(); // Also calls populatePaytable
+        // 5. Start the game loop
         requestAnimationFrame(drawGame);
+    }).catch(error => {
+        console.error("Failed to initialize game after loading theme visuals:", error);
+        // Handle initialization error (e.g., display error on canvas)
+        if (ctx) {
+            ctx.fillStyle = 'red'; ctx.font = '20px Arial'; ctx.textAlign = 'center';
+            ctx.fillText("Theme Loading Error!", canvas.width / 2, canvas.height / 2);
+        }
+    });
+    // --- End Corrected Flow ---
+}
+
+function validateConfiguration() {
+    let isValid = true;
+    if (!reelStrips || reelStrips.length !== REEL_COUNT) {
+        console.error("Config Error: reelStrips is missing or doesn't have 5 reels.");
+        isValid = false;
+    } else {
+        reelStrips.forEach((strip, i) => {
+            if (!strip || strip.length === 0) {
+                console.error(`Config Error: Reel strip ${i} is empty.`);
+                isValid = false;
+            } else {
+                // Check if all indices are valid numbers (0-4 in this case)
+                const validIndices = Object.keys(symbolNumberMultipliers).map(Number); // Get valid symbol numbers [0, 1, 2, 3, 4]
+                if (strip.some(index => !validIndices.includes(index))) {
+                    console.error(`Config Error: Reel strip ${i} contains invalid symbol numbers. Valid numbers are: ${validIndices.join(', ')}`, strip);
+                    isValid = false;
+                }
+            }
+        });
+    }
+    if (!symbolNumberMultipliers || Object.keys(symbolNumberMultipliers).length !== 5) { // Assuming 5 unique symbols 0-4
+        console.error("Config Error: symbolNumberMultipliers is missing or doesn't define multipliers for numbers 0-4.");
+        isValid = false;
+    }
+    if (!PAYOUT_RULES || !PAYOUT_RULES[3] || !PAYOUT_RULES[4] || !PAYOUT_RULES[5]) {
+        console.error("Config Error: PAYOUT_RULES are missing or incomplete (need entries for 3, 4, 5).");
+        isValid = false;
+    }
+
+    return isValid;
+}
+
+async function loadThemeVisuals(themeName) {
+    console.log(`Attempting to load visuals for theme: ${themeName}`);
+    const themeVisuals = THEMES[themeName];
+
+    if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) { // Check for exactly 5 symbols
+        console.error(`Theme visuals for "${themeName}" not found, invalid, or doesn't have exactly 5 symbols. Falling back to Classic.`);
+        themeName = "Classic"; // Default fallback theme name
+        themeVisuals = THEMES[themeName];
+        if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) {
+            console.error("CRITICAL: Fallback theme 'Classic' visuals also invalid or missing 5 symbols!");
+            return Promise.reject(new Error("Failed to load any valid theme visuals."));
+        }
+    }
+
+    currentThemeName = themeName;
+    document.body.className = `theme-${themeName.toLowerCase().replace(/\s+/g, '-')}`;
+    console.log(`Loading symbol visuals for theme: ${currentThemeName}`);
+    symbols = []; // Clear existing symbols
+
+    const themeSymbolsData = themeVisuals.symbols; // Get the 5 symbols
+
+    const symbolPromises = themeSymbolsData.map((symbolData, index) => {
+        // Basic validation of visual data
+        if (!symbolData || !symbolData.path || !symbolData.name) {
+            console.warn(`Invalid symbol visual data at index ${index} for theme ${themeName}`, symbolData);
+            // Create a placeholder visual if needed
+            symbols[index] = { name: `Symbol ${index}`, path: null, image: null, color: getRandomColor(), id: index };
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.src = symbolData.path;
+            const loadedSymbol = {
+                ...symbolData, // name, path, winAnimation
+                image: null,
+                id: index // Store the index (0-4)
+            };
+            img.onload = () => {
+                loadedSymbol.image = img;
+                symbols[index] = loadedSymbol; // Place in correct index
+                resolve();
+            };
+            img.onerror = (err) => {
+                console.error(`Failed to load image for ${symbolData.name} (${symbolData.path}):`, err);
+                loadedSymbol.color = getRandomColor();
+                symbols[index] = loadedSymbol; // Place placeholder in correct index
+                resolve();
+            };
+        });
     });
 
-    // Load symbols
-    loadSymbols().then(() => {
-        initReels();
-        updateBalanceDisplay();
-        updateBetDisplay();
-        populatePaytable();
-        // Start the game loop
-        requestAnimationFrame(drawGame);
-    });
+    await Promise.all(symbolPromises);
+
+    // Ensure symbols array has 5 elements, even if some failed loading
+    for (let i = 0; i < 5; i++) {
+        if (!symbols[i]) {
+            console.warn(`Symbol visual for index ${i} was missing after loading theme ${themeName}. Creating placeholder.`);
+            symbols[i] = { name: `Symbol ${i}`, path: null, image: null, color: getRandomColor(), id: i };
+        }
+    }
+
+    console.log(`Finished loading visuals for theme: ${themeName}. ${symbols.length} visual maps ready.`);
 }
 
 // --- Sound Loading and Playing (Using Web Audio API) ---
+// ... (loadSounds, loadAudioBuffer, playSound functions remain the same) ...
 function loadSounds() {
     try {
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -181,21 +247,23 @@ function loadSounds() {
             document.removeEventListener('click', unlockAudio);
             document.removeEventListener('touchstart', unlockAudio);
             document.removeEventListener('keydown', unlockAudio);
+            console.log("Audio context resumed by user interaction.");
         };
-        document.addEventListener('click', unlockAudio);
-        document.addEventListener('touchstart', unlockAudio);
-        document.addEventListener('keydown', unlockAudio);
+        document.addEventListener('click', unlockAudio, { once: true });
+        document.addEventListener('touchstart', unlockAudio, { once: true });
+        document.addEventListener('keydown', unlockAudio, { once: true });
 
     } catch (e) {
-        console.warn('Web Audio API not supported. Sound effects disabled.');
+        console.warn('Web Audio API not supported. Sound effects disabled.', e);
         soundEnabled = false;
     }
 }
 
 function loadAudioBuffer(id, url) {
-    fetch(url)
+    if (!audioContext) return Promise.reject("AudioContext not available");
+    return fetch(url)
         .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status} for ${url}`);
             return response.arrayBuffer();
         })
         .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
@@ -203,50 +271,43 @@ function loadAudioBuffer(id, url) {
             audioBuffers[id] = audioBuffer;
             console.log(`Loaded audio: ${id}`);
         })
-        .catch(error => console.error(`Error loading audio ${id}:`, error));
+        .catch(error => console.error(`Error loading audio ${id} from ${url}:`, error));
 }
 
 function playSound(id) {
-    if (!soundEnabled || !hasUserInteraction || !audioBuffers[id] || !audioContext) return;
+    if (!soundEnabled || !hasUserInteraction || !audioBuffers[id] || !audioContext) {
+        // console.log(`Sound ${id} blocked: enabled=${soundEnabled}, interaction=${hasUserInteraction}, buffer=${!!audioBuffers[id]}, context=${!!audioContext}`);
+        return;
+    }
     try {
         // Ensure context is running
         if (audioContext.state === 'suspended') {
-            audioContext.resume();
+            audioContext.resume().then(() => {
+                console.log("Audio context resumed for sound playback.");
+                playSoundInternal(id);
+            }).catch(err => console.error("Error resuming audio context:", err));
+        } else {
+            playSoundInternal(id);
         }
+    } catch (error) {
+        console.error(`Error initiating sound playback for ${id}:`, error);
+    }
+}
+
+function playSoundInternal(id) {
+    try {
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffers[id];
         source.connect(audioContext.destination);
         source.start(0);
     } catch (error) {
-        console.error(`Error playing sound ${id}:`, error);
+        console.error(`Error playing sound ${id} (internal):`, error);
     }
 }
 
-// --- Symbol Loading ---
-async function loadSymbols() {
-    const symbolPromises = SYMBOLS.map(symbolData => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.src = symbolData.path;
-            img.onload = () => {
-                symbols.push({ ...symbolData, image: img });
-                resolve();
-            };
-            img.onerror = () => {
-                console.error(`Failed to load ${symbolData.name} image`);
-                // Add placeholder info if image fails
-                symbols.push({ ...symbolData, image: null, color: getRandomColor() });
-                resolve();
-            };
-        });
-    });
-    await Promise.all(symbolPromises);
-    // Ensure symbols array is in the same order as SYMBOLS definition
-    symbols.sort((a, b) => SYMBOLS.findIndex(s => s.name === a.name) - SYMBOLS.findIndex(s => s.name === b.name));
-    if (symbols.length === 0) {
-        console.error("CRITICAL: No symbols loaded!");
-    }
-}
+
+// --- Symbol Loading (REMOVED loadSymbols) ---
+// async function loadSymbols() { ... } // REMOVED
 
 function getRandomColor() {
     const letters = '0123456789ABCDEF';
@@ -258,41 +319,33 @@ function getRandomColor() {
 }
 
 // --- Reel Initialization ---
+// ... (initReels, generateReelSymbols functions remain largely the same, but use the global 'symbols' array) ...
 function initReels() {
     reels = [];
+    // Config is validated at startup, assume reelStrips is valid here
+    // const configuredStrips = reelStrips; // Use imported global config
+
     for (let i = 0; i < REEL_COUNT; i++) {
+        // Config validation moved to initGame
         reels.push({
-            position: 0, // Current visual position (fractional symbol index)
-            symbols: generateReelSymbols(), // Array of symbol IDs on the strip
-            targetPosition: 0, // Target symbol index for the middle row
+            position: Math.floor(Math.random() * reelStrips[i].length), // Start random
+            symbols: [...reelStrips[i]], // <-- LOAD the GLOBAL configured strip
+            targetPosition: 0,
             spinning: false,
-            // Animation state variables (will be set during spin)
             startTime: 0,
             duration: 0,
             startPosition: 0,
             distance: 0,
         });
     }
-    // Initialize results structure
     currentReelResults = Array(REEL_COUNT).fill(null).map(() => Array(VISIBLE_ROWS).fill(0));
+    console.log("Reels initialized with GLOBAL configured strips.");
 }
 
-function generateReelSymbols() {
-    const reelSymbols = [];
-    for (let i = 0; i < SYMBOLS_ON_STRIP; i++) {
-        // Ensure symbols array has content before accessing length
-        if (symbols.length > 0) {
-            const randomIndex = Math.floor(Math.random() * symbols.length);
-            reelSymbols.push(randomIndex);
-        } else {
-            reelSymbols.push(0); // Default to first symbol if loading failed
-            console.warn("Using default symbol index because symbols array is empty.");
-        }
-    }
-    return reelSymbols;
-}
+
 
 // --- Main Game Loop ---
+// ... (drawGame function remains the same) ...
 function drawGame(timestamp) {
     if (!ctx) return; // Ensure context is available
 
@@ -300,6 +353,11 @@ function drawGame(timestamp) {
     if (!lastTime) lastTime = timestamp;
     const deltaTime = (timestamp - lastTime) / 1000.0; // Delta time in seconds
     lastTime = timestamp;
+
+    // Throttle updates if delta time is too large (e.g., tabbed out)
+    // const maxDeltaTime = 0.1; // 100ms max step
+    // const clampedDeltaTime = Math.min(deltaTime, maxDeltaTime);
+    // Use clampedDeltaTime for physics/animation updates if needed
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -320,7 +378,7 @@ function drawGame(timestamp) {
 }
 
 // --- Drawing Functions ---
-
+// ... (drawBackground, drawReels, drawReelMask functions remain the same) ...
 function drawBackground(timestamp) {
     // Simple gradient background
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -342,6 +400,7 @@ function drawReels(deltaTime) {
 
     for (let i = 0; i < REEL_COUNT; i++) {
         const reel = reels[i];
+        if (!reel) continue; // Safety check
         const reelX = startX + i * (reelWidth + reelSpacing);
 
         // --- Animate Reel Position if Spinning ---
@@ -357,6 +416,11 @@ function drawReels(deltaTime) {
         ctx.clip(); // Clip anything drawn outside this rectangle
 
         const numSymbolsOnStrip = reel.symbols.length;
+        if (numSymbolsOnStrip === 0) { // Prevent division by zero if symbols failed
+            ctx.restore();
+            continue;
+        }
+
         const currentPosition = reel.position; // Fractional index
 
         // Calculate the index of the symbol currently nearest the top edge of the viewport
@@ -369,42 +433,45 @@ function drawReels(deltaTime) {
         for (let j = -1; j <= VISIBLE_ROWS; j++) {
             const symbolStripIndex = (topVisibleSymbolIndex + j + numSymbolsOnStrip) % numSymbolsOnStrip;
             const symbolId = reel.symbols[symbolStripIndex];
-            const symbol = symbols[symbolId]; // Get the symbol object
+            const symbol = symbols[symbolId]; // Get the symbol object from the currently loaded theme
 
             // Calculate the Y position for the top of this symbol
             // Start at the top of the viewport, add offset based on j, then subtract the fractional offset
             const symbolTopY = startY + (j * SYMBOL_SIZE) - verticalOffset;
 
-            // Draw the symbol if we have valid data
-            if (symbol) {
-                if (symbol.image) {
-                    ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+            // Check if the symbol is within the vertical bounds (+ buffer) before drawing
+            if (symbolTopY + SYMBOL_SIZE >= startY && symbolTopY <= startY + reelViewportHeight) {
+                // Draw the symbol if we have valid data
+                if (symbol) {
+                    if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) { // Check if image is actually loaded
+                        ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                    } else {
+                        // Fallback drawing if image failed to load or isn't ready
+                        ctx.fillStyle = symbol.color || '#cccccc';
+                        ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                        ctx.fillStyle = '#000000';
+                        ctx.font = '16px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
+                    }
                 } else {
-                    // Fallback drawing if image failed to load
-                    ctx.fillStyle = symbol.color || '#cccccc';
+                    // Draw placeholder if symbol ID is somehow invalid for the current theme
+                    ctx.fillStyle = '#555555';
                     ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                    ctx.fillStyle = '#000000';
-                    ctx.font = '16px Arial';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 20px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
+                    ctx.fillText('?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
+                    // console.warn(`Invalid symbol ID ${symbolId} encountered on reel ${i}`);
                 }
-            } else {
-                // Draw placeholder if symbol ID is somehow invalid
-                ctx.fillStyle = '#555555';
-                ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 20px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
             }
         }
         ctx.restore(); // Remove clipping region
     }
 }
 
-// Optional: Draw a frame or mask over the reels
 function drawReelMask() {
     const reelWidth = SYMBOL_SIZE;
     const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
@@ -416,7 +483,7 @@ function drawReelMask() {
     // Draw a border around the entire reel area
     ctx.strokeStyle = '#ffcc00'; // Gold border
     ctx.lineWidth = 5;
-    ctx.strokeRect(startX - 5, startY - 5, totalWidth + 10, reelViewportHeight + 10);
+    ctx.strokeRect(startX - ctx.lineWidth / 2, startY - ctx.lineWidth / 2, totalWidth + ctx.lineWidth, reelViewportHeight + ctx.lineWidth);
 
     // Draw separators between reels
     ctx.strokeStyle = '#ffcc00';
@@ -430,111 +497,82 @@ function drawReelMask() {
     }
 }
 
-// --- Spin Logic ---
-
 function spinReels() {
     if (spinning) return;
     if (balance < betAmount) {
-        alert("Insufficient balance!");
+        console.warn("Insufficient balance!");
+        // Add visual feedback if desired
         return;
     }
+    // Basic check: Ensure reels and their symbols are loaded
+    if (!reels || reels.length !== REEL_COUNT || reels.some(r => !r || !r.symbols || r.symbols.length === 0)) {
+        console.error("Cannot spin: Reels not properly initialized with valid strips.");
+        return;
+    }
+
 
     playSound('spin');
     balance -= betAmount;
     updateBalanceDisplay();
 
     spinning = true;
-    // Disable UI buttons via state, not direct DOM manipulation if drawn on canvas
-    winningLines = []; // Clear previous win lines visually
-    winAnimationActive = false; // Stop any previous win celebration
+    winningLines = [];
+    winAnimationActive = false;
     confettiParticles = [];
+    buttonEffects.spin.pressed = false;
 
-    // 1. Determine Final Symbol IDs for each position on each reel
-    const finalResultsGrid = []; // [reelIndex][rowIndex] -> symbolId
-    for (let i = 0; i < REEL_COUNT; i++) {
-        finalResultsGrid[i] = [];
-        for (let j = 0; j < VISIBLE_ROWS; j++) {
-            // Ensure symbols array is populated before trying to get its length
-            if (symbols.length > 0) {
-                finalResultsGrid[i][j] = Math.floor(Math.random() * symbols.length);
-            } else {
-                finalResultsGrid[i][j] = 0; // Default if symbols failed to load
-            }
-        }
-    }
-
-    // 2. Prepare each reel for spinning
     let maxDuration = 0;
+    let spinStartTime = Date.now();
+
+    // --- NEW CORE LOGIC ---
+    const stopIndexes = []; // Store the chosen random stop index for each reel
+
     for (let i = 0; i < REEL_COUNT; i++) {
         const reel = reels[i];
         reel.spinning = true;
 
-        // Get the final symbol ID for the MIDDLE row (index 1)
-        const finalMiddleSymbolId = finalResultsGrid[i][1];
+        // 1. Determine Random Stop Position for this reel
+        const reelLength = reel.symbols.length;
+        const stopIndex = Math.floor(Math.random() * reelLength); // Random index on the virtual strip
+        stopIndexes.push(stopIndex); // Store it - this index will align with the middle row
 
-        // Find a suitable index on the strip for this symbol ID.
-        // Start search near the current position for realism? Or fully random? Let's try random.
-        let targetStripIndex = Math.floor(Math.random() * reel.symbols.length);
-        let attempts = 0;
-        // Ensure the target index *will* hold the desired symbol ID after we place it
-        while (attempts < reel.symbols.length * 2) { // Limit attempts
-            // Check if placing symbols here would cause immediate index issues
-            const topIndex = (targetStripIndex - 1 + reel.symbols.length) % reel.symbols.length;
-            const bottomIndex = (targetStripIndex + 1) % reel.symbols.length;
-            if (topIndex !== targetStripIndex && bottomIndex !== targetStripIndex && topIndex !== bottomIndex) {
-                break; // Found a valid index
-            }
-            targetStripIndex = (targetStripIndex + 1) % reel.symbols.length; // Try next index
-            attempts++;
-        }
-        if (attempts >= reel.symbols.length * 2) {
-            console.warn(`Could not find suitable distinct indices for reel ${i}. Using ${targetStripIndex}`);
+        // 2. Set Animation Target
+        reel.targetPosition = stopIndex; // The animation will stop with this index in the middle row
+
+        // 3. Calculate Animation Parameters (Mostly same as before)
+        reel.startTime = spinStartTime + i * REEL_STAGGER_START;
+        reel.duration = SPIN_DURATION + i * REEL_STAGGER_STOP;
+        reel.startPosition = reel.position; // Current visual position
+
+        // Calculate distance needed to land targetPosition at the middle row visual top (which is index targetPosition)
+        const currentPositionMod = reel.startPosition % reelLength;
+        let difference = (reel.targetPosition - currentPositionMod + reelLength) % reelLength;
+        if (difference < 1 && reel.duration > 0) { // Ensure at least one full rotation if not already there
+            difference += reelLength;
         }
 
-        // *** CRITICAL: Place the final symbols onto the reel strip NOW ***
-        // Ensure indices wrap correctly and are distinct
-        const finalTopStripIndex = (targetStripIndex - 1 + reel.symbols.length) % reel.symbols.length;
-        const finalMiddleStripIndex = targetStripIndex; // This is our target
-        const finalBottomStripIndex = (targetStripIndex + 1) % reel.symbols.length;
+        const rotations = 3 + Math.floor(i / 2); // Add rotations for visual effect
+        reel.distance = (rotations * reelLength) + difference;
 
-        reel.symbols[finalTopStripIndex] = finalResultsGrid[i][0]; // Top result symbol
-        reel.symbols[finalMiddleStripIndex] = finalResultsGrid[i][1]; // Middle result symbol
-        reel.symbols[finalBottomStripIndex] = finalResultsGrid[i][2]; // Bottom result symbol
+        // --- REMOVE symbol overwriting ---
+        // DELETE the lines like: reel.symbols[finalMiddleStripIndex] = ...
 
-        // Calculate animation parameters
-        reel.startTime = Date.now() + i * REEL_STAGGER_START; // Stagger start time
-        reel.duration = SPIN_DURATION + i * REEL_STAGGER_STOP; // Stagger stop time
-        reel.startPosition = reel.position; // Store current position
-
-        // Calculate target position: must end with finalMiddleStripIndex centered.
-        // This means reel.position should end up being exactly finalMiddleStripIndex.
-        reel.targetPosition = (finalMiddleStripIndex - 1 + reel.symbols.length) % reel.symbols.length;
-
-        // Calculate the total distance to spin (in symbol units)
-        // Needs to cover distance + several full rotations
-        const currentPositionMod = reel.startPosition % reel.symbols.length;
-        let difference = (reel.targetPosition - currentPositionMod + reel.symbols.length) % reel.symbols.length;
-        if (difference === 0) difference = reel.symbols.length; // Ensure at least one step difference
-
-        const rotations = 3 + Math.floor(i / 2); // Add more rotations for later reels
-        reel.distance = (rotations * reel.symbols.length) + difference;
-
-        // Keep track of the longest duration for the final check
-        if (reel.startTime + reel.duration > maxDuration) {
-            maxDuration = reel.startTime + reel.duration;
+        // Track max duration
+        const reelEndTime = reel.startTime + reel.duration;
+        if (reelEndTime > maxDuration) {
+            maxDuration = reelEndTime;
         }
     }
 
-    // Store the final grid results for win checking later
-    currentReelResults = finalResultsGrid;
+    // --- REMOVE finalResultsGrid generation ---
+    // DELETE the loop that created finalResultsGrid upfront
 
-    // Set a timeout to check for win conditions AFTER the longest reel finishes
-    // Add a small buffer (e.g., 100ms)
-    setTimeout(spinCompleted, maxDuration - Date.now() + 100);
+    // Schedule completion check (same as before, but it will now *read* results)
+    const completionDelay = Math.max(0, maxDuration - Date.now() + 100);
+    setTimeout(() => spinCompleted(stopIndexes), completionDelay); // Pass stopIndexes if needed, or read from reels later
 }
 
 
-// --- Reel Animation Update ---
 function updateReelPosition(reel, currentTime) {
     const elapsed = currentTime - reel.startTime;
 
@@ -545,10 +583,10 @@ function updateReelPosition(reel, currentTime) {
         reel.position = reel.targetPosition; // Snap precisely to the target integer index
         reel.spinning = false;
         // Clean up animation vars? Optional.
-        delete reel.startPosition;
-        delete reel.startTime;
-        delete reel.duration;
-        delete reel.distance;
+        // delete reel.startPosition;
+        // delete reel.startTime;
+        // delete reel.duration;
+        // delete reel.distance;
         return;
     }
 
@@ -556,7 +594,7 @@ function updateReelPosition(reel, currentTime) {
     const progress = elapsed / reel.duration; // Overall progress (0 to 1)
 
     // Calculate eased progress for smooth deceleration
-    // Use easeOutQuart: progress^4 for the easing factor, apply to remaining distance
+    // Use easeOutQuart: (1 - (1-t)^4)
     const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
     const easedProgress = easeOutQuart(progress);
 
@@ -565,24 +603,58 @@ function updateReelPosition(reel, currentTime) {
     // The new position is start + (total distance * eased progress)
     let newPosition = reel.startPosition + reel.distance * easedProgress;
 
-    // Ensure position wraps around the symbol strip length for visual continuity
-    // We calculate the position without modulo first to ensure smooth easing over multiple rotations,
-    // but the visual representation in drawReels uses modulo.
+    // Position here represents the index at the *top* of the viewport.
+    // We don't apply modulo here; the drawing function handles wrapping visuals.
     reel.position = newPosition;
 }
 
-
-// --- Spin Completion and Win Check ---
+// Modify spinCompleted to accept stopIndexes or read from reels
 function spinCompleted() {
-    if (reels.some(r => r.spinning)) {
-        // If somehow called early and a reel is still spinning, wait a bit longer.
-        console.warn("SpinCompleted called while reels still spinning. Retrying...");
-        setTimeout(spinCompleted, 150);
-        return;
-    }
+    // Force reels to their final position if any are still marked as spinning
+    reels.forEach(reel => {
+        if (reel?.spinning) {
+            console.warn("SpinCompleted called while a reel was still marked spinning. Snapping to target.");
+            // Snap position first for visual consistency before reading results
+            reel.position = reel.targetPosition;
+            reel.spinning = false;
+        }
+        // Ensure position is precisely the target integer after potential floating point issues/early call
+        reel.position = reel.targetPosition;
+    });
 
-    spinning = false;
-    // Re-enable UI buttons if needed (handled by 'spinning' state check in drawUI)
+    spinning = false; // Set global flag
+
+    // --- READ the visible symbols CORRECTLY based on drawReels logic ---
+    currentReelResults = []; // Reset results grid
+    for (let i = 0; i < REEL_COUNT; i++) {
+        const reel = reels[i];
+        const reelLength = reel.symbols.length;
+
+        // targetPosition is the index intended to be at the TOP of the viewport when stopped
+        // (because drawReels uses floor(position) as the top visible index)
+        const finalTopIndex = Math.round(reel.targetPosition) % reelLength; // Index T
+
+        // Calculate indices for middle and bottom rows relative to the top row index
+        const finalMiddleIndex = (finalTopIndex + 1) % reelLength;        // Index T+1
+        const finalBottomIndex = (finalTopIndex + 2) % reelLength;        // Index T+2
+
+        // Get the actual symbol IDs from the configured reel strip at these visual positions
+        const topSymbolId = reel.symbols[finalTopIndex];
+        const middleSymbolId = reel.symbols[finalMiddleIndex];
+        const bottomSymbolId = reel.symbols[finalBottomIndex];
+
+        // Store results in [Top, Middle, Bottom] order
+        currentReelResults[i] = [topSymbolId, middleSymbolId, bottomSymbolId];
+    }
+    console.log("Final Visible Results (Read Correctly):", currentReelResults); // DEBUG
+
+    // --- Check for Wins (using the *actual* visual results) ---
+    checkWinAndFinalize(); // This function remains the same as it uses currentReelResults
+}
+
+function checkWinAndFinalize() {
+    spinning = false; // Set global spinning flag to false
+    // Re-enable UI elements visually if needed (state check in drawUI handles this)
 
     // Check for wins using the stored currentReelResults
     const winInfo = checkWin(); // Returns null or win details object
@@ -593,104 +665,190 @@ function spinCompleted() {
         playSound('win');
         // Add to history (use info from winInfo or winningLines)
         addToHistory(true, winInfo.bestMatch.symbolName, winInfo.bestMatch.count, winInfo.totalAmount);
-
         // Trigger win celebration if significant win
-        if (winInfo.totalAmount >= betAmount * 5) {
+        if (winInfo.totalAmount >= betAmount * 5) { // Example threshold
             triggerWinCelebration(winInfo.totalAmount);
         }
     } else {
-        // Add loss to history (get symbols from currentReelResults)
-        const middleSymbols = currentReelResults.map(reel => symbols[reel[1]].name).join(', ');
-        addToHistory(false, `Middle: ${middleSymbols}`, 0, 0);
+        // Get middle symbol NUMBERS for loss history
+        try {
+            const middleSymbolNumbers = currentReelResults.map(reelResult => reelResult[1]); // Get middle number (0-4)
+            addToHistory(false, `Middle: ${middleSymbolNumbers.join(', ')}`, 0, 0); // Pass numbers
+        } catch (e) {
+            console.error("Error getting middle symbol numbers for history:", e, currentReelResults);
+            addToHistory(false, "Spin finished", 0, 0);
+        }
     }
+
+    // Ensure button states are reset visually if needed
+    buttonEffects.spin.pressed = false;
+    // Hover states will be updated by mousemove
 }
 
-// Check for wins (using simplified 'scatter from left' logic as before)
+
+// --- Win Checking (Uses Config Multipliers) ---
 function checkWin() {
-    if (currentReelResults.length !== REEL_COUNT || currentReelResults[0] === null) {
-        console.error("Win check called with invalid results:", currentReelResults);
-        return null; // Not ready or error
+    // Basic validation
+    if (!currentReelResults || currentReelResults.length !== REEL_COUNT || !currentReelResults[0]) {
+        console.error("Win check called with invalid results grid.");
+        return null;
+    }
+    if (symbols.length !== 5) {
+        console.error("Win check called but theme visuals (symbols array) not correctly loaded.");
+        return null;
+    }
+    if (!PAYLINES || PAYLINES.length === 0) {
+        console.error("Win check called but no PAYLINES are defined in config.");
+        return null;
     }
 
-    winningLines = []; // Clear previous lines
+    // --- DEBUG LOG: Starting checkWin with current results ---
+    try {
+        console.log("[DEBUG] checkWin - Starting. Results Grid:", JSON.parse(JSON.stringify(currentReelResults)));
+    } catch (e) {
+        console.error("[DEBUG] checkWin - Error stringifying currentReelResults:", e);
+        console.log("[DEBUG] checkWin - Raw currentReelResults:", currentReelResults);
+    }
+
+
+    winningLines = []; // Reset winning lines array for this spin
     let totalWinAmount = 0;
-    let bestMatchDetails = null; // Track the single highest-value line for basic reporting
+    let bestMatchDetails = null; // Track the single highest multiplier win
 
-    // Check each symbol type
-    for (let symbolIndex = 0; symbolIndex < symbols.length; symbolIndex++) {
-        const symbol = symbols[symbolIndex];
-        let consecutiveReels = 0;
-        let positions = []; // Store {reelIndex, rowIndex} for this symbol line
+    // --- Iterate through each defined PAYLINE ---
+    PAYLINES.forEach((payline, paylineIndex) => {
+        // --- DEBUG LOG: Checking specific payline ---
+        console.log(`[DEBUG] checkWin - Checking Payline ${paylineIndex}`);
 
-        // Check reels from left to right
-        for (let reelIndex = 0; reelIndex < REEL_COUNT; reelIndex++) {
-            let foundInReel = false;
-            // Check all 3 rows in the current reel
-            for (let rowIndex = 0; rowIndex < VISIBLE_ROWS; rowIndex++) {
-                if (currentReelResults[reelIndex][rowIndex] === symbolIndex) {
-                    foundInReel = true;
-                    positions.push({ reelIndex, rowIndex });
-                    // Don't break here, collect all positions for visual highlighting
-                }
+        // 1. Get the symbol on the first reel of this payline
+        const firstReelPos = payline[0];
+        // Check if results grid has data for this position
+        if (!currentReelResults[firstReelPos.reel] || currentReelResults[firstReelPos.reel][firstReelPos.row] === undefined) {
+            console.warn(`[DEBUG] checkWin - Payline ${paylineIndex}: Missing result data at Reel ${firstReelPos.reel}, Row ${firstReelPos.row}`);
+            return; // Skip this payline if data is missing
+        }
+        const winningSymbolNumber = currentReelResults[firstReelPos.reel][firstReelPos.row];
+        const visualSymbol = symbols[winningSymbolNumber]; // Get visual data
+        const baseMultiplier = symbolNumberMultipliers[winningSymbolNumber];
+
+        // --- DEBUG LOG: Payline starting symbol and multiplier ---
+        console.log(`[DEBUG] checkWin - Payline ${paylineIndex} starts with symbol#: ${winningSymbolNumber} (Name: ${visualSymbol?.name || 'N/A'}) at [${firstReelPos.reel},${firstReelPos.row}]. Base Multiplier: ${baseMultiplier}`);
+
+
+        // Skip if the first symbol is invalid or doesn't have a multiplier
+        if (!visualSymbol || baseMultiplier === undefined || baseMultiplier <= 0) {
+            // --- DEBUG LOG: Skipping invalid start symbol ---
+            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Symbol ${winningSymbolNumber} is not a valid winning start.`);
+            return; // Not a paying symbol start
+        }
+
+        // 2. Count consecutive matching symbols along the payline from left-to-right
+        let consecutiveCount = 1;
+        let winningPositionsOnThisLine = [firstReelPos]; // Start with the first position
+
+        for (let i = 1; i < payline.length; i++) { // Start checking from the second position on the line
+            const pos = payline[i];
+            // Check if reel index is within bounds
+            if (pos.reel >= currentReelResults.length) {
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Reel index ${pos.reel} out of bounds.`);
+                break;
             }
-            if (foundInReel) {
-                consecutiveReels++;
+            // Check if result data exists
+            if (!currentReelResults[pos.reel] || currentReelResults[pos.reel][pos.row] === undefined) {
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Result data missing at [${pos.reel}, ${pos.row}].`);
+                break; // Stop if data missing
+            }
+
+            const currentSymbolNumber = currentReelResults[pos.reel][pos.row];
+
+            // --- DEBUG LOG: Checking next position on the line ---
+            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Checking pos [${pos.reel},${pos.row}]. Found Symbol#: ${currentSymbolNumber}. Need Symbol#: ${winningSymbolNumber}`);
+
+            // --- Check for Match ---
+            if (currentSymbolNumber === winningSymbolNumber) {
+                consecutiveCount++;
+                winningPositionsOnThisLine.push(pos); // Add matching position
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Match found! Count is now ${consecutiveCount}`);
             } else {
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Sequence broken at Reel ${pos.reel}.`);
                 break; // Sequence broken
             }
         }
 
-        // Win condition: Must be on at least 3 consecutive reels starting from the left
-        if (consecutiveReels >= 3) {
-            let multiplier;
-            if (consecutiveReels === 5) {
-                multiplier = symbol.multiplier * 10;
-            } else if (consecutiveReels === 4) {
-                multiplier = symbol.multiplier * 3;
-            } else { // consecutiveReels === 3
-                multiplier = symbol.multiplier;
-            }
+        // --- DEBUG LOG: Final consecutive count for this line ---
+        console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Final Consecutive Count = ${consecutiveCount}`);
 
-            const winAmount = multiplier * betAmount;
-            totalWinAmount += winAmount;
+        // 3. Check if the count meets the minimum length and has a payout rule
+        const minWin = MIN_WIN_LENGTH || 3; // Use configured minimum or default to 3
+        if (consecutiveCount >= minWin && PAYOUT_RULES[consecutiveCount]) {
+            const countMultiplier = PAYOUT_RULES[consecutiveCount];
+            const finalMultiplier = baseMultiplier * countMultiplier;
+            const winAmount = finalMultiplier * betAmount;
 
-            // Keep only positions from the winning consecutive reels
-            const winningPositions = positions.filter(p => p.reelIndex < consecutiveReels);
+            // --- DEBUG LOG: Checking payout condition ---
+            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Count ${consecutiveCount} >= ${minWin}. Rule multiplier ${countMultiplier}. Final multiplier ${finalMultiplier}. Win amount ${winAmount}`);
 
-            const winLineData = {
-                symbolName: symbol.name,
-                symbolIndex: symbolIndex,
-                positions: winningPositions,
-                count: consecutiveReels, // How many reels the win spans
-                multiplier: multiplier,
-                amount: winAmount
-            };
-            winningLines.push(winLineData);
+            // Only add if win amount is greater than 0
+            if (winAmount > 0) {
+                // --- DEBUG LOG: *** WIN DETECTED *** ---
+                console.log(`%c[DEBUG] checkWin - *** WIN FOUND on Payline ${paylineIndex}! Symbol: ${winningSymbolNumber}, Count: ${consecutiveCount}, Amount: ${winAmount} ***`, "color: lime; font-weight: bold;");
 
-            // Update best match if this win is better
-            if (!bestMatchDetails || multiplier > bestMatchDetails.multiplier) {
-                bestMatchDetails = {
-                    symbolName: symbol.name,
-                    multiplier: multiplier,
-                    count: consecutiveReels,
+                totalWinAmount += winAmount;
+
+                const winLineData = {
+                    paylineId: paylineIndex,
+                    symbolName: visualSymbol.name,
+                    symbolIndex: winningSymbolNumber,
+                    positions: winningPositionsOnThisLine,
+                    count: consecutiveCount,
+                    multiplier: finalMultiplier,
                     amount: winAmount
                 };
+                winningLines.push(winLineData); // Add this winning line result
+
+                // Update best overall match details based on multiplier
+                if (!bestMatchDetails || finalMultiplier > bestMatchDetails.multiplier) {
+                    bestMatchDetails = {
+                        paylineId: paylineIndex,
+                        symbolName: visualSymbol.name,
+                        multiplier: finalMultiplier,
+                        count: consecutiveCount,
+                        amount: winAmount
+                    };
+                    console.log(`[DEBUG] checkWin - Updated bestMatchDetails.`);
+                }
+            } else {
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Calculated win amount is 0, not adding.`);
             }
+        } else {
+            // --- DEBUG LOG: Win condition not met ---
+            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Win condition not met (Count ${consecutiveCount} < ${minWin} or no PAYOUT_RULE for ${consecutiveCount}).`);
         }
+    }); // --- End of PAYLINES loop ---
+
+    // --- DEBUG LOG: Final result of checkWin ---
+    try {
+        console.log(`[DEBUG] checkWin - Complete. totalWinAmount=${totalWinAmount}. Final winningLines:`, JSON.parse(JSON.stringify(winningLines)));
+    } catch (e) {
+        console.error("[DEBUG] checkWin - Error stringifying final winningLines:", e);
+        console.log("[DEBUG] checkWin - Raw final winningLines:", winningLines);
     }
 
     if (totalWinAmount > 0) {
         return {
             totalAmount: totalWinAmount,
-            bestMatch: bestMatchDetails, // Provide details of the best single line
-            allLines: winningLines      // Provide all winning lines data
+            bestMatch: bestMatchDetails,
+            allLines: winningLines
         };
     } else {
-        return null; // No win
+        return null; // No win on any payline
     }
 }
 
 
+// --- UI Drawing and Interaction ---
+// ... (drawUIElements, drawText, drawRoundedRect functions remain the same) ...
+// ... (handleMouseMove, handleMouseDown, handleMouseUp, getMousePos, isMouseOver functions remain the same) ...
 function drawUIElements() {
     const padding = 15; // Padding inside the boxes
 
@@ -703,7 +861,7 @@ function drawUIElements() {
     // Label aligned left
     drawText('BALANCE:', balanceX + padding, balanceY + balanceHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle');
     // Amount aligned right
-    drawText(balance.toString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle');
+    drawText(balance.toLocaleString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle'); // Use toLocaleString for formatting
 
     // Draw Bet Display and Buttons
     const betWidth = 150;
@@ -720,52 +878,72 @@ function drawUIElements() {
     drawText('BET:', betX + padding, betY + betHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle');
     drawText(betAmount.toString(), betX + betWidth - padding, betY + betHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle');
 
-    // Decrease Bet Button (-)
+    // Decrease Bet Button (-) - Only draw if not spinning
     const decColor = buttonEffects.bet.decreaseActive ? '#cc9900' : '#ffcc00';
-    drawRoundedRect(decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, decColor, '#ffffff', 2);
-    drawText('-', decreaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 30px Arial', '#1a1a2e', 'center', 'middle');
+    const decFill = spinning ? '#555555' : decColor; // Grey out if spinning
+    const decStroke = spinning ? '#888888' : '#ffffff';
+    drawRoundedRect(decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, decFill, decStroke, 2);
+    drawText('-', decreaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 30px Arial', spinning ? '#aaaaaa' : '#1a1a2e', 'center', 'middle');
 
-    // Increase Bet Button (+)
+    // Increase Bet Button (+) - Only draw if not spinning
     const incColor = buttonEffects.bet.increaseActive ? '#cc9900' : '#ffcc00';
-    drawRoundedRect(increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, incColor, '#ffffff', 2);
-    // *** CORRECTED Y-COORDINATE HERE ***
-    drawText('+', increaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 30px Arial', '#1a1a2e', 'center', 'middle');
-    // Draw Spin Button (Keep as is, seems okay)
+    const incFill = spinning ? '#555555' : incColor; // Grey out if spinning
+    const incStroke = spinning ? '#888888' : '#ffffff';
+    drawRoundedRect(increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, incFill, incStroke, 2);
+    drawText('+', increaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 30px Arial', spinning ? '#aaaaaa' : '#1a1a2e', 'center', 'middle');
+
+
+    // Draw Spin Button
     const spinBtnWidth = 120;
     const spinBtnHeight = 50;
     const spinBtnX = canvas.width - spinBtnWidth - 50; // Positioned from right edge
     const spinBtnY = canvas.height - 80;
 
-    // Apply scale effect
-    const targetScale = buttonEffects.spin.active ? 1.1 : 1.0;
+    // Apply scale effect (subtle hover)
+    const targetScale = buttonEffects.spin.active && !spinning ? 1.05 : 1.0; // Only hover if not spinning
     buttonEffects.spin.scale += (targetScale - buttonEffects.spin.scale) * 0.2; // Smooth transition
 
     // Apply pressed effect
-    let buttonShiftY = buttonEffects.spin.pressed ? 3 : 0;
-    const btnGradient = ctx.createLinearGradient(0, spinBtnY, 0, spinBtnY + spinBtnHeight);
-    if (buttonEffects.spin.pressed) {
-        btnGradient.addColorStop(0, '#cc2855');
-        btnGradient.addColorStop(1, '#dd0022');
-    } else {
-        btnGradient.addColorStop(0, '#ff3366');
-        btnGradient.addColorStop(1, '#ff0033');
+    let buttonShiftY = buttonEffects.spin.pressed && !spinning ? 3 : 0; // Only press if not spinning
+
+    // Set button color based on state
+    let btnGradientColors;
+    if (spinning) {
+        // Disabled look
+        btnGradientColors = ['#666666', '#444444'];
+    } else if (buttonEffects.spin.pressed) {
+        // Pressed look
+        btnGradientColors = ['#cc2855', '#dd0022'];
+    } else if (buttonEffects.spin.active) {
+        // Hover look (slightly brighter/different)
+        btnGradientColors = ['#ff5588', '#ff2255'];
+    }
+    else {
+        // Default look
+        btnGradientColors = ['#ff3366', '#ff0033'];
     }
 
+    const btnGradient = ctx.createLinearGradient(0, spinBtnY, 0, spinBtnY + spinBtnHeight);
+    btnGradient.addColorStop(0, btnGradientColors[0]);
+    btnGradient.addColorStop(1, btnGradientColors[1]);
+
     ctx.save();
-    // Translate for scaling and pressing
-    ctx.translate(spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2 + buttonShiftY);
+    // Translate for scaling and pressing, centered on the button
+    ctx.translate(spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2);
     ctx.scale(buttonEffects.spin.scale, buttonEffects.spin.scale);
-    ctx.translate(-(spinBtnX + spinBtnWidth / 2), -(spinBtnY + spinBtnHeight / 2));
+    ctx.translate(-(spinBtnX + spinBtnWidth / 2), -(spinBtnY + spinBtnHeight / 2 + buttonShiftY)); // Apply shift *after* scaling rotation point
 
     // Draw the button shape
-    drawRoundedRect(spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight, 10, btnGradient, '#ffffff', 2);
-    // Draw text (adjust position slightly because of translation)
-    drawText('SPIN', spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2 + 1, 'bold 24px Arial', '#ffffff', 'center', 'middle');
+    const spinStrokeColor = spinning ? '#888888' : '#ffffff';
+    drawRoundedRect(spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight, 10, btnGradient, spinStrokeColor, 2);
+
+    // Draw text (adjust position slightly because of translation if needed, though center align helps)
+    const spinTextColor = spinning ? '#aaaaaa' : '#ffffff';
+    drawText('SPIN', spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2 + 1, 'bold 24px Arial', spinTextColor, 'center', 'middle');
 
     ctx.restore();
 }
 
-// Helper to draw text
 function drawText(text, x, y, font, color, align = 'left', baseline = 'top') {
     ctx.fillStyle = color;
     ctx.font = font;
@@ -774,23 +952,26 @@ function drawText(text, x, y, font, color, align = 'left', baseline = 'top') {
     ctx.fillText(text, x, y);
 }
 
-// Helper to draw rounded rectangles (with fallback)
 function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle, lineWidth) {
     ctx.beginPath();
+    // Ensure radius is not too large for the rectangle dimensions
+    const maxRadius = Math.min(width / 2, height / 2);
+    const actualRadius = Math.min(radius, maxRadius);
+
     if (ctx.roundRect) {
         // Use native roundRect if available
-        ctx.roundRect(x, y, width, height, radius);
+        ctx.roundRect(x, y, width, height, actualRadius);
     } else {
         // Fallback for older browsers
-        ctx.moveTo(x + radius, y);
-        ctx.lineTo(x + width - radius, y);
-        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-        ctx.lineTo(x + width, y + height - radius);
-        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-        ctx.lineTo(x + radius, y + height);
-        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.moveTo(x + actualRadius, y);
+        ctx.lineTo(x + width - actualRadius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + actualRadius);
+        ctx.lineTo(x + width, y + height - actualRadius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - actualRadius, y + height);
+        ctx.lineTo(x + actualRadius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - actualRadius);
+        ctx.lineTo(x, y + actualRadius);
+        ctx.quadraticCurveTo(x, y, x + actualRadius, y);
     }
     ctx.closePath();
 
@@ -805,8 +986,13 @@ function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle, li
     }
 }
 
-// Mouse event handlers for canvas UI
 function handleMouseMove(e) {
+    if (spinning) { // Don't update hover effects while spinning
+        buttonEffects.spin.active = false;
+        buttonEffects.bet.decreaseActive = false;
+        buttonEffects.bet.increaseActive = false;
+        return;
+    }
     const { mouseX, mouseY } = getMousePos(e);
 
     // Check Spin Button
@@ -830,6 +1016,8 @@ function handleMouseMove(e) {
 }
 
 function handleMouseDown(e) {
+    if (spinning) return; // Ignore clicks while spinning
+
     const { mouseX, mouseY } = getMousePos(e);
 
     // Check Spin Button Click
@@ -838,16 +1026,13 @@ function handleMouseDown(e) {
     const spinBtnX = canvas.width - spinBtnWidth - 50;
     const spinBtnY = canvas.height - 80;
     if (isMouseOver(mouseX, mouseY, spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight)) {
-        if (!spinning) {
-            buttonEffects.spin.pressed = true;
-            playSound('click');
-            // Trigger spin slightly delayed to show press
-            setTimeout(() => {
-                spinReels();
-                // Reset pressed state soon after spin starts
-                // setTimeout(() => { buttonEffects.spin.pressed = false; }, 150);
-            }, 50);
-        }
+        buttonEffects.spin.pressed = true;
+        playSound('click');
+        // Trigger spin slightly delayed to show press, then reset press state visually
+        setTimeout(() => {
+            spinReels();
+            // No need to reset pressed here, spinReels start handles it
+        }, 100); // Short delay to see the press
     }
 
     // Check Bet Buttons Click
@@ -861,31 +1046,25 @@ function handleMouseDown(e) {
     const adjustBtnY = betY + (betHeight - adjustBtnSize) / 2;
 
     if (isMouseOver(mouseX, mouseY, decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize)) {
-        if (!spinning) {
-            playSound('click');
-            decreaseBet();
-            // Optional visual flash for click:
-            buttonEffects.bet.decreaseActive = true; // Set active on down
-            // No need for timeout to reset here, mousemove handles hover state
-        }
+        playSound('click');
+        decreaseBet();
+        // Visual feedback is handled by hover state change + maybe draw state change if needed
     } else if (isMouseOver(mouseX, mouseY, increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize)) {
-        if (!spinning) {
-            playSound('click');
-            increaseBet();
-            buttonEffects.bet.increaseActive = true; // Set active on down
-        }
+        playSound('click');
+        increaseBet();
+        // Visual feedback handled by hover state
     }
 }
 
 function handleMouseUp(e) {
-    // Reset pressed state for the spin button when mouse is released
-    if (buttonEffects.spin.pressed) {
+    // Reset pressed state for the spin button when mouse is released, *if* not spinning
+    if (buttonEffects.spin.pressed && !spinning) {
         buttonEffects.spin.pressed = false;
+        // Check if the mouse is still over the button to maintain active state
+        handleMouseMove(e);
     }
-    // Active state for bet buttons is handled by mousemove, no action needed here
 }
 
-// Helper function to get mouse position relative to canvas
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -896,15 +1075,14 @@ function getMousePos(e) {
     };
 }
 
-// Helper function to check if mouse is over an area
 function isMouseOver(mouseX, mouseY, x, y, width, height) {
     return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
 }
 
 
 // --- Win Line Drawing ---
-// --- Win Line Drawing ---
 function drawWinLines(timestamp) {
+    // No change needed at the start (check winningLines)
     if (!winningLines || winningLines.length === 0) return;
 
     const reelWidth = SYMBOL_SIZE;
@@ -912,158 +1090,133 @@ function drawWinLines(timestamp) {
     const startX = reelSpacing;
     const startY = 100;
     const symbolCenterOffsetY = SYMBOL_SIZE / 2;
-    const symbolCenterOffsetX = SYMBOL_SIZE / 2; // Added for clarity
+    const symbolCenterOffsetX = SYMBOL_SIZE / 2;
 
     const flash = Math.floor(timestamp / 300) % 2 === 0; // Flash effect toggle
 
-    winningLines.forEach((line, index) => {
-        // Cycle through colors for different lines
-        const colors = ['#ff3366', '#ffcc00', '#4caf50', '#2196f3', '#9c27b0'];
-        const color = colors[index % colors.length];
+    // Define line colors - cycle through them for multiple winning lines
+    const lineColors = ['#ff3366', '#ffcc00', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#00bcd4', '#e91e63'];    // --- Iterate through EACH winning line found ---
+    winningLines.forEach((lineData, lineIndex) => {
+        if (!lineData || !lineData.positions || lineData.positions.length < MIN_WIN_LENGTH) return; // Safety check
 
-        ctx.strokeStyle = flash ? color : '#ffffff';
-        ctx.lineWidth = 4;
+        const color = lineColors[lineIndex % lineColors.length]; // Cycle colors per line
+
+        // --- Draw the specific line segment connecting winning positions ---
+        ctx.strokeStyle = flash ? color : '#ffffff'; // Use assigned color with flash
+        ctx.lineWidth = 5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.globalAlpha = 0.85;
 
-        // --- Revised Line Drawing Logic ---
-        // Sort positions primarily by reel, then by row for consistent line drawing order
-        const sortedPositions = [...line.positions].sort((a, b) => {
-            if (a.reelIndex !== b.reelIndex) {
-                return a.reelIndex - b.reelIndex;
+        ctx.beginPath();
+        for (let k = 0; k < lineData.positions.length; k++) { // Iterate ONLY through positions of THIS line
+            const pos = lineData.positions[k];
+            // Fix: Use 'reel' and 'row' from the position objects (not reelIndex/rowIndex)
+            const x = startX + pos.reel * (reelWidth + reelSpacing) + symbolCenterOffsetX;
+            const y = startY + pos.row * SYMBOL_SIZE + symbolCenterOffsetY;
+
+            if (k === 0) {
+                ctx.moveTo(x, y); // Start the line path
+            } else {
+                ctx.lineTo(x, y); // Draw segment to the next point on this line
             }
-            return a.rowIndex - b.rowIndex;
-        });
-
-        if (sortedPositions.length > 1) {
-            ctx.beginPath();
-            // Start at the center of the first symbol
-            const firstPos = sortedPositions[0];
-            let currentX = startX + firstPos.reelIndex * (reelWidth + reelSpacing) + symbolCenterOffsetX;
-            let currentY = startY + firstPos.rowIndex * SYMBOL_SIZE + symbolCenterOffsetY;
-            ctx.moveTo(currentX, currentY);
-
-            // Connect to the center of each subsequent symbol in the sorted list
-            for (let k = 1; k < sortedPositions.length; k++) {
-                const nextPos = sortedPositions[k];
-                const nextX = startX + nextPos.reelIndex * (reelWidth + reelSpacing) + symbolCenterOffsetX;
-                const nextY = startY + nextPos.rowIndex * SYMBOL_SIZE + symbolCenterOffsetY;
-
-                // Draw line segment to the next point
-                ctx.lineTo(nextX, nextY);
-
-                // Optional: Move to the next point if not adjacent? Or just connect all?
-                // For simplicity and clarity, let's connect all points sequentially.
-                // If you only want lines between adjacent reels, uncomment the following:
-                // if (nextPos.reelIndex === sortedPositions[k-1].reelIndex + 1) {
-                //      ctx.lineTo(nextX, nextY);
-                // } else {
-                //      ctx.moveTo(nextX, nextY); // Move to start of next non-adjacent segment
-                // }
-            }
-            ctx.stroke(); // Draw all connected segments
         }
-        // --- End of Revised Line Drawing Logic ---
+        ctx.stroke(); // Draw the complete line segment for this winning line
+        ctx.globalAlpha = 1.0; // Reset alpha        // --- Highlight Symbols ON THIS LINE ---
+        lineData.positions.forEach(pos => {
+            const symbolData = symbols[lineData.symbolIndex]; // Get visual data
+            if (!symbolData) return;
 
-
-        // Highlight the winning symbols themselves (logic remains the same)
-        line.positions.forEach(pos => {
-            const x = startX + pos.reelIndex * (reelWidth + reelSpacing);
-            const y = startY + pos.rowIndex * SYMBOL_SIZE;
-            const symbolData = symbols[line.symbolIndex];
-
+            // Fix: Use 'reel' and 'row' properties consistent with line drawing
+            const x = startX + pos.reel * (reelWidth + reelSpacing);
+            const y = startY + pos.row * SYMBOL_SIZE;
+            const highlightColor = flash ? color : '#ffffff'; // Match line color
             let highlightInset = 4;
             let highlightLineWidth = 3;
 
-            if (symbolData && symbolData.winAnimation) {
-                const anim = symbolData.winAnimation;
-                if (anim.lastUpdate === undefined) anim.lastUpdate = timestamp;
-
-                if (timestamp - anim.lastUpdate > anim.frameRate) {
-                    anim.currentFrame = (anim.currentFrame + 1) % anim.frames;
-                    anim.lastUpdate = timestamp;
+            if (symbolData.winAnimation) {
+                // Mark specific instances? Tricky without unique IDs.
+                // For now, just pulse any symbol matching the winning type.
+                // A better approach might involve tagging specific drawn instances.
+                // Let's keep the existing pulse logic based on symbol type for now.
+                if (symbolData.winAnimation.lastUpdate === undefined) symbolData.winAnimation.lastUpdate = timestamp;
+                if (timestamp - symbolData.winAnimation.lastUpdate > symbolData.winAnimation.frameRate) {
+                    symbolData.winAnimation.currentFrame = (symbolData.winAnimation.currentFrame + 1) % symbolData.winAnimation.frames;
+                    symbolData.winAnimation.lastUpdate = timestamp;
                 }
-                const pulseFactor = Math.sin((anim.currentFrame / anim.frames) * Math.PI);
+                const pulseFactor = Math.sin((symbolData.winAnimation.currentFrame / symbolData.winAnimation.frames) * Math.PI);
                 highlightInset = 4 - pulseFactor * 2;
                 highlightLineWidth = 3 + pulseFactor * 2;
             }
 
-            ctx.strokeStyle = flash ? color : '#ffffff';
+            ctx.strokeStyle = highlightColor;
             ctx.lineWidth = highlightLineWidth;
-            ctx.strokeRect(x + highlightInset, y + highlightInset, reelWidth - 2 * highlightInset, SYMBOL_SIZE - 2 * highlightInset);
+            drawRoundedRect(x + highlightInset, y + highlightInset, SYMBOL_SIZE - 2 * highlightInset, SYMBOL_SIZE - 2 * highlightInset, 5, null, highlightColor, highlightLineWidth);
         });
-    });    // --- Display Win Amount with Pulsing and Glowing Effects ---
+    }); // --- End of winningLines loop ---
+
+
+    // --- Display Total Win Amount (No change needed here) ---
     const totalWin = winningLines.reduce((sum, line) => sum + line.amount, 0);
-    let winTextY = startY + SYMBOL_SIZE * VISIBLE_ROWS + 60; // Position below reels
-
     if (totalWin > 0) {
-        // Create pulsing animation based on timestamp
-        const pulse = Math.sin(timestamp / 200) * 0.15 + 1; // Scale between 0.85 and 1.15
-        const fontSize = Math.floor(38 * pulse);
-
-        // Calculate glow intensity (alternating)
-        const glowIntensity = Math.abs(Math.sin(timestamp / 300)) * 15 + 5;
-
-        // Create color cycling effect
-        const hue = (timestamp / 50) % 360;
-        const mainColor = `hsl(${hue}, 100%, 65%)`;
+        let winTextY = startY + SYMBOL_SIZE * VISIBLE_ROWS + 50;
+        const winTextX = canvas.width / 2;
+        // ... (rest of win amount drawing logic remains the same) ...
+        const pulse = Math.sin(timestamp / 200) * 0.05 + 1;
+        const baseFontSize = 36;
+        const fontSize = Math.floor(baseFontSize * pulse);
+        const glowIntensity = Math.abs(Math.sin(timestamp / 350)) * 10 + 5;
+        const glowColor = `rgba(255, 223, 0, ${0.6 + Math.abs(Math.sin(timestamp / 350)) * 0.4})`;
 
         ctx.save();
-        // Apply scaling effect centered on text position
-        ctx.translate(canvas.width / 2, winTextY);
-        ctx.scale(pulse, pulse);
-        ctx.translate(-canvas.width / 2, -winTextY);
-
-        // Draw text shadow/glow effects (multiple layers for stronger effect)
         ctx.font = `bold ${fontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-
-        // Outer glow
-        ctx.shadowColor = mainColor;
-        ctx.shadowBlur = glowIntensity * 2;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        drawText(`WIN: ${totalWin}`, canvas.width / 2, winTextY, `bold ${fontSize}px Arial`, '#ffffff', 'center', 'middle');
-
-        // Inner bright text
-        ctx.shadowBlur = 0;
-        drawText(`WIN: ${totalWin}`, canvas.width / 2, winTextY, `bold ${fontSize}px Arial`, mainColor, 'center', 'middle');
-
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = glowIntensity;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`WIN: ${totalWin.toLocaleString()}`, winTextX, winTextY);
         ctx.restore();
     }
-    // --- End of Win Amount Display ---
 }
 
+
 // --- Win Celebration ---
+// ... (triggerWinCelebration, drawWinCelebration functions remain the same) ...
 function triggerWinCelebration(amount) {
     winAnimationActive = true;
     confettiParticles = []; // Clear existing
-    const particleCount = Math.min(100, Math.floor(amount / (betAmount * 0.2))); // More particles for bigger wins
+    // More particles for bigger wins relative to bet, capped
+    const particleCount = Math.min(150, Math.max(30, Math.floor(amount / (betAmount * 0.1))));
 
     for (let i = 0; i < particleCount; i++) {
         confettiParticles.push({
             x: Math.random() * canvas.width,
-            y: -Math.random() * canvas.height * 0.5, // Start above screen
-            size: Math.random() * 8 + 4,
-            color: `hsl(${Math.random() * 360}, 90%, 60%)`,
-            speedX: (Math.random() - 0.5) * 6,
-            speedY: Math.random() * 5 + 2, // Initial downward speed
+            y: -Math.random() * canvas.height * 0.3 - 20, // Start further above screen
+            size: Math.random() * 10 + 5, // Slightly larger confetti
+            color: `hsl(${Math.random() * 360}, 90%, 65%)`, // Brighter colors
+            speedX: (Math.random() - 0.5) * 8, // Faster horizontal spread
+            speedY: Math.random() * 6 + 3, // Initial downward speed
             rotation: Math.random() * 360,
-            rotSpeed: (Math.random() - 0.5) * 10,
+            rotSpeed: (Math.random() - 0.5) * 15, // Faster rotation
             opacity: 1,
             life: 1.0 // Lifetime factor (1 = full life)
         });
     }
 
-    // Auto-stop after a few seconds
+    // Auto-stop after a reasonable duration
     setTimeout(() => {
         winAnimationActive = false;
-        // Optionally fade out remaining particles instead of abruptly stopping
-    }, 4000);
+        // Particles will fade out naturally based on their life
+    }, 5000); // Longer celebration
 }
 
 function drawWinCelebration(deltaTime) {
-    const gravity = 150 * deltaTime; // Gravity effect
+    if (!winAnimationActive && confettiParticles.length === 0) return; // Stop drawing if not active and no particles left
+
+    const gravity = 250 * deltaTime; // Slightly stronger gravity
+
+    let activeParticles = false; // Flag to check if any particles are still visible
 
     confettiParticles.forEach((p, index) => {
         // Update position
@@ -1071,14 +1224,23 @@ function drawWinCelebration(deltaTime) {
         p.y += p.speedY * deltaTime;
         p.speedY += gravity; // Apply gravity
         p.rotation += p.rotSpeed * deltaTime;
+        p.speedX *= 0.99; // Air resistance for horizontal movement
 
-        // Fade out near end of life (or based on position)
-        if (p.y > canvas.height) {
-            p.life -= deltaTime * 0.5; // Fade out faster once below screen
+        // Fade out based on lifetime or position
+        if (p.y > canvas.height + p.size) { // Check if fully off screen
+            p.life -= deltaTime * 1.5; // Fade out faster once below screen
         } else {
-            p.life -= deltaTime * 0.15; // Gradual fade
+            p.life -= deltaTime * 0.20; // Slower fade while visible
         }
         p.opacity = Math.max(0, p.life);
+
+        // Remove dead particles immediately
+        if (p.opacity <= 0) {
+            confettiParticles.splice(index, 1);
+            return; // Skip drawing this particle
+        }
+
+        activeParticles = true; // Mark that there are still active particles
 
         // Draw particle
         ctx.save();
@@ -1089,91 +1251,135 @@ function drawWinCelebration(deltaTime) {
         // Simple rectangle shape for confetti
         ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
         ctx.restore();
-
-        // Remove dead particles
-        if (p.life <= 0) {
-            confettiParticles.splice(index, 1);
-        }
     });
 
-    // If all particles are gone, stop the animation state
-    if (confettiParticles.length === 0) {
+    // If the animation timed out and particles finished, ensure state is off
+    if (!activeParticles) {
         winAnimationActive = false;
     }
 }
 
+
 // --- Bet/Balance Management ---
+// ... (decreaseBet, increaseBet, addCredit functions remain the same) ...
+// ... (updateBalanceDisplay remains the same) ...
 
 function decreaseBet() {
     if (spinning) return;
-    const betOptions = [5, 10, 20, 50, 100];
+    // Define bet levels dynamically or keep fixed
+    const betOptions = [5, 10, 20, 50, 100, 200]; // Example levels
     let currentIndex = betOptions.indexOf(betAmount);
     if (currentIndex > 0) {
         betAmount = betOptions[currentIndex - 1];
-        updateBetDisplay();
+        updateBetDisplay(); // Updates display AND paytable
     }
+    // else: Optionally play a 'min bet' sound/visual cue
 }
 
 function increaseBet() {
     if (spinning) return;
-    const betOptions = [5, 10, 20, 50, 100];
+    const betOptions = [5, 10, 20, 50, 100, 200]; // Example levels
     let currentIndex = betOptions.indexOf(betAmount);
     if (currentIndex < betOptions.length - 1) {
-        if (balance >= betOptions[currentIndex + 1]) { // Check if balance allows increase
-            betAmount = betOptions[currentIndex + 1];
-            updateBetDisplay();
+        const nextBet = betOptions[currentIndex + 1];
+        if (balance >= nextBet) { // Check if balance allows increase
+            betAmount = nextBet;
+            updateBetDisplay(); // Updates display AND paytable
         } else {
             // Optional: Visual feedback that bet can't be increased due to balance
             console.log("Cannot increase bet, insufficient balance.");
-            // Simple flash effect on bet display?
-            betAmountElement.style.transition = 'color 0.1s ease-in-out';
-            betAmountElement.style.color = '#ff5555'; // Flash red
-            setTimeout(() => { betAmountElement.style.color = ''; }, 200); // Reset color
+            // Simple flash effect on bet display (using CSS class)
+            if (betAmountElement) {
+                betAmountElement.classList.add('flash-warn');
+                setTimeout(() => { betAmountElement.classList.remove('flash-warn'); }, 300);
+            }
+            // Optional: Play a 'cannot afford' sound?
         }
     }
+    // else: Optionally play a 'max bet' sound/visual cue
 }
 
 function addCredit() {
     if (spinning) return;
-    playSound('click'); // Assume a 'credit added' sound is desired
+    playSound('click'); // Use a generic click or a specific 'credit' sound
     balance += 1000;
     updateBalanceDisplay();
-    // Optional: Add visual feedback for credit addition
+    // Optional: Add visual feedback for credit addition (e.g., balance pulses)
+    if (balanceElement) {
+        balanceElement.classList.add('flash-success');
+        setTimeout(() => balanceElement.classList.remove('flash-success'), 500);
+    }
 }
 
 function updateBalanceDisplay() {
-    // Update the HTML element directly
-    balanceElement.textContent = balance;
-    // Optionally add formatting (e.g., commas)
-}
-
-function updateBetDisplay() {
-    // Update the HTML element directly
-    betAmountElement.textContent = betAmount;
-}
-
-// NEW function to load symbols for a specific theme
-async function loadThemeSymbols(themeName) {
-    const themeSymbolsData = REEL_SETS[themeName];
-    if (!themeSymbolsData) {
-        console.error(`Theme "${themeName}" not found! Falling back to Classic.`);
-        themeName = "Classic";
-        themeSymbolsData = REEL_SETS[themeName];
+    if (balanceElement) {
+        balanceElement.textContent = balance.toLocaleString(); // Format with commas
     }
+}
+
+// UPDATED updateBetDisplay to call populatePaytable
+function updateBetDisplay() {
+    if (betAmountElement) {
+        betAmountElement.textContent = betAmount;
+    }
+    populatePaytable(); // Update paytable whenever bet changes
+}
+
+// --- Theme Loading and Management ---
+
+// UPDATED function to load symbols for a specific theme using imported THEMES
+async function loadThemeSymbols(themeName) {
+    console.log(`Attempting to load theme: ${themeName}`);
+    const themeData = THEMES[themeName]; // <-- Use imported THEMES
+
+    if (!themeData || !themeData.symbols) {
+        console.error(`Theme "${themeName}" not found or is invalid! Falling back to Classic.`);
+        themeName = "Classic"; // Default fallback theme name
+        themeData = THEMES[themeName];
+        if (!themeData || !themeData.symbols) {
+            console.error("CRITICAL: Fallback theme 'Classic' also not found or invalid!");
+            // Handle critical failure - maybe display error on canvas?
+            symbols = []; // Ensure symbols is empty
+            return Promise.reject(new Error("Failed to load any valid theme.")); // Reject the promise
+        }
+    }
+
     currentThemeName = themeName; // Update the current theme name state
+    document.body.className = `theme-${themeName.toLowerCase().replace(/\s+/g, '-')}`; // Optional: Add theme class to body for CSS styling
+    console.log(`Loading symbols for theme: ${currentThemeName}`);
     symbols = []; // Clear existing symbols
 
-    const symbolPromises = themeSymbolsData.map(symbolData => {
-        return new Promise((resolve, reject) => {
+    // Use the symbols array directly from the themeData object
+    const themeSymbolsData = themeData.symbols;
+
+    const symbolPromises = themeSymbolsData.map((symbolData, index) => {
+        // Basic validation of symbol data
+        if (!symbolData || !symbolData.path || !symbolData.name) {
+            console.warn(`Invalid symbol data at index ${index} for theme ${themeName}`, symbolData);
+            return Promise.resolve(); // Skip this symbol but continue loading others
+        }
+        return new Promise((resolve) => { // No reject needed, just resolve after attempt
             const img = new Image();
             img.src = symbolData.path;
+            // Add crossOrigin attribute if loading from external URLs
+            // img.crossOrigin = "Anonymous";
+
+            const loadedSymbol = {
+                ...symbolData,
+                image: null, // Start with null image
+                id: index     // Store original index if needed
+            };
+
             img.onload = () => {
-                symbols.push({ ...symbolData, image: img }); // Add the loaded symbol object
+                loadedSymbol.image = img; // Assign image on successful load
+                symbols.push(loadedSymbol);
+                // console.log(`Loaded image for: ${symbolData.name}`);
                 resolve();
             };
-            img.onerror = () => {
-                console.error(`Failed to load ${symbolData.name} image for theme ${themeName}`);
-                symbols.push({ ...symbolData, image: null, color: getRandomColor() }); // Add fallback
+            img.onerror = (err) => {
+                console.error(`Failed to load image for ${symbolData.name} (${symbolData.path}) in theme ${themeName}:`, err);
+                loadedSymbol.color = getRandomColor(); // Assign fallback color
+                symbols.push(loadedSymbol); // Add symbol even if image fails, uses fallback drawing
                 resolve(); // Still resolve so game doesn't halt
             };
         });
@@ -1181,101 +1387,185 @@ async function loadThemeSymbols(themeName) {
 
     await Promise.all(symbolPromises);
 
-    // Ensure symbols array is in the same order as the theme definition
-    symbols.sort((a, b) => themeSymbolsData.findIndex(s => s.name === a.name) - themeSymbolsData.findIndex(s => s.name === b.name));
+    // Sort the loaded 'symbols' array to match the order in the theme definition file.
+    // This is crucial because reel generation and win checking rely on index matching.
+    symbols.sort((a, b) => {
+        const indexA = themeSymbolsData.findIndex(s => s.name === a.name);
+        const indexB = themeSymbolsData.findIndex(s => s.name === b.name);
+        return indexA - indexB;
+    });
+
 
     if (symbols.length === 0) {
-        console.error(`CRITICAL: No symbols loaded for theme ${themeName}!`);
+        console.error(`CRITICAL: No symbols were successfully processed for theme ${themeName}!`);
+        // Potentially reject promise or set a flag to prevent game start
+        return Promise.reject(new Error(`No symbols loaded for theme ${themeName}`));
+    } else if (symbols.length !== themeSymbolsData.length) {
+        console.warn(`Loaded ${symbols.length} symbols, but theme definition has ${themeSymbolsData.length}. Some may have failed.`);
     }
-    console.log(`Loaded symbols for theme: ${themeName}`);
+
+    console.log(`Finished loading symbols for theme: ${themeName}. ${symbols.length} symbols ready.`);
+    // The promise resolves implicitly here if no errors were thrown/rejected
 }
 
-// Modify populatePaytable - Needs to use the current theme's symbols
 function populatePaytable() {
-    paytableElement.innerHTML = ''; // Clear existing
-    const currentSymbols = symbols; // Use the currently loaded symbols
+    if (!paytableElement) return;
+    paytableElement.innerHTML = ''; // Clear existing content
 
-    // Header
-    const header = document.createElement('div');
-    header.className = 'paytable-header';
-    // Basic Paytable - Assumes 3x, 4x, 5x logic from checkWin
-    // You might want to make multipliers explicit per count in REEL_SETS later
-    header.innerHTML = `
-        <span>Symbol</span>
-        <span>3x -> ${betAmount}</span> <!-- Show payout for current bet -->
-        <span>4x -> ${betAmount}</span>
-        <span>5x -> ${betAmount}</span>`;
-    paytableElement.appendChild(header);
+    // --- Add Explanatory Text Section (Keep as is) ---
+    const infoContainer = document.createElement('div');
+    infoContainer.className = 'paytable-info';
+    const title = document.createElement('h3');
+    title.className = 'paytable-title';
+    title.textContent = 'How to Play & Win';
+    infoContainer.appendChild(title);
+    const explanation1 = document.createElement('p');
+    explanation1.className = 'paytable-explanation';
+    explanation1.innerHTML = `Spin the reels and try to land <strong>matching symbols</strong> on consecutive reels, starting from the <strong>leftmost reel</strong> (Reel 1).`;
+    infoContainer.appendChild(explanation1);
+    const explanation2 = document.createElement('p');
+    explanation2.className = 'paytable-explanation';
+    explanation2.innerHTML = `You need <strong>3, 4, or 5 identical symbols</strong> lined up adjacently from left-to-right on any of the three rows to score a win!`;
+    infoContainer.appendChild(explanation2);
+    const explanation3 = document.createElement('p');
+    explanation3.className = 'paytable-explanation';
+    explanation3.innerHTML = `The table below shows the <strong>Multiplier</strong> applied to your <strong>Total Bet</strong> for each winning combination. Higher multipliers mean bigger wins!`;
+    infoContainer.appendChild(explanation3);
+    const themeNote = document.createElement('p');
+    themeNote.className = 'paytable-note';
+    themeNote.innerHTML = `<i>While the symbols change with each exciting theme, the core payout rules remain the same.</i>`;
+    infoContainer.appendChild(themeNote);
+    // No separator needed if using a table border
+    // const separator = document.createElement('hr');
+    // separator.className = 'paytable-separator';
+    // infoContainer.appendChild(separator);
+    paytableElement.appendChild(infoContainer);
+    // --- End of Explanatory Text Section ---
 
-    // Rows for each symbol in the current theme
-    currentSymbols.forEach(symbol => {
-        const row = document.createElement('div');
-        row.className = 'paytable-row';
 
-        const symbolCell = document.createElement('span');
-        symbolCell.className = 'paytable-symbol-cell';
-        if (symbol.image) {
+    // --- Generate Paytable Grid using HTML Table ---
+
+    // Basic validation (keep as is)
+    if (!symbols || symbols.length !== 5) {
+        paytableElement.innerHTML += '<div>Error: Theme visuals not loaded.</div>';
+        return;
+    }
+    if (!symbolNumberMultipliers || !PAYOUT_RULES) {
+        paytableElement.innerHTML += '<div>Error: Paytable config missing.</div>';
+        return;
+    }
+
+    // Create the table element
+    const table = document.createElement('table');
+    table.className = 'paytable-grid'; // Add class for styling
+
+    // Create Table Header (<thead>)
+    const thead = table.createTHead();
+    const headerRow = thead.insertRow();
+
+    // Define header cells
+    const headers = ['Symbol', 'x3', 'x4', 'x5'];
+    headers.forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+    });
+
+    // Create Table Body (<tbody>)
+    const tbody = table.createTBody();
+
+    // Populate Table Rows
+    symbols.forEach((visualSymbol, symbolNumber) => {
+        const row = tbody.insertRow();
+
+        // Cell 1: Symbol Image & Name
+        const cellSymbol = row.insertCell();
+        cellSymbol.className = 'paytable-symbol-cell'; // Keep class for specific styling
+        if (visualSymbol.image && visualSymbol.image.complete && visualSymbol.image.naturalHeight !== 0) {
             const img = document.createElement('img');
-            img.src = symbol.path;
-            img.alt = symbol.name;
-            img.className = 'paytable-symbol-img';
-            symbolCell.appendChild(img);
+            img.src = visualSymbol.path;
+            img.alt = visualSymbol.name;
+            img.className = 'paytable-symbol-img'; // Keep class
+            cellSymbol.appendChild(img);
+            cellSymbol.appendChild(document.createTextNode(` ${visualSymbol.name}`));
         } else {
-            symbolCell.textContent = symbol.name;
+            // Fallback display
+            cellSymbol.innerHTML = `<span class="paytable-fallback-color" style="background-color:${visualSymbol.color || '#ccc'}"></span> ${visualSymbol.name}`;
         }
 
-        // Calculate payouts based on the current bet and multipliers
-        const mult3x = document.createElement('span');
-        mult3x.textContent = `${symbol.multiplier * betAmount}`; // 3x payout
+        // Cells 2, 3, 4: Multipliers (x3, x4, x5)
+        const baseMultiplier = symbolNumberMultipliers[symbolNumber] ?? 0; // Get base multiplier from config
 
-        const mult4x = document.createElement('span');
-        mult4x.textContent = `${symbol.multiplier * 3 * betAmount}`; // 4x payout (using your 3x rule)
+        [3, 4, 5].forEach(count => { // Iterate for 3, 4, 5 consecutive symbols
+            const cellMultiplier = row.insertCell();
+            cellMultiplier.className = 'paytable-multiplier-cell'; // Add class for styling values
 
-        const mult5x = document.createElement('span');
-        mult5x.textContent = `${symbol.multiplier * 10 * betAmount}`; // 5x payout (using your 10x rule)
+            const countMultiplierRule = PAYOUT_RULES[count] ?? 0; // Get rule (e.g., 1, 3, 10)
+            const finalMultiplier = baseMultiplier * countMultiplierRule; // Calculate final multiplier
 
-        row.appendChild(symbolCell);
-        row.appendChild(mult3x);
-        row.appendChild(mult4x);
-        row.appendChild(mult5x);
-        paytableElement.appendChild(row);
+            // Display the calculated multiplier value
+            cellMultiplier.textContent = finalMultiplier > 0 ? `${finalMultiplier}x` : '-';
+        });
     });
+
+    // Append the complete table to the paytable element
+    paytableElement.appendChild(table);
 }
 
-// Add a function to handle theme changes
+
+// Update theme change logic
 function changeTheme(newThemeName) {
-    if (spinning || newThemeName === currentThemeName) return; // Don't change while spinning or if it's the same theme
+    if (spinning || newThemeName === currentThemeName) {
+        // ... (revert dropdown if needed) ...
+        return;
+    }
 
-    console.log(`Changing theme to: ${newThemeName}`);
-    // Optional: Add loading indicator?
-    loadThemeSymbols(newThemeName).then(() => {
-        initReels(); // Re-initialize reels with new symbol strips
-        populatePaytable(); // Update paytable display
-        // Force redraw if needed, though requestAnimationFrame should handle it
-        // Optional: Reset spin history? Or keep it mixed?
+    console.log(`Changing theme visuals to: ${newThemeName}`);
+    // Load ONLY the visuals
+    loadThemeVisuals(newThemeName).then(() => {
+        console.log("Theme visuals loaded successfully, updating paytable.");
+        // Reels don't need re-initialization as config is the same
+        populatePaytable(); // Update paytable display with new visuals/names
+        // Force redraw if needed
+    }).catch(error => {
+        console.error(`Failed to change theme visuals to ${newThemeName}:`, error);
+        // Revert dropdown selection if loading failed
+        if (themeSwitcherElement) {
+            const dropdown = themeSwitcherElement.querySelector('select');
+            if (dropdown) dropdown.value = currentThemeName;
+        }
     });
 }
 
-// Example function to set up theme switcher buttons (add these to your HTML)
+// UPDATED function to set up theme switcher using imported THEMES
 function setupThemeSwitcher() {
-    const themeContainer = document.getElementById('themeSwitcher'); // Assuming you have a div with this ID
-    if (!themeContainer) return;
+    if (!themeSwitcherElement) {
+        console.warn("Theme switcher container element not found.");
+        return; // Ensure the container exists in HTML
+    }
 
     // Clear any existing content
-    themeContainer.innerHTML = '';
+    themeSwitcherElement.innerHTML = '';
+
+    // Create a label
+    const label = document.createElement('label');
+    label.htmlFor = 'themeSelect';
+    label.textContent = 'Select Theme: ';
+    label.style.marginRight = '5px'; // Add some spacing
 
     // Create a dropdown (select element)
     const dropdown = document.createElement('select');
     dropdown.id = 'themeSelect';
-    dropdown.className = 'theme-dropdown';
+    dropdown.className = 'theme-dropdown'; // Add class for styling
 
-    // Add options for each theme
-    Object.keys(REEL_SETS).forEach(themeName => {
+    // Add options for each theme from the imported THEMES object
+    Object.keys(THEMES).forEach(themeKey => { // Iterate over keys ("Classic", "AncientEgypt", etc.)
+        const theme = THEMES[themeKey];
         const option = document.createElement('option');
-        option.value = themeName;
-        option.textContent = themeName;
+        option.value = theme.name; // The value should be the theme name
+        option.textContent = theme.name; // Display the theme name
         // Set current theme as selected
-        if (themeName === currentThemeName) {
+        if (theme.name === currentThemeName) {
             option.selected = true;
         }
         dropdown.appendChild(option);
@@ -1283,49 +1573,59 @@ function setupThemeSwitcher() {
 
     // Add change event listener
     dropdown.addEventListener('change', (e) => {
-        changeTheme(e.target.value);
+        if (!spinning) { // Add extra check here
+            changeTheme(e.target.value);
+        } else {
+            console.log("Prevented theme change during spin.");
+            // Revert selection visually
+            e.target.value = currentThemeName;
+        }
     });
 
-    // Add dropdown to the container
-    themeContainer.appendChild(dropdown);
+    // Add label and dropdown to the container
+    themeSwitcherElement.appendChild(label);
+    themeSwitcherElement.appendChild(dropdown);
 }
 
-// Make sure to call populatePaytable() whenever the betAmount changes too,
-// so the payout values update.
-function updateBetDisplay() {
-    betAmountElement.textContent = betAmount;
-    populatePaytable(); // Update paytable when bet changes
-}
 
+// --- History ---
+// ... (addToHistory function remains the same) ...
 function addToHistory(isWin, details, count, amount) {
+    if (!historyElement) return; // Don't run if element missing
+
     const item = document.createElement('div');
     item.className = `history-item ${isWin ? 'win' : 'loss'}`;
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); // Add seconds
+
+    let displayDetails = details;
+    if (!isWin && details.startsWith("Middle:")) {
+        try {
+            // Example details: "Middle: 4, 1, 0, 2, 4"
+            const numbers = details.substring("Middle: ".length).split(',').map(s => parseInt(s.trim(), 10));
+            displayDetails = "Middle: " + numbers.map(num => symbols[num]?.name || `Num ${num}?`).join(', ');
+        } catch (e) {
+            console.error("Error parsing history details:", e);
+            displayDetails = details; // Fallback to raw numbers
+        }
+    }
+
 
     if (isWin) {
         item.innerHTML = `
             <span class="timestamp">${timestamp}</span>
-            <strong>WIN: ${amount}</strong> (Bet: ${betAmount})<br>
-            <span class="details">${count}x ${details}</span>
+            <strong>WIN: ${amount.toLocaleString()}</strong> (Bet: ${betAmount})<br>
+            <span class="details">${count}x ${displayDetails}</span>
         `;
     } else {
         item.innerHTML = `
              <span class="timestamp">${timestamp}</span>
-             <strong>No Win</strong> (Bet: ${betAmount})<br>
-             <span class="details">${details}</span>
+             <span>No Win</span> (Bet: ${betAmount})<br>
+             <span class="details">${displayDetails}</span> <!-- Shows symbol names on loss -->
         `;
     }
 
     historyElement.prepend(item); // Add to top
-
-    // Limit history items
-    while (historyElement.children.length > 15) {
-        historyElement.removeChild(historyElement.lastChild);
-    }
-
-    // Also store in array if needed for more complex logic later
-    spinHistory.unshift({ isWin, details, count, betAmount, winAmount: amount, time: timestamp });
-    if (spinHistory.length > 50) spinHistory.pop();
+    // ... (limit history items, store in spinHistory array) ...
+    spinHistory.unshift({ isWin, details: displayDetails, count, betAmount, winAmount: amount, time: timestamp, theme: currentThemeName });
+    if (spinHistory.length > 100) spinHistory.pop();
 }
-
-// (Removed the overly simplistic calculateOdds function as it's not accurate)

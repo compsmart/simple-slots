@@ -226,3 +226,245 @@ h2 {
         gap: 15px;
     }
 }
+
+/* Styles for the Paytable Information Section */
+.paytable-info {
+    padding: 15px 20px;
+    /* Add some spacing around the text */
+    margin-bottom: 15px;
+    /* Space between info and table grid */
+    /* background-color: rgba(0, 0, 0, 0.3); */
+    /* Optional subtle background */
+    /* border: 1px solid #ffcc00; */
+    /* Optional border matching UI */
+    border-radius: 8px;
+    /* Optional rounded corners */
+    color: #eee;
+    /* Light text color for dark backgrounds */
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.paytable-title {
+    color: #ffdd44;
+    /* Brighter gold for the title */
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* Subtle shadow */
+}
+
+.paytable-explanation {
+    margin-bottom: 10px;
+    /* Space between paragraphs */
+    text-align: left;
+    /* Or 'center' if you prefer */
+}
+
+.paytable-explanation strong {
+    color: #ffcc00;
+    /* Highlight key terms in gold */
+    font-weight: 600;
+    /* Slightly bolder */
+}
+
+.paytable-note {
+    font-size: 0.85em;
+    color: #aaa;
+    /* Subdued color for the note */
+    text-align: center;
+    margin-top: 15px;
+}
+
+.paytable-separator {
+    border: none;
+    border-top: 1px solid #ffcc00;
+    /* Gold line separator */
+    opacity: 0.6;
+    margin: 20px auto 10px auto;
+    /* Center and space */
+    width: 80%;
+}
+
+/* Existing Paytable Grid Styles (Ensure they work well with the above) */
+.paytable-header {
+    /* Your existing styles */
+    font-weight: bold;
+    color: #ffcc00;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 204, 0, 0.5);
+    margin-bottom: 8px;
+}
+
+.paytable-row {
+    /* Your existing styles */
+    display: grid;
+    /* Consider using grid for alignment */
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    /* Adjust column ratios */
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.paytable-row:last-child {
+    border-bottom: none;
+}
+
+.paytable-row span {
+    text-align: center;
+    /* Center text in grid cells */
+}
+
+.paytable-symbol-cell {
+    text-align: left !important;
+    /* Align symbol name left */
+    display: flex;
+    align-items: center;
+}
+
+.paytable-symbol-img {
+    width: 30px;
+    /* Adjust size as needed */
+    height: 30px;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+.paytable-fallback-color {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border: 1px solid #555;
+    vertical-align: middle;
+}
+
+.paytable-grid {
+    width: 100%;
+    /* Make table take full width of its container */
+    border-collapse: collapse;
+    /* Merge borders */
+    margin-top: 15px;
+    /* Space below the info text */
+    color: #eee;
+    /* Default text color */
+    font-size: 0.9em;
+    /* Adjust base font size */
+}
+
+.paytable-grid th,
+.paytable-grid td {
+    border: 1px solid rgba(255, 204, 0, 0.3);
+    /* Subtle gold border */
+    padding: 8px 10px;
+    /* Padding inside cells */
+    text-align: center;
+    /* Center-align text by default */
+    vertical-align: middle;
+    /* Vertically align content */
+}
+
+.paytable-grid th {
+    background-color: rgba(255, 204, 0, 0.15);
+    /* Slightly tinted background for header */
+    color: #ffdd44;
+    /* Brighter gold for header text */
+    font-weight: bold;
+    text-transform: uppercase;
+    /* Optional: Uppercase headers */
+    font-size: 0.95em;
+}
+
+/* Style specific columns if needed */
+.paytable-grid th:first-child,
+/* Symbol Header */
+.paytable-grid td.paytable-symbol-cell {
+    /* Symbol Data Cell */
+    text-align: left;
+    /* Align symbol name left */
+    width: 40%;
+    /* Give symbol column more width */
+}
+
+.paytable-grid td.paytable-multiplier-cell {
+    font-weight: 600;
+    /* Make multiplier numbers slightly bolder */
+    font-size: 1.05em;
+}
+
+/* Keep Symbol image/fallback styles */
+.paytable-symbol-cell {
+    display: flex;
+    align-items: center;
+}
+
+.paytable-symbol-img {
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    vertical-align: middle;
+    /* Ensure image aligns nicely */
+}
+
+.paytable-fallback-color {
+    display: inline-block;
+    width: 25px;
+    /* Slightly bigger */
+    height: 25px;
+    margin-right: 10px;
+    border: 1px solid #555;
+    vertical-align: middle;
+    flex-shrink: 0;
+    /* Prevent shrinking */
+}
+
+
+/* Keep Paytable Info Section Styles */
+.paytable-info {
+    padding: 15px 20px;
+    margin-bottom: 0;
+    /* Remove bottom margin as table handles spacing */
+    /* background-color: rgba(0, 0, 0, 0.3); */
+    /* border: 1px solid #ffcc00; */
+    border-radius: 8px 8px 0 0;
+    /* Round only top corners if desired */
+    color: #eee;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.paytable-title {
+    color: #ffdd44;
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.paytable-explanation {
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+.paytable-explanation strong {
+    color: #ffcc00;
+    font-weight: 600;
+}
+
+.paytable-note {
+    font-size: 0.85em;
+    color: #aaa;
+    text-align: center;
+    margin-top: 15px;
+}
+
+/* No separator needed */
+/*
+.paytable-separator { ... }
+*/
