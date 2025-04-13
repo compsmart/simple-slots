@@ -95,6 +95,23 @@ let symbols = []; // Holds the currently loaded symbol objects for the active th
 // --- Initialize game when all content is loaded ---
 window.addEventListener('load', initGame);
 
+// Wait for the DOM to fully load before initializing window.betAmount
+window.addEventListener('DOMContentLoaded', () => {
+    const betAmountElement = document.getElementById('betAmount');
+    if (betAmountElement) {
+        const betAmountValue = parseFloat(betAmountElement.textContent);
+        if (!isNaN(betAmountValue)) {
+            window.betAmount = betAmountValue;
+        } else {
+            console.warn('Invalid bet amount in <span> element. Defaulting to 10.');
+            window.betAmount = 10; // Default value
+        }
+    } else {
+        console.warn('<span id="betAmount"> element not found. Defaulting to 10.');
+        window.betAmount = 10; // Default value
+    }
+});
+
 function initGame() {
     console.log("[DEBUG] initGame - START"); // <-- Log Start
 
@@ -316,13 +333,13 @@ function loadSounds() {
     }
 }
 
-function loadThemeSounds(themeName) {
-    // Reset theme sound tracking
+function loadThemeSounds(themeName) {    // Reset theme sound tracking
     currentThemeSounds = {
         theme: themeName,
         backgroundLoaded: false,
         spinLoaded: false,
-        winLoaded: false
+        winLoaded: false,
+        jackpotLoaded: false
     };
 
     console.log(`Loading sounds for theme: ${themeName}`);
@@ -362,9 +379,7 @@ function loadThemeSounds(themeName) {
             console.warn(`Could not load theme spin sound: ${error}`);
             // Try to load default spin sound
             loadAudioBuffer('spin', 'sounds/spin.wav');
-        });
-
-    // Load win sound
+        });    // Load win sound
     loadAudioBuffer('win', `${themePath}/win.mp3`)
         .then(() => {
             currentThemeSounds.winLoaded = true;
@@ -373,6 +388,20 @@ function loadThemeSounds(themeName) {
             console.warn(`Could not load theme win sound: ${error}`);
             // Try to load default win sound
             loadAudioBuffer('win', 'sounds/win.wav');
+        });
+
+    // Load jackpot sound for epic win animation
+    loadAudioBuffer('jackpot', `${themePath}/jackpot.mp3`)
+        .then(() => {
+            currentThemeSounds.jackpotLoaded = true;
+        })
+        .catch(error => {
+            console.warn(`Could not load theme jackpot sound: ${error}`);
+            // Try to load default jackpot sound from classic theme
+            loadAudioBuffer('jackpot', 'sounds/themes/classic/jackpot.mp3')
+                .catch(fallbackError => {
+                    console.warn(`Could not load fallback jackpot sound: ${fallbackError}`);
+                });
         });
 }
 
@@ -511,7 +540,7 @@ function initReels() {
 
 
 // --- Main Game Loop ---
-// ... (drawGame function remains the same) ...
+// Update drawGame to include epic win animation rendering
 function drawGame(timestamp) {
     if (!ctx) return; // Ensure context is available
 
@@ -523,11 +552,12 @@ function drawGame(timestamp) {
     // Throttle updates if delta time is too large (e.g., tabbed out)
     // const maxDeltaTime = 0.1; // 100ms max step
     // const clampedDeltaTime = Math.min(deltaTime, maxDeltaTime);
-    // Use clampedDeltaTime for physics/animation updates if needed    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Use clampedDeltaTime for physics/animation updates if needed
 
-    drawBackground(timestamp); // Draw static or animated background
+    ctx.clearRect(0, 0, canvas.width, canvas.height); drawBackground(timestamp); // Draw static or animated background
     drawReels(deltaTime, timestamp); // Update and draw reels, passing timestamp for effects
     drawReelMask(); // Draw mask/overlay over reels if needed
+
     drawUIElements(); // Draw balance, bet, buttons
 
     if (!spinning && winningLines.length > 0) {
@@ -544,6 +574,11 @@ function drawGame(timestamp) {
 
     drawPaytableModal(); // Draw Pay Table modal if active
     drawHistoryModal(); // Draw History modal if active
+
+    // Draw epic win animation if active - now at the very end to ensure it's on top of everything
+    if (isPlayingEpicWinAnimation) {
+        drawEpicWinAnimation(timestamp - epicWinStartTime, deltaTime);
+    }
 
     requestAnimationFrame(drawGame);
 }
@@ -1091,6 +1126,51 @@ function spinCompleted() {
     checkWinAndFinalize(); // This function remains the same as it uses currentReelResults
 }
 
+// --- Epic Win Animation Functions ---
+let isPlayingEpicWinAnimation = false;
+let epicWinStartTime = 0;
+
+// Function to trigger the epic win animation
+function triggerEpicWinAnimation() {
+    if (spinning) return; // Don't trigger during spins
+
+    // Prevent multiple animations from running simultaneously
+    if (isPlayingEpicWinAnimation) {
+        stopEpicWinAnimation();
+        return;
+    }    // Start the epic win animation
+    isPlayingEpicWinAnimation = true;
+    epicWinStartTime = performance.now();
+    console.log("Epic Win Animation Started!");
+
+    // Stop background music before playing jackpot sound
+    stopBackgroundMusic();
+
+    // Play jackpot sound for the current theme
+    playSound('jackpot');
+
+    // Stop the animation after the theme's duration (or default to 8 seconds)
+    const currentTheme = THEMES[currentThemeName];
+    const animDuration = currentTheme?.visualEffects?.themeSpecific?.epicWinAnimation?.duration || 8000;
+
+    // Add a small buffer to ensure animation completes fully before stopping
+    setTimeout(() => {
+        stopEpicWinAnimation();
+    }, animDuration + 500);
+}
+
+// Function to stop the epic win animation
+function stopEpicWinAnimation() {
+    isPlayingEpicWinAnimation = false;
+    console.log("Epic Win Animation Stopped!");
+
+    // Restart background music if user has interacted and sound is enabled
+    if (hasUserInteraction && !muteState && currentThemeSounds.backgroundLoaded) {
+        playBackgroundMusic(currentThemeSounds.theme);
+    }
+}
+
+// Add epic win animation to win conditions
 function checkWinAndFinalize() {
     spinning = false; // Set global spinning flag to false
     // Re-enable UI elements visually if needed (state check in drawUI handles this)
@@ -1106,15 +1186,22 @@ function checkWinAndFinalize() {
     };
 
     // Add to game history for the history modal
-    addSpinToHistory(spinResult); if (winInfo && winInfo.totalAmount > 0) {
+    addSpinToHistory(spinResult);
+
+    if (winInfo && winInfo.totalAmount > 0) {
         balance += winInfo.totalAmount;
         updateBalanceDisplay();
         playSound('win');
         // Add to history display (use info from winInfo or winningLines)
         // Pass the number of winning paylines instead of symbol count
         addToHistory(true, winInfo.bestMatch.symbolName, winInfo.allLines.length, winInfo.totalAmount);
+
+        // Check if this is a 5-of-a-kind win and trigger epic animation
+        if (winInfo.allLines.some(line => line.count >= 5)) {
+            triggerEpicWinAnimation();
+        }
         // Trigger win celebration if significant win
-        if (winInfo.totalAmount >= betAmount * 5) { // Example threshold
+        else if (winInfo.totalAmount >= betAmount * 5) { // Example threshold
             triggerWinCelebration(winInfo.totalAmount);
         }
     } else {
@@ -1304,11 +1391,18 @@ function drawUIElements() {
     const balanceX = 50;
     const balanceY = canvas.height - 80;
     const balanceWidth = 200;
-    const balanceHeight = 50; drawRoundedRect(balanceX, balanceY, balanceWidth, balanceHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2);
+    const balanceHeight = 50;
+
+    drawRoundedRect(balanceX, balanceY, balanceWidth, balanceHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2);
     // Label aligned left
     drawText('BALANCE:', balanceX + padding, balanceY + balanceHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle');
     // Amount aligned right
-    drawText(balance.toLocaleString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle'); // Use toLocaleString for formatting    // Draw Buttons for Paylines, Pay Table, and History
+    drawText(balance.toLocaleString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle');
+
+    // Draw Theme Test Button
+    drawThemeTestButton();
+
+    // Draw Buttons for Paylines, Pay Table, and History
     const btnHeight = 40;
     const btnSpacing = 10;
     const btnY = 20;
@@ -1474,6 +1568,24 @@ function drawUIElements() {
     drawText('SPIN', spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2 + 1, 'bold 24px Arial', spinTextColor, 'center', 'middle');
 
     ctx.restore();
+}
+
+// Draw the theme test button
+function drawThemeTestButton() {
+    // Get mute button position for reference
+    const muteBtnSize = 40;
+    const muteBtnX = 20;
+    const muteBtnY = 20;
+
+    // Position test button to the right of the mute button with some spacing
+    const testBtnWidth = 120;
+    const testBtnHeight = 40;
+    const testBtnX = muteBtnX + muteBtnSize + 10; // 10px spacing between buttons
+    const testBtnY = muteBtnY; // Same Y position as mute button
+
+    // Draw the button
+    drawRoundedRect(testBtnX, testBtnY, testBtnWidth, testBtnHeight, 8, 'rgba(255, 51, 102, 0.8)', '#ffffff', 2);
+    drawText('TEST EPIC WIN', testBtnX + testBtnWidth / 2, testBtnY + testBtnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
 }
 
 function drawText(text, x, y, font, color, align = 'left', baseline = 'top') {
@@ -1688,6 +1800,17 @@ function handleMouseDown(e) {
         playSound('click');
         increaseBet();
         // Visual feedback handled by hover state
+    }    // Check Theme Test Button Click
+    const testBtnWidth = 120;
+    const testBtnHeight = 40;
+
+    // Position test button to the right of the mute button with same spacing
+    const testBtnX = muteBtnX + muteBtnSize + 10; // 10px spacing between buttons
+    const testBtnY = muteBtnY; // Same Y position as mute button
+
+    if (isMouseOver(mouseX, mouseY, testBtnX, testBtnY, testBtnWidth, testBtnHeight)) {
+        playSound('click');
+        triggerEpicWinAnimation();
     }
 }
 
@@ -2552,5 +2675,72 @@ function drawLeaf(x, y, color, timestamp) {
     ctx.lineTo(0, 10);
     ctx.stroke();
 
+    ctx.restore();
+}
+
+// Draw theme-specific epic win animation
+function drawEpicWinAnimation(elapsedTime, deltaTime) {
+    if (!isPlayingEpicWinAnimation) return;
+
+    // Get the current theme
+    const currentTheme = THEMES[currentThemeName];
+    if (!currentTheme || !currentTheme.visualEffects) {
+        console.error("Cannot draw epic win animation: Theme effects not found");
+        return;
+    }
+
+    // Get the animation duration from the theme configuration
+    const animDuration = currentTheme?.visualEffects?.themeSpecific?.epicWinAnimation?.duration || 6000;
+
+    // Pass the duration to the custom renderer or use it in the fallback
+    if (typeof currentTheme.renderEpicWinAnimation === 'function') {
+        currentTheme.renderEpicWinAnimation(ctx, canvas, elapsedTime, deltaTime, animDuration);
+    } else {
+        drawGenericEpicWinAnimation(elapsedTime, deltaTime, animDuration);
+    }
+}
+
+// Generic epic win animation as a fallback
+function drawGenericEpicWinAnimation(elapsedTime, deltaTime, duration) {
+    const progress = Math.min(elapsedTime / duration, 1.0);
+
+    // Central explosion effect
+    const maxRadius = Math.min(canvas.width, canvas.height) * 0.8;
+    const radius = maxRadius * progress;
+
+    // Pulse effect
+    const pulseIntensity = Math.sin(elapsedTime / 200) * 0.3 + 0.7;
+
+    // Create a radial gradient for the explosion
+    const gradient = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 0,
+        canvas.width / 2, canvas.height / 2, radius
+    );
+
+    gradient.addColorStop(0, `rgba(255, 215, 0, ${0.8 * pulseIntensity})`);
+    gradient.addColorStop(0.7, `rgba(255, 165, 0, ${0.5 * pulseIntensity})`);
+    gradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw "EPIC WIN" text with growing/pulsing effect
+    const textSize = 60 * (0.5 + progress * 0.5) * pulseIntensity;
+
+    ctx.save();
+    ctx.font = `bold ${textSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Text glow effect
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+    ctx.shadowBlur = 20 * pulseIntensity;
+
+    // Draw text with outline
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#ff9900';
+    ctx.lineWidth = 3;
+    ctx.fillText('EPIC WIN!', canvas.width / 2, canvas.height / 2);
+    ctx.strokeText('EPIC WIN!', canvas.width / 2, canvas.height / 2);
     ctx.restore();
 }

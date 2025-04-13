@@ -35,8 +35,7 @@ export const GemstonesTheme = {
                 speed: 1200,
                 intensity: 0.5
             }
-        },
-        themeSpecific: {
+        }, themeSpecific: {
             gemSparkle: {
                 enabled: true,
                 intensity: 0.9,
@@ -45,6 +44,14 @@ export const GemstonesTheme = {
             prismEffect: {
                 enabled: true,
                 rainbowIntensity: 0.7
+            },
+            epicWinAnimation: {
+                enabled: true,
+                name: "Gem Explosion",
+                duration: 8000, // 5.5 seconds
+                diamondShower: true,
+                prismaticRays: true,
+                jewelTransformation: true
             }
         }
     },
@@ -58,6 +65,299 @@ export const GemstonesTheme = {
     ],
     // Renderer for Gemstones theme-specific effects
     renderThemeEffects: (ctx, canvas, timestamp, specific) => {
+        // Epic Win Animation for Gemstones theme
+        if (specific?.epicWinAnimation?.enabled && window.isPlayingEpicWinAnimation) {
+            const epicWin = specific.epicWinAnimation;
+            const progress = Math.min(1, (timestamp - window.epicWinStartTime) / epicWin.duration);
+
+            ctx.save();
+
+            // Diamond Shower effect
+            if (epicWin.diamondShower) {
+                const gemCount = 80;
+
+                for (let i = 0; i < gemCount; i++) {
+                    // Calculate gem position and appearance based on progress
+                    const delay = (i % 10) * 0.1;
+                    const gemProgress = Math.max(0, Math.min(1, (progress - delay) * 1.5));
+
+                    if (gemProgress <= 0) continue;
+
+                    const x = canvas.width * (0.1 + 0.8 * (i / gemCount));
+                    const y = gemProgress * canvas.height * 1.2 - 50;
+                    const rotation = timestamp / 1000 + i;
+                    const scale = 0.5 + Math.sin(i + timestamp / 500) * 0.2;
+                    const gemType = i % 5; // Different gem types
+
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(rotation);
+                    ctx.scale(scale, scale);
+
+                    // Choose gem color based on type
+                    const gemColors = [
+                        '#E91E63', // Ruby (pink)
+                        '#2196F3', // Sapphire (blue)
+                        '#4CAF50', // Emerald (green)
+                        '#9C27B0', // Amethyst (purple)
+                        '#FFC107'  // Topaz (yellow)
+                    ];
+
+                    const gemColor = gemColors[gemType];
+                    const gemOutline = gemColor.replace(/[^,]+\)/, '0.7)').replace(/rgb/, 'rgba');
+
+                    // Draw different gem shapes
+                    if (gemType === 0) { // Ruby/Diamond
+                        ctx.fillStyle = gemColor;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -20);
+                        ctx.lineTo(-15, 0);
+                        ctx.lineTo(0, 20);
+                        ctx.lineTo(15, 0);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                        // Inner facets
+                        ctx.beginPath();
+                        ctx.moveTo(-8, 0);
+                        ctx.lineTo(0, 10);
+                        ctx.lineTo(8, 0);
+                        ctx.lineTo(0, -10);
+                        ctx.closePath();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                        ctx.stroke();
+
+                    } else if (gemType === 1) { // Sapphire/Oval
+                        ctx.fillStyle = gemColor;
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, 18, 12, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                        // Inner facets
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                        ctx.stroke();
+
+                    } else if (gemType === 2) { // Emerald/Rectangle
+                        ctx.fillStyle = gemColor;
+                        ctx.fillRect(-15, -10, 30, 20);
+
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(-15, -10, 30, 20);
+
+                        // Inner facets
+                        ctx.beginPath();
+                        ctx.moveTo(-8, -5);
+                        ctx.lineTo(8, -5);
+                        ctx.moveTo(-8, 0);
+                        ctx.lineTo(8, 0);
+                        ctx.moveTo(-8, 5);
+                        ctx.lineTo(8, 5);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                        ctx.stroke();
+
+                    } else if (gemType === 3) { // Amethyst/Hexagon
+                        ctx.fillStyle = gemColor;
+                        ctx.beginPath();
+                        for (let i = 0; i < 6; i++) {
+                            const angle = i * Math.PI / 3;
+                            const px = Math.cos(angle) * 15;
+                            const py = Math.sin(angle) * 15;
+                            if (i === 0) ctx.moveTo(px, py);
+                            else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                    } else { // Topaz/Triangle
+                        ctx.fillStyle = gemColor;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -18);
+                        ctx.lineTo(-15, 12);
+                        ctx.lineTo(15, 12);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+
+                    // Add sparkle
+                    const sparkleOpacity = Math.sin(timestamp / 200 + i) * 0.5 + 0.5;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${sparkleOpacity})`;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+            }
+
+            // Prismatic Rays effect
+            if (epicWin.prismaticRays && progress > 0.2) {
+                const rayCount = 12;
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const maxRadius = canvas.width * 0.6;
+                const currentRadius = maxRadius * Math.min(1, (progress - 0.2) * 1.5);
+
+                for (let i = 0; i < rayCount; i++) {
+                    const angle = (i / rayCount) * Math.PI * 2;
+                    const rayWidth = 30;
+                    const hue = (i / rayCount) * 360;
+
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(angle + timestamp / 5000);
+
+                    const gradient = ctx.createLinearGradient(0, 0, currentRadius, 0);
+                    gradient.addColorStop(0, `hsla(${hue}, 100%, 50%, 0.8)`);
+                    gradient.addColorStop(1, `hsla(${hue}, 100%, 70%, 0)`);
+
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(currentRadius, -rayWidth);
+                    ctx.lineTo(currentRadius, rayWidth);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+            }
+
+            // Jewel Transformation effect
+            if (epicWin.jewelTransformation && progress > 0.5) {
+                const transformProgress = Math.min(1, (progress - 0.5) * 2);
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height * 0.3;
+
+                // Draw giant central gem growing and transforming
+                const rotation = timestamp / 3000;
+                const scale = 0.5 + transformProgress * 1.5;
+                const pulseScale = scale * (1 + Math.sin(timestamp / 200) * 0.05);
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(rotation);
+                ctx.scale(pulseScale, pulseScale);
+
+                // Draw giant diamond
+                ctx.fillStyle = '#E1F5FE';
+                ctx.beginPath();
+                ctx.moveTo(0, -40);
+                ctx.lineTo(-50, 0);
+                ctx.lineTo(0, 40);
+                ctx.lineTo(50, 0);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw facets in the diamond
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
+
+                // Cross lines
+                ctx.beginPath();
+                ctx.moveTo(-50, 0);
+                ctx.lineTo(50, 0);
+                ctx.moveTo(0, -40);
+                ctx.lineTo(0, 40);
+                ctx.stroke();
+
+                // Diagonal facets
+                ctx.beginPath();
+                ctx.moveTo(-25, -20);
+                ctx.lineTo(25, -20);
+                ctx.lineTo(25, 20);
+                ctx.lineTo(-25, 20);
+                ctx.closePath();
+                ctx.stroke();
+
+                // Diamond outline
+                ctx.strokeStyle = 'rgba(0, 170, 255, 0.8)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, -40);
+                ctx.lineTo(-50, 0);
+                ctx.lineTo(0, 40);
+                ctx.lineTo(50, 0);
+                ctx.closePath();
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Add pulse wave from the diamond
+                const pulseRadius = transformProgress * canvas.width;
+                ctx.strokeStyle = `rgba(100, 200, 255, ${0.7 * (1 - transformProgress)})`;
+                ctx.lineWidth = 10 * (1 - transformProgress);
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Big text announcement
+            const textProgress = Math.min(1, progress * 1.5);
+            const textSize = 60 + Math.sin(timestamp / 200) * 10;
+            ctx.font = `bold ${textSize}px "Arial", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Text with jewel gradient
+            const textGradient = ctx.createLinearGradient(
+                canvas.width / 2 - 200,
+                canvas.height / 6,
+                canvas.width / 2 + 200,
+                canvas.height / 6
+            );
+            textGradient.addColorStop(0, '#9C27B0');
+            textGradient.addColorStop(0.3, '#E91E63');
+            textGradient.addColorStop(0.5, '#2196F3');
+            textGradient.addColorStop(0.7, '#4CAF50');
+            textGradient.addColorStop(1, '#FFC107');
+
+            ctx.fillStyle = textGradient;
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+
+            const scale = 0.5 + textProgress * 0.5;
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 6);
+            ctx.scale(scale, scale);
+            ctx.rotate(Math.sin(timestamp / 500) * 0.1);
+            ctx.fillText("GEM FORTUNE!", 0, 0);
+            ctx.strokeText("GEM FORTUNE!", 0, 0);
+            ctx.restore();
+
+            // Win amount
+            ctx.font = 'bold 40px Arial';
+            ctx.fillStyle = '#2196F3';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.fillText(`${(window.betAmount * 200).toFixed(2)}`, canvas.width / 2, canvas.height * 0.8);
+            ctx.strokeText(`${(window.betAmount * 200).toFixed(2)}`, canvas.width / 2, canvas.height * 0.8);
+
+            ctx.restore();
+
+            // End animation if complete
+            if (progress >= 1) {
+                window.isPlayingEpicWinAnimation = false;
+            }
+        }
         // Gem Sparkle effect
         if (specific?.gemSparkle?.enabled) {
             const sparkleSettings = specific.gemSparkle;
@@ -299,5 +599,327 @@ export const GemstonesTheme = {
 
             ctx.restore();
         }
-    }
-};
+    },
+    /**
+  * Renders an enhanced "Epic Win" animation sequence.
+  *
+  * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+  * @param {HTMLCanvasElement} canvas - The canvas element.
+  * @param {number} elapsedTime - Total time elapsed since the animation started (in ms).
+  * @param {number} deltaTime - Time elapsed since the last frame (in ms). Might not be strictly needed if elapsedTime is primary driver.
+  * @param {number} winAmount - The actual amount won for display.
+  */
+    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime, winAmount) => {
+        const duration = 7000; // Increased duration for more impact
+        const progress = Math.min(elapsedTime / duration, 1.0);
+
+        // --- Easing Functions ---
+        // Makes movement feel more natural (e.g., starts fast, slows down)
+        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+        const easeOutQuint = (t) => 1 - Math.pow(1 - t, 5);
+        const easeInOutSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
+        const pulse = (time, freq, amplitude) => Math.sin(time / freq) * amplitude;
+
+        // --- Clear Canvas (Optional, depends on render loop) ---
+        // ctx.clearRect(0, 0, canvas.width, canvas.height); // Uncomment if needed
+
+        // --- 1. Enhanced Background ---
+        ctx.save();
+        const bgProgress = easeInOutSine(progress); // Use easing for smoother transition
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+
+        // Subtle radial gradient
+        const bgGradient = ctx.createRadialGradient(
+            centerX, centerY, 0,
+            centerX, centerY, maxRadius * (0.8 + bgProgress * 0.2) // Expand slightly
+        );
+        // Deeper, more vibrant colors
+        const bgColor1 = `hsl(250, 50%, ${10 + pulse(elapsedTime, 500, 3)}%)`; // Dark pulsing blue/purple
+        const bgColor2 = `hsl(225, 60%, ${15 + pulse(elapsedTime, 600, 5)}%)`; // Dark pulsing deep blue
+        bgGradient.addColorStop(0, bgColor1);
+        bgGradient.addColorStop(1, bgColor2);
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Background shimmering particles (Subtle)
+        const shimmerCount = 50;
+        for (let i = 0; i < shimmerCount; i++) {
+            const angle = (i / shimmerCount) * Math.PI * 2 + elapsedTime / 5000; // Slow rotation
+            const dist = (i / shimmerCount) * maxRadius * (0.5 + Math.random() * 0.5);
+            const x = centerX + Math.cos(angle) * dist;
+            const y = centerY + Math.sin(angle) * dist;
+            const shimmerSize = 1 + Math.random() * 2;
+            const shimmerAlpha = 0.1 + Math.random() * 0.3 * (Math.sin(elapsedTime / 300 + i) * 0.5 + 0.5); // Pulsing alpha
+
+            ctx.fillStyle = `hsla(0, 0%, 100%, ${shimmerAlpha})`; // White shimmers
+            ctx.beginPath();
+            ctx.arc(x, y, shimmerSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+
+        // --- Helper Function: Draw Faceted Gem ---
+        const drawFacetedGem = (x, y, size, color, rotation = 0) => {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+
+            // Base shape points (e.g., octagon)
+            const points = [];
+            const facets = 8;
+            for (let i = 0; i < facets; i++) {
+                const angle = (i / facets) * Math.PI * 2;
+                const radius = size * (i % 2 === 0 ? 1 : 0.7); // Alternating radius for facets
+                points.push({
+                    x: Math.cos(angle) * radius,
+                    y: Math.sin(angle) * radius
+                });
+            }
+
+            // Gradient Fill for 3D effect
+            const gemGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+            gemGradient.addColorStop(0, `hsl(${color.h}, ${color.s}%, ${color.l + 15}%)`); // Brighter center
+            gemGradient.addColorStop(0.7, `hsl(${color.h}, ${color.s}%, ${color.l}%)`);    // Main color
+            gemGradient.addColorStop(1, `hsl(${color.h}, ${color.s}%, ${color.l - 15}%)`); // Darker edge
+            ctx.fillStyle = gemGradient;
+
+            // Draw shape
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Subtle stroke for definition
+            ctx.strokeStyle = `hsla(${color.h}, ${color.s}%, ${color.l - 20}%, 0.5)`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Center highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.arc(0, -size * 0.2, size * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        };
+
+
+        // --- 2. Gemstone Explosion (Improved) ---
+        ctx.save();
+        const GEM_COUNT = 60; // More gems
+        const explosionProgress = easeOutQuint(progress); // Use stronger easing for explosion
+
+        for (let i = 0; i < GEM_COUNT; i++) {
+            // Base circular explosion path
+            const angle = (Math.PI * 4 * i) / GEM_COUNT + (i % 2) * 0.1; // Add more spiral/variation
+            const maxDist = canvas.width * 0.6 + Math.random() * 100; // Randomize max distance
+            const distance = explosionProgress * maxDist;
+
+            // Add some outward drift variance & slight gravity pull downwards
+            const driftX = Math.sin(elapsedTime / 1000 + i) * 20 * progress;
+            const driftY = explosionProgress * explosionProgress * 50; // Simulate slight gravity
+
+            const x = centerX + Math.cos(angle) * distance + driftX;
+            const y = centerY + Math.sin(angle) * distance + driftY;
+
+            // Base size + pulsation + shrinking over time
+            const baseSize = 15 + Math.random() * 15;
+            const sizePulse = pulse(elapsedTime, 300 + Math.random() * 200, 5);
+            const shrinkFactor = (1 - progress * 0.5); // Gems shrink slightly as they fly
+            const size = (baseSize + sizePulse) * shrinkFactor;
+
+            // Rotation
+            const rotation = elapsedTime / (500 + Math.random() * 500) + i * 0.5;
+
+            // Color - Use HSL for better variety and control
+            const gemColor = {
+                h: (i * 360 / (GEM_COUNT / 3)) % 360, // Cycle through hues more smoothly
+                s: 80 + Math.random() * 20,          // High saturation
+                l: 55 + Math.random() * 10           // Bright lightness
+            };
+
+            // Opacity - Fade out gems towards the end
+            const opacity = Math.max(0, 1 - explosionProgress * 1.2);
+            if (size > 0 && opacity > 0) {
+                ctx.globalAlpha = opacity;
+                drawFacetedGem(x, y, size, gemColor, rotation);
+            }
+        }
+        ctx.globalAlpha = 1.0; // Reset global alpha
+        ctx.restore();
+
+
+        // --- 3. Prismatic Light Rays (Enhanced) ---
+        ctx.save();
+        const RAY_COUNT = 15; // Fewer, but more impactful rays
+        const rayProgress = easeInOutSine(progress); // Smoother progress
+
+        ctx.globalCompositeOperation = 'lighter'; // Additive blending for bright rays
+
+        for (let i = 0; i < RAY_COUNT; i++) {
+            const angle = (Math.PI * 2 * i) / RAY_COUNT + elapsedTime / 8000; // Slow rotation
+            const maxLength = canvas.width * 0.8; // Longer rays
+            const length = maxLength * rayProgress * (0.8 + pulse(elapsedTime, 400 + i * 50, 0.2)); // Pulsing length
+            const startWidth = 30 * (1 - rayProgress) + 5; // Start wider, get thinner
+            const endWidth = 2;
+
+            const x1 = centerX;
+            const y1 = centerY;
+            const x2 = x1 + Math.cos(angle) * length;
+            const y2 = y1 + Math.sin(angle) * length;
+
+            // Gradient along the ray
+            const rayGradient = ctx.createLinearGradient(x1, y1, x2, y2);
+            const rayHue = (i * 360 / RAY_COUNT + elapsedTime / 20) % 360;
+            const rayAlpha = (0.4 + pulse(elapsedTime, 300 + i * 70, 0.3)) * (1 - progress); // Pulse and fade out
+
+            rayGradient.addColorStop(0, `hsla(${rayHue}, 100%, 70%, ${rayAlpha * 0.8})`); // Brighter near center
+            rayGradient.addColorStop(0.5, `hsla(${rayHue}, 100%, 60%, ${rayAlpha})`);
+            rayGradient.addColorStop(1, `hsla(${rayHue}, 100%, 50%, 0)`); // Fade to transparent
+
+            // Draw ray using varying width (approximated with multiple lines or a path)
+            // Simple line approach for now:
+            ctx.strokeStyle = rayGradient;
+            ctx.lineWidth = startWidth * (1 - rayProgress) + endWidth; // Width decreases over length implicitly with gradient alpha
+            ctx.lineWidth = Math.max(1, 1 + pulse(elapsedTime, 250 + i * 40, 8) * (1 - progress)); // Pulsing width + fade out
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+        ctx.restore(); // Resets globalCompositeOperation to 'source-over'
+
+
+        // --- 4. Central Gem Transformation (Enhanced) ---
+        ctx.save();
+        const centerGemProgress = easeInOutSine(progress);
+        const baseGemSize = 120;
+        const gemSizePulse = pulse(elapsedTime, 400, 25);
+        const gemSize = baseGemSize + gemSizePulse * centerGemProgress; // Grows and pulses
+        const gemRotation = elapsedTime / 1500;
+        const gemColor = { h: 180, s: 90, l: 60 }; // Vibrant Cyan base
+
+        // Add a glow effect
+        ctx.shadowColor = `hsla(${gemColor.h}, 100%, 70%, 0.7)`;
+        ctx.shadowBlur = 30 + pulse(elapsedTime, 350, 15); // Pulsing glow
+
+        drawFacetedGem(centerX, centerY, gemSize, gemColor, gemRotation);
+        ctx.restore(); // Removes shadow effect
+
+
+        // --- 5. Big Text Announcement (Enhanced) ---
+        ctx.save();
+        const textAppearDuration = duration * 0.5; // Text starts appearing earlier
+        const textAppearElapsed = Math.min(elapsedTime, textAppearDuration);
+        const textProgress = easeOutCubic(textAppearElapsed / textAppearDuration); // Easing for text appearance
+
+        // Base size + pulse + initial scale-up
+        const baseTextSize = Math.min(canvas.width / 10, 70); // Responsive base size
+        const textSizePulse = pulse(elapsedTime, 450, baseTextSize * 0.08);
+        const initialScale = 0.5 + textProgress * 0.5; // Scale in from 50% to 100%
+        const textSize = (baseTextSize + textSizePulse) * initialScale;
+
+        ctx.font = `bold ${textSize}px 'Impact', 'Arial Black', sans-serif`; // More impactful font
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Text Gradient (More vibrant)
+        const textGradient = ctx.createLinearGradient(
+            centerX - canvas.width * 0.4, centerY,
+            centerX + canvas.width * 0.4, centerY
+        );
+        const gradHue1 = (elapsedTime / 15) % 360;
+        const gradHue2 = (gradHue1 + 120) % 360;
+        const gradHue3 = (gradHue1 + 240) % 360;
+        textGradient.addColorStop(0, `hsl(${gradHue1}, 100%, 65%)`);
+        textGradient.addColorStop(0.5, `hsl(${gradHue2}, 100%, 80%)`); // Brighter middle
+        textGradient.addColorStop(1, `hsl(${gradHue3}, 100%, 65%)`);
+
+        // Text Shadow for depth
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 3 * textProgress; // Shadow appears with text
+        ctx.shadowOffsetY = 3 * textProgress;
+
+        // Apply subtle rotation wobble
+        const textRotation = Math.sin(elapsedTime / 600) * 0.05 * textProgress;
+
+        // Position text higher up
+        const textY = canvas.height * 0.35;
+
+        ctx.translate(centerX, textY);
+        ctx.scale(initialScale, initialScale); // Apply scaling here (affects shadow too)
+        ctx.rotate(textRotation);
+
+        ctx.fillStyle = textGradient;
+        ctx.fillText("GEMSTONE JACKPOT!", 0, 0);
+
+        // Optional: Add a subtle stroke (after shadow, before fill if needed)
+        // ctx.strokeStyle = '#fff';
+        // ctx.lineWidth = 1;
+        // ctx.strokeText("GEMSTONE JACKPOT!", 0, 0);
+
+        ctx.restore(); // Removes shadow, transform
+
+
+        // --- 6. Win Amount Display (Enhanced with Count-Up) ---
+        ctx.save();
+        const amountAppearDelay = duration * 0.3; // Amount appears slightly later
+        const amountDuration = duration * 0.6;    // Takes time to count up
+        let amountDisplay = 0;
+        let amountProgress = 0;
+
+        if (elapsedTime > amountAppearDelay) {
+            const amountElapsed = Math.min(elapsedTime - amountAppearDelay, amountDuration);
+            amountProgress = easeOutCubic(amountElapsed / amountDuration); // Easing for count-up
+            amountDisplay = winAmount * amountProgress; // Calculate displayed amount
+        }
+
+        const amountTextSize = Math.min(canvas.width / 15, 50); // Responsive size
+        ctx.font = `bold ${amountTextSize}px 'Arial', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff'; // Bright white
+
+        // Subtle glow for amount
+        ctx.shadowColor = 'rgba(255, 255, 150, 0.7)'; // Yellowish glow
+        ctx.shadowBlur = 15 + pulse(elapsedTime, 500, 5);
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        const amountY = canvas.height * 0.7;
+        const formattedAmount = amountDisplay.toFixed(2); // Format to 2 decimal places
+
+        // Fade in the amount text
+        ctx.globalAlpha = amountProgress;
+
+        ctx.fillText(`WIN: ${formattedAmount}`, centerX, amountY);
+
+        // Optional: Add a dark stroke for contrast AFTER shadow/fill
+        // ctx.shadowColor = 'transparent'; // Turn off glow for stroke
+        // ctx.strokeStyle = '#000000';
+        // ctx.lineWidth = 2;
+        // ctx.strokeText(`WIN: ${formattedAmount}`, centerX, amountY);
+
+        ctx.restore(); // Removes shadow, alpha
+
+
+        // --- End Animation Condition ---
+        if (progress >= 1) {
+            // Ensure the final win amount is displayed correctly at the very end
+            // This is a failsafe if the animation loop stops exactly at progress = 1
+            // You might want a separate "hold frame" state after the animation finishes.
+            // For now, just return false to signal completion.
+            return false; // Indicate animation should stop
+        }
+
+        return true; // Indicate animation is still playing
+    },
+}
