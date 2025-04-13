@@ -2,7 +2,7 @@
 
 A customizable casino slot machine game with multiple themes, built using pure JavaScript, HTML5 Canvas, and Web Audio API.
 
-![Slot Game Screenshot](https://github.com/yourusername/slot-game/raw/main/images/screenshot.png)
+![Slot Game Screenshot](https://github.com/compsmart/simpleslots/raw/v11/screenshot.png)
 
 ## Features
 
