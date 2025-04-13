@@ -12,7 +12,7 @@ export const EffectDefaults = {
 
     // Individual effects
     neonGlow: {
-        enabled: true,    // Enable neon glow around symbols
+        enabled: false,    // Enable neon glow around symbols
         color: '#00ffff', // Default color for glow
         size: 10,         // Glow size in pixels
         pulseSpeed: 1000, // Pulse cycle in milliseconds
@@ -20,7 +20,7 @@ export const EffectDefaults = {
     },
 
     electricEdges: {
-        enabled: true,    // Enable electric effect on symbol edges
+        enabled: false,    // Enable electric effect on symbol edges
         color: '#ffffff', // Color of the electric effect
         arcs: 5,          // Number of electric arcs
         speed: 800,       // Speed of movement in ms

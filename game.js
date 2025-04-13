@@ -1,6 +1,7 @@
 // Import themes FIRST
 import { THEMES } from './themes/index.js'; // <-- Added Import
 import { EffectsHelper } from './themes/effects.js'; // <-- Import EffectsHelper
+import { SYMBOL_MAPS } from './themes/symbolMap.js'; // <-- Import Symbol Maps
 import {
     reelStrips,
     symbolNumberMultipliers,
@@ -34,6 +35,8 @@ let payTable = [];
 let spinHistory = [];
 let historyCurrentPage = 0; // Track current page for history pagination
 let backgroundParticles = [];
+let svgSymbolSheet; // Hold the SVG sprite sheet Image object
+let svgLoaded = false; // Track if the SVG has been loaded
 let warpStars = []; // For space theme star warping effect
 let lastTime = 0;
 let winAnimationActive = false;
@@ -230,9 +233,29 @@ function validateConfiguration() {
     return isValid;
 }
 
+// Function to draw a symbol from the SVG sprite sheet
+function drawSymbol(symbolName, context, dx, dy, dw, dh) {
+    const themeKey = currentThemeName.toLowerCase().replace(/\s+/g, '');
+
+    // First check if we have a valid symbol map for the current theme
+    if (!svgLoaded || !svgSymbolSheet || !SYMBOL_MAPS[themeKey] || !SYMBOL_MAPS[themeKey][symbolName.toLowerCase()]) {
+        // console.warn(`SVG not loaded or symbol ${symbolName} not found in symbol map.`);
+        return false; // Return false to indicate symbol wasn't drawn from SVG
+    }
+
+    const s = SYMBOL_MAPS[themeKey][symbolName.toLowerCase()];
+    context.drawImage(
+        svgSymbolSheet,
+        s.sx, s.sy, s.sw, s.sh, // Source rectangle (from SVG)
+        dx, dy, dw, dh          // Destination rectangle (on canvas)
+    );
+    return true; // Return true to indicate symbol was drawn from SVG
+}
+
 async function loadThemeVisuals(themeName) {
     console.log(`Attempting to load visuals for theme: ${themeName}`);
     const themeVisuals = THEMES[themeName];
+    svgLoaded = false; // Reset SVG loaded state
 
     if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) { // Check for exactly 5 symbols
         console.error(`Theme visuals for "${themeName}" not found, invalid, or doesn't have exactly 5 symbols. Falling back to Classic.`);
@@ -244,16 +267,37 @@ async function loadThemeVisuals(themeName) {
         }
     }
 
-    currentThemeName = themeName;
+    // Load the theme's SVG sprite sheet if available
+    const themeKey = themeName.toLowerCase().replace(/\s+/g, '');
+    const svgPath = `images/symbols/${themeKey}/symbols.svg`;
+
+    // Create a promise to load the SVG sprite sheet
+    const loadSvgPromise = new Promise((resolve) => {
+        svgSymbolSheet = new Image();
+        svgSymbolSheet.onload = () => {
+            console.log(`Loaded SVG sprite sheet for theme: ${themeName}`);
+            svgLoaded = true;
+            resolve();
+        };
+        svgSymbolSheet.onerror = () => {
+            console.warn(`Could not load SVG sprite sheet for theme: ${themeName}`);
+            svgLoaded = false;
+            resolve(); // Resolve anyway to continue with individual images
+        };
+        svgSymbolSheet.src = svgPath;
+    }); currentThemeName = themeName;
     document.body.className = `theme-${themeName.toLowerCase().replace(/\s+/g, '-')}`;
     console.log(`Loading symbol visuals for theme: ${currentThemeName}`);
     symbols = []; // Clear existing symbols
 
     const themeSymbolsData = themeVisuals.symbols; // Get the 5 symbols
 
+    // Wait for the SVG sprite sheet to load (or fail) before continuing
+    await loadSvgPromise;
+
     const symbolPromises = themeSymbolsData.map((symbolData, index) => {
         // Basic validation of visual data
-        if (!symbolData || !symbolData.path || !symbolData.name) {
+        if (!symbolData || (!symbolData.path && !symbolData.imagePath) || !symbolData.name) {
             console.warn(`Invalid symbol visual data at index ${index} for theme ${themeName}`, symbolData);
             // Create a placeholder visual if needed
             symbols[index] = { name: `Symbol ${index}`, path: null, image: null, color: getRandomColor(), id: index };
@@ -261,24 +305,73 @@ async function loadThemeVisuals(themeName) {
         }
 
         return new Promise((resolve) => {
-            const img = new Image();
-            img.src = symbolData.path;
             const loadedSymbol = {
-                ...symbolData, // name, path, winAnimation
+                ...symbolData, // name, path, winAnimation, imagePath, backgroundColor
                 image: null,
                 id: index // Store the index (0-4)
             };
-            img.onload = () => {
-                loadedSymbol.image = img;
-                symbols[index] = loadedSymbol; // Place in correct index
-                resolve();
-            };
-            img.onerror = (err) => {
-                console.error(`Failed to load image for ${symbolData.name} (${symbolData.path}):`, err);
-                loadedSymbol.color = getRandomColor();
-                symbols[index] = loadedSymbol; // Place placeholder in correct index
-                resolve();
-            };
+
+            // First try to load from imagePath if available
+            if (symbolData.imagePath) {
+                const img = new Image();
+                img.src = symbolData.imagePath;
+
+                img.onload = () => {
+                    console.log(`Loaded image for ${symbolData.name} from imagePath: ${symbolData.imagePath}`);
+                    loadedSymbol.image = img;
+                    // Keep the backgroundColor from the theme config
+                    loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                    symbols[index] = loadedSymbol; // Place in correct index
+                    resolve();
+                };
+
+                img.onerror = (err) => {
+                    console.warn(`Failed to load image from imagePath for ${symbolData.name}, trying SVG path as fallback...`);
+                    // Fall back to SVG path if image loading fails and path exists
+                    if (symbolData.path) {
+                        const svgImg = new Image();
+                        svgImg.src = symbolData.path;
+
+                        svgImg.onload = () => {
+                            console.log(`Loaded fallback SVG for ${symbolData.name} from path: ${symbolData.path}`);
+                            loadedSymbol.image = svgImg;
+                            loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                            symbols[index] = loadedSymbol;
+                            resolve();
+                        };
+
+                        svgImg.onerror = (svgErr) => {
+                            console.error(`Failed to load both image and SVG for ${symbolData.name}:`, svgErr);
+                            loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                            symbols[index] = loadedSymbol;
+                            resolve();
+                        };
+                    } else {
+                        console.error(`No fallback SVG path for ${symbolData.name}:`, err);
+                        loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                        symbols[index] = loadedSymbol;
+                        resolve();
+                    }
+                };
+            } else if (symbolData.path) {
+                // If no imagePath provided, use SVG path directly
+                const img = new Image();
+                img.src = symbolData.path;
+
+                img.onload = () => {
+                    loadedSymbol.image = img;
+                    loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                    symbols[index] = loadedSymbol;
+                    resolve();
+                };
+
+                img.onerror = (err) => {
+                    console.error(`Failed to load SVG for ${symbolData.name} (${symbolData.path}):`, err);
+                    loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                    symbols[index] = loadedSymbol;
+                    resolve();
+                };
+            }
         });
     });
 
@@ -840,20 +933,39 @@ function drawReels(deltaTime, timestamp) {
                         ctx.shadowColor = glowColor;
                         ctx.shadowOffsetX = 0;
                         ctx.shadowOffsetY = 0;
+                    }                    // First try drawing from SVG sprite sheet if it's loaded
+                    let drawnFromSprite = false;
+
+                    // Try to draw using SVG sprite sheet if available
+                    if (svgLoaded && symbol.name) {
+                        // Apply background color for the transparent PNG
+                        ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                        ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+
+                        // Try to draw from sprite sheet
+                        drawnFromSprite = drawSymbol(symbol.name, ctx, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
                     }
 
-                    // Draw the base symbol image or fallback
-                    if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) { // Check if image is actually loaded
-                        ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                    } else {
-                        // Fallback drawing if image failed to load or isn't ready
-                        ctx.fillStyle = symbol.color || '#cccccc';
-                        ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                        ctx.fillStyle = '#000000';
-                        ctx.font = '16px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
+                    // If sprite sheet drawing failed, fall back to individual images or colored rectangles
+                    if (!drawnFromSprite) {
+                        if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) {
+                            // If we have an individual image, use that
+                            // If it has transparency, first draw the background color
+                            if (symbol.imagePath) {
+                                ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                                ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                            }
+                            ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                        } else {
+                            // Last resort fallback - colored rectangle with symbol name
+                            ctx.fillStyle = symbol.color || '#cccccc';
+                            ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                            ctx.fillStyle = '#000000';
+                            ctx.font = '16px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
+                        }
                     }
 
                     // Reset shadow effects if applied
@@ -2306,15 +2418,38 @@ function drawPaytableModal() {
     if (symbols.length > 0) {
         for (let i = 0; i < symbols.length; i++) {
             const symbol = symbols[i];
-            if (i >= 8) break; // Maximum 8 symbols to display
+            if (i >= 8) break; // Maximum 8 symbols to display            // Draw symbol - first try sprite sheet, then fallback to individual image
+            let symbolDrawn = false;
 
-            // Draw symbol
-            if (symbol.image) {
-                ctx.drawImage(symbol.image, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
-            } else {
-                // Placeholder if image not loaded
-                ctx.fillStyle = '#888888';
+            // First try to draw from sprite sheet if loaded
+            if (svgLoaded && symbol.name) {
+                // Draw background for transparent symbols
+                ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
                 ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+
+                // Try to draw from SVG sprite map
+                symbolDrawn = drawSymbol(symbol.name, ctx, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+            }
+
+            // If sprite drawing failed, fall back to individual image
+            if (!symbolDrawn) {
+                if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) {
+                    // If using separate PNG with transparency, first draw background
+                    if (symbol.imagePath) {
+                        ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                        ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                    }
+                    ctx.drawImage(symbol.image, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                } else {
+                    // Placeholder if no image available
+                    ctx.fillStyle = symbol.backgroundColor || symbol.color || '#888888';
+                    ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', contentX, currentY);
+                }
             }
             // Draw payouts (3, 4, 5 of a kind) - Fixed to use symbolNumberMultipliers and PAYOUT_RULES
             // Find the symbol index in the current theme
@@ -2438,11 +2573,9 @@ function drawHistoryModal() {
             ctx.textAlign = 'left';            // Convert stored timestamp to readable date - fixing the invalid date issue
             const date = new Date(parseInt(entry.time));
             ctx.fillText(entry.timestamp || date.toLocaleTimeString(), contentX, currentY);
-            ctx.fillText(entry.totalBet, contentX + 150, currentY);
-
-            // Use green text for wins
+            ctx.fillText(entry.totalBet, contentX + 150, currentY);            // Use green text for wins
             ctx.fillStyle = color;
-            ctx.fillText(entry.winAmount, contentX + 250, currentY);
+            ctx.fillText(Math.round(entry.winAmount), contentX + 250, currentY);
             ctx.fillText(entry.count || 0, contentX + 350, currentY);
             ctx.fillText(winPercentage + '%', contentX + 500, currentY);
 
