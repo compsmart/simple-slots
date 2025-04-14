@@ -35,6 +35,27 @@ export const AncientEgyptTheme = {
                 intensity: 0.4
             }
         },
+        // Add reel effects configuration
+        reelEffects: {
+            enabled: true,
+            blurAmount: 6,
+            lightTrails: false,
+            spinningGlow: true,
+            spinColor: '#ffd700' // Gold color for spin glow
+        },
+        // Add win effects configuration
+        winEffects: {
+            enabled: true,
+            explosions: true,
+            shockwave: true,
+            flashingSymbols: true,
+            spinEffect3d: {
+                enabled: true,
+                rotations: 1,
+                duration: 1000,
+                easing: 'easeOutBack'
+            }
+        },
         themeSpecific: {
             sandStorm: {
                 enabled: true,
@@ -48,7 +69,7 @@ export const AncientEgyptTheme = {
             epicWinAnimation: {
                 enabled: true,
                 name: "Pharaoh's Treasure",
-                duration: 8000, // 6 seconds
+                duration: 8000, // 8 seconds
                 pyramidExplosion: true,
                 goldenRain: true,
                 sphinxReveal: false

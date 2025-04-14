@@ -28,5 +28,15 @@ export const SYMBOL_MAPS = {
 
     'spaceadventure': {
         // Define positions for space adventure symbols
+    },
+
+    'fantasyforest': {
+        'dragon head': { sx: 230, sy: 30, sw: 170, sh: 170 },
+        'magic potion': { sx: 30, sy: 360, sw: 190, sh: 190 },
+        'elf bow': { sx: 610, sy: 20, sw: 200, sh: 200 },
+        'glowing mushroom': { sx: 430, sy: 360, sw: 170, sh: 170 },
+        'ancient rune': { sx: 230, sy: 205, sw: 170, sh: 170 },
+        'magic ball': { sx: 230, sy: 380, sw: 170, sh: 170 },
+
     }
 };

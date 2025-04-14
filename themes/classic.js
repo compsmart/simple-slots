@@ -7,10 +7,23 @@ export const ClassicTheme = {
         intensity: 0.85,
         reelEffects: {
             enabled: true,
-            blurAmount: 4,
-            lightTrails: true,
+            blurAmount: 6,
+            lightTrails: false,
             spinningGlow: true,
-            spinColor: '#ff00ff'
+            spinColor: '#ffd700' // Gold color for spin glow
+        },
+        // Add win effects configuration
+        winEffects: {
+            enabled: true,
+            explosions: true,
+            shockwave: true,
+            flashingSymbols: true,
+            spinEffect3d: {
+                enabled: true,
+                rotations: 1,
+                duration: 1000,
+                easing: 'easeOutBack'
+            }
         },
         backgroundEffects: {
             enabled: false,

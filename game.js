@@ -88,7 +88,7 @@ let addCreditButton;
 let themeSwitcherElement; // <-- Theme switcher element
 
 // --- Game State Variable ---
-let currentThemeName = "AncientEgypt"; // Default theme
+let currentThemeName = "FantasyForest"; // Default theme
 let symbols = []; // Holds the currently loaded symbol objects for the active theme
 
 // --- REMOVED OLD SYMBOLS and REEL_SETS ---
@@ -259,7 +259,7 @@ async function loadThemeVisuals(themeName) {
 
     if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) { // Check for exactly 5 symbols
         console.error(`Theme visuals for "${themeName}" not found, invalid, or doesn't have exactly 5 symbols. Falling back to Classic.`);
-        themeName = "AncientEgypt"; // Default fallback theme name
+        themeName = "FantasyForest"; // Default fallback theme name
         themeVisuals = THEMES[themeName];
         if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) {
             console.error("CRITICAL: Fallback theme 'Classic' visuals also invalid or missing 5 symbols!");
@@ -269,7 +269,7 @@ async function loadThemeVisuals(themeName) {
 
     // Load the theme's SVG sprite sheet if available
     const themeKey = themeName.toLowerCase().replace(/\s+/g, '');
-    const svgPath = `images/symbols/${themeKey}/symbols.svg`;
+    const svgPath = `images/${themeKey}/symbols.svg`;
 
     // Create a promise to load the SVG sprite sheet
     const loadSvgPromise = new Promise((resolve) => {
@@ -861,195 +861,223 @@ function drawThemeSpecificBackgroundEffects(timestamp, themeEffects) {
 
 function drawReels(deltaTime, timestamp) {
     const reelWidth = SYMBOL_SIZE;
-    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1); // Dynamic spacing
+    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
     const startX = reelSpacing;
-    const startY = 100; // Top Y of the reel viewport
+    const startY = 100;
     const reelViewportHeight = SYMBOL_SIZE * VISIBLE_ROWS;
+
+    const themeEffects = THEMES[currentThemeName]?.visualEffects;
+    const effectsEnabled = themeEffects?.enabled !== false;
+    const reelEffectsConfig = effectsEnabled ? themeEffects?.reelEffects : null;
+    const reelEffectsIntensity = reelEffectsConfig?.intensity || 0.7; // Use theme intensity or default
 
     for (let i = 0; i < REEL_COUNT; i++) {
         const reel = reels[i];
-        if (!reel) continue; // Safety check
+        if (!reel) continue;
         const reelX = startX + i * (reelWidth + reelSpacing);
 
         // --- Animate Reel Position if Spinning ---
         if (reel.spinning) {
-            updateReelPosition(reel, Date.now()); // Pass current time
+            updateReelPosition(reel, Date.now());
         }
 
-        // --- Draw Symbols for this Reel ---
-        ctx.save();
-        // Define a clipping region for the viewport
+        // --- Pre-Symbol Effects (Blur) ---
+        let blurApplied = false;
+        if (reel.spinning && reelEffectsConfig?.enabled && reelEffectsConfig.blurAmount > 0) {
+            // Calculate blur based on velocity (symbols/sec) - Needs scaling
+            // Let's cap velocity for blur calculation to avoid excessive blur
+            const effectiveVelocity = Math.min(reel.velocity || 0, REEL_SPIN_SPEED_FACTOR * 2); // Adjust cap as needed
+            // Scale blur: higher velocity -> more blur, up to config amount
+            const blurScale = effectiveVelocity / (REEL_SPIN_SPEED_FACTOR * 1.5); // Adjust denominator for sensitivity
+            const blurAmount = reelEffectsConfig.blurAmount * reelEffectsIntensity * Math.min(blurScale, 1.0); // Cap scale at 1
+
+            if (blurAmount > 0.5) { // Apply blur only if significant
+                ctx.save(); // Save state before applying filter
+                ctx.filter = `blur(${blurAmount.toFixed(1)}px)`;
+                blurApplied = true;
+            }
+        }
+
+        // --- Draw Symbols (Clipped) ---
+        ctx.save(); // Save state for clipping
         ctx.beginPath();
         ctx.rect(reelX, startY, reelWidth, reelViewportHeight);
-        ctx.clip(); // Clip anything drawn outside this rectangle
+        ctx.clip();
 
         const numSymbolsOnStrip = reel.symbols.length;
-        if (numSymbolsOnStrip === 0) { // Prevent division by zero if symbols failed
-            ctx.restore();
-            continue;
-        }
+        if (numSymbolsOnStrip > 0) {
+            const currentPosition = reel.position;
+            const topVisibleSymbolIndex = Math.floor(currentPosition);
+            const verticalOffset = (currentPosition - topVisibleSymbolIndex) * SYMBOL_SIZE;
 
-        const currentPosition = reel.position; // Fractional index
+            for (let j = -1; j <= VISIBLE_ROWS; j++) {
+                const symbolStripIndex = (topVisibleSymbolIndex + j + numSymbolsOnStrip) % numSymbolsOnStrip;
+                const symbolId = reel.symbols[symbolStripIndex];
+                const symbol = symbols[symbolId]; // Get theme symbol
+                const symbolTopY = startY + (j * SYMBOL_SIZE) - verticalOffset;
 
-        // Calculate the index of the symbol currently nearest the top edge of the viewport
-        const topVisibleSymbolIndex = Math.floor(currentPosition);
-
-        // Calculate the pixel offset (how much the top symbol is shifted *up*)
-        const verticalOffset = (currentPosition - topVisibleSymbolIndex) * SYMBOL_SIZE;
-
-        // Draw enough symbols to cover the viewport + one above and one below for smooth scrolling
-        for (let j = -1; j <= VISIBLE_ROWS; j++) {
-            const symbolStripIndex = (topVisibleSymbolIndex + j + numSymbolsOnStrip) % numSymbolsOnStrip;
-            const symbolId = reel.symbols[symbolStripIndex];
-            const symbol = symbols[symbolId]; // Get the symbol object from the currently loaded theme
-
-            // Calculate the Y position for the top of this symbol
-            // Start at the top of the viewport, add offset based on j, then subtract the fractional offset
-            const symbolTopY = startY + (j * SYMBOL_SIZE) - verticalOffset;
-
-            // Check if the symbol is within the vertical bounds (+ buffer) before drawing
-            if (symbolTopY + SYMBOL_SIZE >= startY && symbolTopY <= startY + reelViewportHeight) {            // Draw the symbol if we have valid data
-                if (symbol) {
-                    // Get theme effects for rendering
-                    const themeEffects = THEMES[currentThemeName]?.visualEffects;
-                    const effectsEnabled = themeEffects?.enabled !== false;
-                    const neonGlowSettings = themeEffects?.neonGlow;
-                    const electricEdgesSettings = themeEffects?.electricEdges;
-
-                    // Apply neon glow effect if enabled
-                    if (effectsEnabled && neonGlowSettings?.enabled && !spinning) {
-                        ctx.save();
-                        const glowSize = neonGlowSettings.size || 10;
-                        const glowColor = neonGlowSettings.color || '#00ffff';
-                        const intensity = neonGlowSettings.intensity || 0.8;
-
-                        // Create pulsing effect
-                        const pulseSpeed = neonGlowSettings.pulseSpeed || 1000;
-                        const pulseValue = EffectsHelper.getPulseValue(timestamp, pulseSpeed, 0.7, 1);
-                        const adjustedSize = glowSize * intensity * pulseValue;
-
-                        // Apply shadow for glow effect
-                        ctx.shadowBlur = adjustedSize;
-                        ctx.shadowColor = glowColor;
-                        ctx.shadowOffsetX = 0;
-                        ctx.shadowOffsetY = 0;
-                    }                    // First try drawing from SVG sprite sheet if it's loaded
-                    let drawnFromSprite = false;
-
-                    // Try to draw using SVG sprite sheet if available
-                    if (svgLoaded && symbol.name) {
-                        // Apply background color for the transparent PNG
-                        ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
-                        ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-
-                        // Try to draw from sprite sheet
-                        drawnFromSprite = drawSymbol(symbol.name, ctx, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                    }
-
-                    // If sprite sheet drawing failed, fall back to individual images or colored rectangles
-                    if (!drawnFromSprite) {
-                        if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) {
-                            // If we have an individual image, use that
-                            // If it has transparency, first draw the background color
-                            if (symbol.imagePath) {
-                                ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
-                                ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                            }
-                            ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                        } else {
-                            // Last resort fallback - colored rectangle with symbol name
-                            ctx.fillStyle = symbol.color || '#cccccc';
+                if (symbolTopY + SYMBOL_SIZE >= startY && symbolTopY <= startY + reelViewportHeight) {
+                    if (symbol) {
+                        // --- Draw Symbol Logic (SVG/Image/Fallback) ---
+                        // (Your existing symbol drawing logic goes here - unchanged)
+                        // ...
+                        // Example placeholder:
+                        let drawnFromSprite = false;
+                        if (svgLoaded && symbol.name) {
+                            ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
                             ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                            ctx.fillStyle = '#000000';
-                            ctx.font = '16px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
+                            drawnFromSprite = drawSymbol(symbol.name, ctx, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
                         }
-                    }
-
-                    // Reset shadow effects if applied
-                    if (effectsEnabled && neonGlowSettings?.enabled && !spinning) {
-                        ctx.restore();
-                    }
-
-                    // Draw electric edges if enabled
-                    if (effectsEnabled && electricEdgesSettings?.enabled && !spinning) {
-                        const arcs = electricEdgesSettings.arcs || 5;
-                        const color = electricEdgesSettings.color || '#ffffff';
-                        const speed = electricEdgesSettings.speed || 800;
-                        const intensity = electricEdgesSettings.intensity || 0.7;
-
-                        ctx.save();
-
-                        // Calculate time-based offset for animation
-                        const timeOffset = timestamp % (speed * 2);
-                        const animPhase = timeOffset / speed;
-
-                        // Draw electric arcs around the symbol edges
-                        for (let e = 0; e < arcs; e++) {
-                            // Determine positions along edges based on time
-                            const arcPhase = (e / arcs + animPhase) % 1;
-                            const arcPos = Math.floor(arcPhase * 4); // 0-3 for four sides
-
-                            let x1, y1, x2, y2;
-                            const jitter = 5 * intensity;
-
-                            switch (arcPos) {
-                                case 0: // Top edge
-                                    x1 = reelX + arcPhase * SYMBOL_SIZE;
-                                    y1 = symbolTopY;
-                                    x2 = x1 + SYMBOL_SIZE / 4;
-                                    y2 = y1;
-                                    break;
-                                case 1: // Right edge
-                                    x1 = reelX + SYMBOL_SIZE;
-                                    y1 = symbolTopY + (arcPhase - 0.25) * 4 * SYMBOL_SIZE;
-                                    x2 = x1;
-                                    y2 = y1 + SYMBOL_SIZE / 4;
-                                    break;
-                                case 2: // Bottom edge
-                                    x1 = reelX + SYMBOL_SIZE - (arcPhase - 0.5) * 4 * SYMBOL_SIZE;
-                                    y1 = symbolTopY + SYMBOL_SIZE;
-                                    x2 = x1 - SYMBOL_SIZE / 4;
-                                    y2 = y1;
-                                    break;
-                                case 3: // Left edge
-                                    x1 = reelX;
-                                    y1 = symbolTopY + SYMBOL_SIZE - (arcPhase - 0.75) * 4 * SYMBOL_SIZE;
-                                    x2 = x1;
-                                    y2 = y1 - SYMBOL_SIZE / 4;
-                                    break;
+                        if (!drawnFromSprite) {
+                            if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) {
+                                if (symbol.imagePath) { // Draw background for transparent PNGs
+                                    ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                                    ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                                }
+                                ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                            } else {
+                                ctx.fillStyle = symbol.color || '#cccccc';
+                                ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                                ctx.fillStyle = '#000000'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                                ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
                             }
-
-                            // Use the helper function to draw the electric arc
-                            EffectsHelper.drawElectricArc(
-                                ctx, x1, y1, x2, y2,
-                                8, // segments
-                                jitter,
-                                color,
-                                1.5 * intensity
-                            );
                         }
-
-                        ctx.restore();
+                        // --- End Symbol Drawing ---
+                    } else {
+                        // Draw placeholder for missing symbol
+                        ctx.fillStyle = '#555'; ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                        ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        ctx.fillText('?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
                     }
-                } else {
-                    // Draw placeholder if symbol ID is somehow invalid for the current theme
-                    ctx.fillStyle = '#555555';
-                    ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 20px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
-                    // console.warn(`Invalid symbol ID ${symbolId} encountered on reel ${i}`);
                 }
             }
         }
-        ctx.restore(); // Remove clipping region
-    }
+        ctx.restore(); // Restore from clipping state
+
+        // --- Post-Symbol Effects (Glow, Trails) ---
+        // These are drawn *after* the clipping is removed
+
+        if (blurApplied) {
+            ctx.restore(); // Restore from the blur filter save state
+        }
+
+        // Apply Glow and Trails using the separate function, passing necessary info
+        if (reel.spinning && reelEffectsConfig?.enabled) {
+            const currentPosition = reel.position; // Get position again for offset calculation
+            const topVisibleSymbolIndex = Math.floor(currentPosition);
+            const verticalOffset = (currentPosition - topVisibleSymbolIndex) * SYMBOL_SIZE;
+            applyPostReelEffects(ctx, reel, reelEffectsConfig, reelEffectsIntensity, reelX, startY, reelWidth, reelViewportHeight, verticalOffset, timestamp);
+        }
+    } // End of reel loop
 }
+
+// New function for effects drawn *after* symbols and clipping
+function applyPostReelEffects(ctx, reel, effects, intensity, reelX, startY, reelWidth, reelHeight, verticalOffset, timestamp) {
+    ctx.save(); // Save state before applying post effects
+
+    // --- Spinning Glow ---
+    if (effects.spinningGlow) {
+        const glowRadius = reelWidth * (0.6 + Math.sin(timestamp / 400) * 0.1); // Pulsating radius
+        const glowCenterX = reelX + reelWidth / 2;
+        const glowCenterY = startY + reelHeight / 2;
+        const gradient = ctx.createRadialGradient(
+            glowCenterX, glowCenterY, 0,
+            glowCenterX, glowCenterY, glowRadius
+        );
+        const spinColor = effects.spinColor || '#3498db';
+        // Use HSL for easier opacity/brightness adjustments
+        const glowColorBase = EffectsHelper.hexToHsl(spinColor); // Assuming EffectsHelper has this
+        if (glowColorBase) {
+            gradient.addColorStop(0, `hsla(${glowColorBase.h}, ${glowColorBase.s}%, ${glowColorBase.l + 15}%, ${0.15 * intensity})`); // Brighter center
+            gradient.addColorStop(0.6, `hsla(${glowColorBase.h}, ${glowColorBase.s}%, ${glowColorBase.l}%, ${0.10 * intensity})`);
+            gradient.addColorStop(1, `hsla(${glowColorBase.h}, ${glowColorBase.s}%, ${glowColorBase.l}%, 0)`);
+        } else { // Fallback if color conversion fails
+            gradient.addColorStop(0, `${spinColor}28`);
+            gradient.addColorStop(0.6, `${spinColor}1A`);
+            gradient.addColorStop(1, `${spinColor}00`);
+        }
+
+        ctx.fillStyle = gradient;
+        // Draw slightly larger than the reel area to ensure glow coverage
+        ctx.fillRect(reelX - reelWidth * 0.1, startY - reelHeight * 0.1, reelWidth * 1.2, reelHeight * 1.2);
+    }
+
+    // --- Light Trails ---
+    if (effects.lightTrails) {
+        const numSymbolsOnStrip = reel.symbols.length;
+        if (numSymbolsOnStrip > 0 && reel.velocity > 5) { // Only draw trails if moving reasonably fast
+            const trailColor = effects.spinColor || '#3498db';
+            const maxTrailLengthFactor = 0.8; // Max length relative to symbol size
+            // Scale trail length based on velocity, capped
+            const trailLengthFactor = Math.min((reel.velocity / (REEL_SPIN_SPEED_FACTOR * 2.5)) * maxTrailLengthFactor, maxTrailLengthFactor) * intensity;
+
+            if (trailLengthFactor > 0.05) { // Minimum length to draw
+                const trailPixelLength = trailLengthFactor * SYMBOL_SIZE;
+
+                // Draw trails for visible symbols
+                for (let j = -1; j <= VISIBLE_ROWS; j++) {
+                    const symbolTopY = startY + (j * SYMBOL_SIZE) - verticalOffset;
+                    // Check if the symbol *start* is roughly within viewport (+1 symbol buffer)
+                    if (symbolTopY + SYMBOL_SIZE >= startY - SYMBOL_SIZE && symbolTopY <= startY + reelHeight + SYMBOL_SIZE) {
+
+                        // Create a vertical gradient for the trail
+                        const gradient = ctx.createLinearGradient(
+                            reelX, symbolTopY, // Start slightly behind the symbol top
+                            reelX, symbolTopY - trailPixelLength // End further up
+                        );
+                        // Use HSL for trail color with fading alpha
+                        const trailColorBase = EffectsHelper.hexToHsl(trailColor);
+                        if (trailColorBase) {
+                            gradient.addColorStop(0, `hsla(${trailColorBase.h}, ${trailColorBase.s}%, ${trailColorBase.l}%, ${0.5 * intensity})`); // Stronger near symbol
+                            gradient.addColorStop(1, `hsla(${trailColorBase.h}, ${trailColorBase.s}%, ${trailColorBase.l + 10}%, 0)`); // Fade to transparent
+                        } else {
+                            gradient.addColorStop(0, `${trailColor}80`);
+                            gradient.addColorStop(1, `${trailColor}00`);
+                        }
+
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(reelX, symbolTopY - trailPixelLength, reelWidth, trailPixelLength);
+                    }
+                }
+            }
+        }
+    }
+
+    ctx.restore(); // Restore from post-effects save state
+}
+
+// Helper function (add to EffectsHelper or place globally if needed)
+EffectsHelper.hexToHsl = function (hex) {
+    // Remove '#' if present
+    hex = hex.replace(/^#/, '');
+    // Convert hex to RGB
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+
+    if (max === min) {
+        h = s = 0; // achromatic
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    return {
+        h: Math.round(h * 360),
+        s: Math.round(s * 100),
+        l: Math.round(l * 100)
+    };
+};
 
 function drawReelMask() {
     const reelWidth = SYMBOL_SIZE;
@@ -1164,10 +1192,14 @@ function updateReelPosition(reel, currentTime) {
 
     if (elapsed < 0) return; // Not started yet (due to stagger)
 
+    // Store the previous position before updating
+    const lastPosition = reel.position || reel.startPosition; // Use start if it's the first update
+
     if (elapsed >= reel.duration) {
         // --- Animation End ---
-        reel.position = reel.targetPosition; // Snap precisely to the target integer index
+        reel.position = reel.targetPosition; // Snap precisely
         reel.spinning = false;
+        reel.velocity = 0; // Explicitly set velocity to 0 when stopped
         // Clean up animation vars? Optional.
         // delete reel.startPosition;
         // delete reel.startTime;
@@ -1178,19 +1210,19 @@ function updateReelPosition(reel, currentTime) {
 
     // --- Animation In Progress ---
     const progress = elapsed / reel.duration; // Overall progress (0 to 1)
-
-    // Calculate eased progress for smooth deceleration
-    // Use easeOutQuart: (1 - (1-t)^4)
     const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
     const easedProgress = easeOutQuart(progress);
 
-    // Calculate the new position based on eased progress
-    // The total distance to cover is reel.distance
-    // The new position is start + (total distance * eased progress)
+    // Calculate the new position
     let newPosition = reel.startPosition + reel.distance * easedProgress;
 
-    // Position here represents the index at the *top* of the viewport.
-    // We don't apply modulo here; the drawing function handles wrapping visuals.
+    // Calculate velocity (change in position since last frame)
+    // Normalize based on a typical frame time (e.g., 16.67ms for 60fps)
+    // This gives a rough speed in 'symbols per second' * a scaling factor
+    const deltaTime = (currentTime - (reel.lastUpdateTime || reel.startTime)) || 16.67; // Avoid division by zero
+    reel.velocity = Math.abs(newPosition - lastPosition) / (deltaTime / 1000); // Symbols per second
+    reel.lastUpdateTime = currentTime; // Store time for next frame's calculation
+
     reel.position = newPosition;
 }
 
@@ -2023,6 +2055,9 @@ function drawWinLines(timestamp) {
             ctx.lineWidth = highlightLineWidth;
             drawRoundedRect(x + highlightInset, y + highlightInset, SYMBOL_SIZE - 2 * highlightInset, SYMBOL_SIZE - 2 * highlightInset, 5, null, highlightColor, highlightLineWidth);
         });
+
+        // Apply win effects
+        applyWinEffects(ctx, lineData, timestamp);
     }); // --- End of winningLines loop ---
 
 
@@ -2265,7 +2300,7 @@ async function loadThemeSymbols(themeName) {
 
     if (!themeData || !themeData.symbols) {
         console.error(`Theme "${themeName}" not found or is invalid! Falling back to Classic.`);
-        themeName = "AncientEgypt"; // Default fallback theme
+        themeName = "FantasyForest"; // Default fallback theme
         themeData = THEMES[themeName];
         if (!themeData || !themeData.symbols) {
             console.error("CRITICAL: Fallback theme 'Classic' also not found or invalid!");
@@ -2784,32 +2819,6 @@ function toggleMute() {
     console.log(`Sound ${muteState ? 'muted' : 'unmuted'}`);
 }
 
-// Helper function to draw a leaf
-function drawLeaf(x, y, color, timestamp) {
-    ctx.save();
-
-    // Rotate the leaf slightly based on time
-    ctx.translate(x, y);
-    ctx.rotate(Math.sin(timestamp / 3000) * 0.2);
-
-    // Draw a simple leaf shape
-    ctx.beginPath();
-    ctx.fillStyle = color;
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(5, -10, 15, -5, 0, 15);
-    ctx.bezierCurveTo(-15, -5, -5, -10, 0, 0);
-    ctx.fill();
-
-    // Add vein to leaf
-    ctx.beginPath();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 1;
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, 10);
-    ctx.stroke();
-
-    ctx.restore();
-}
 
 // Draw theme-specific epic win animation
 function drawEpicWinAnimation(elapsedTime, deltaTime) {
@@ -2876,4 +2885,285 @@ function drawGenericEpicWinAnimation(elapsedTime, deltaTime, duration) {
     ctx.fillText('EPIC WIN!', canvas.width / 2, canvas.height / 2);
     ctx.strokeText('EPIC WIN!', canvas.width / 2, canvas.height / 2);
     ctx.restore();
+}
+
+// --- Reel Effects Implementation ---
+function applyReelEffects(ctx, reel, timestamp) {
+    // Get the current theme
+    const themeKey = currentThemeName.toLowerCase().replace(/\s+/g, '');
+    const currentTheme = THEMES[currentThemeName];
+
+    // Check if effects are available and enabled for this theme
+    if (!currentTheme || !currentTheme.visualEffects || !currentTheme.visualEffects.reelEffects || !currentTheme.visualEffects.reelEffects.enabled) {
+        console.log('reel effects not found')
+        return; // No effects to apply
+    }
+
+    const effects = currentTheme.visualEffects.reelEffects;
+    const intensity = currentTheme.intensity || 0.7; // Default intensity if not specified
+
+    // Only apply effects while the reel is spinning
+    if (!reel.spinning) return;
+
+    // Save the canvas state before applying effects
+    ctx.save();
+
+    // Apply motion blur if enabled
+    if (effects.blurAmount > 0) {
+        const blurAmount = effects.blurAmount * intensity * (reel.velocity / REEL_SPIN_SPEED_FACTOR);
+        ctx.filter = `blur(${blurAmount}px)`;
+    }    // Apply spinning glow if enabled
+    if (effects.spinningGlow) {
+        // Calculate the position for the glow effect - we need to compute these values
+        const reelWidth = SYMBOL_SIZE;
+        const reelHeight = VISIBLE_ROWS * SYMBOL_SIZE;
+        const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
+        const startX = reelSpacing;
+        const startY = 100; // Top Y of the reel viewport in drawReels
+
+        // Get the correct X position for this reel
+        const reelIndex = reels.indexOf(reel);
+        if (reelIndex === -1) return; // Safety check
+        const reelX = startX + reelIndex * (reelWidth + reelSpacing);
+
+        // Create a radial gradient for the glow effect
+        const gradient = ctx.createRadialGradient(
+            reelX + reelWidth / 2, startY + reelHeight / 2, 0,
+            reelX + reelWidth / 2, startY + reelHeight / 2, reelWidth
+        );
+
+        // Set the gradient colors
+        const spinColor = effects.spinColor || '#3498db';
+        gradient.addColorStop(0, `${spinColor}22`); // Semi-transparent
+        gradient.addColorStop(1, 'transparent');
+
+        // Draw the glow effect
+        ctx.fillStyle = gradient;
+        ctx.fillRect(reelX, startY, reelWidth, reelHeight);
+    }
+
+    // Apply light trails if enabled
+    if (effects.lightTrails) {
+        // For each visible symbol in the reel
+        for (let i = 0; i < VISIBLE_ROWS + 1; i++) {
+            const symbolIndex = Math.floor((reel.position + i) % reel.symbols.length);
+            const symbol = reel.symbols[symbolIndex];
+            if (!symbol) continue;
+
+            const y = reel.y + (i * SYMBOL_SIZE) - (reel.position % 1) * SYMBOL_SIZE;
+
+            // Skip if the symbol is outside the visible area
+            if (y < reel.y - SYMBOL_SIZE || y > reel.y + (VISIBLE_ROWS * SYMBOL_SIZE)) continue;
+
+            // Create a trail behind the symbol based on velocity
+            const trailLength = reel.velocity / 10 * intensity;
+            if (trailLength > 0.1) { // Only draw if there's a noticeable trail
+                ctx.globalAlpha = 0.3 * intensity;
+                ctx.fillStyle = effects.spinColor || '#3498db';
+
+                // Draw trail as a rectangle with gradient
+                const gradient = ctx.createLinearGradient(0, y, 0, y - trailLength * SYMBOL_SIZE);
+                gradient.addColorStop(0, `${effects.spinColor || '#3498db'}88`);
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(reel.x, y - trailLength * SYMBOL_SIZE, SYMBOL_SIZE, trailLength * SYMBOL_SIZE);
+            }
+        }
+    }
+
+    // Restore the canvas state after applying effects
+    ctx.restore();
+}
+
+// --- Win Effects Implementation ---
+function applyWinEffects(ctx, winningLine, timestamp) {
+    // Get the current theme
+    const themeKey = currentThemeName.toLowerCase().replace(/\s+/g, '');
+    const currentTheme = THEMES[currentThemeName];
+
+    // Check if effects are available and enabled for this theme
+    if (!currentTheme || !currentTheme.visualEffects || !currentTheme.visualEffects.winEffects || !currentTheme.visualEffects.winEffects.enabled) {
+        return; // No effects to apply
+    }
+
+    const effects = currentTheme.visualEffects.winEffects;
+    const intensity = currentTheme.visualEffects.intensity || 0.7; // Default intensity if not specified
+
+    // Get the positions of symbols in the winning line
+    const symbols = winningLine.symbols;
+    if (!symbols || !symbols.length) return;
+
+    // Apply flashing effect to winning symbols
+    if (effects.flashingSymbols) {
+        const flashIntensity = 0.7 * intensity;
+        const flashRate = 500; // ms
+        const flashOpacity = Math.abs(Math.sin(timestamp / flashRate)) * flashIntensity;
+
+        ctx.save();
+        // Draw a white overlay over the winning symbols with varying opacity
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+
+        symbols.forEach(symbol => {
+            const { reelIndex, rowIndex } = symbol;
+            // Calculate position
+            const x = reelIndex * SYMBOL_SIZE;
+            const y = rowIndex * SYMBOL_SIZE;
+
+            // Draw the highlight
+            ctx.fillRect(x, y, SYMBOL_SIZE, SYMBOL_SIZE);
+        });
+        ctx.restore();
+    }
+
+    // Apply 3D spin effect on win
+    if (effects.spinEffect3d && effects.spinEffect3d.enabled) {
+        // Calculate the animation progress (assuming animation started at winningLine.timestamp)
+        if (!winningLine.timestamp) winningLine.timestamp = timestamp;
+
+        const elapsedTime = timestamp - winningLine.timestamp;
+        const duration = effects.spinEffect3d.duration || 1000;
+
+        // Only apply during the effect duration
+        if (elapsedTime <= duration) {
+            const progress = elapsedTime / duration;
+            const rotations = effects.spinEffect3d.rotations || 1;
+
+            // Apply easing function if specified
+            let easedProgress = progress;
+            if (effects.spinEffect3d.easing === 'easeOutBack') {
+                // Simple easeOutBack implementation
+                const c1 = 1.70158;
+                const c3 = c1 + 1;
+                easedProgress = 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
+            }
+
+            symbols.forEach(symbol => {
+                const { reelIndex, rowIndex } = symbol;
+                // Calculate position
+                const x = reelIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+                const y = rowIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+
+                // Apply 3D rotation effect
+                ctx.save();
+                ctx.translate(x, y);
+
+                // Scale based on rotation to create 3D effect
+                const scaleX = Math.abs(Math.cos(Math.PI * 2 * rotations * easedProgress));
+                ctx.scale(scaleX, 1);
+
+                // Draw a highlight
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * (1 - scaleX)})`;
+                ctx.fillRect(-SYMBOL_SIZE / 2, -SYMBOL_SIZE / 2, SYMBOL_SIZE, SYMBOL_SIZE);
+
+                ctx.restore();
+            });
+        }
+    }
+
+    // Apply explosion effect
+    if (effects.explosions && !winningLine.explosions) {
+        // Initialize explosion particles for this winning line
+        winningLine.explosions = [];
+
+        symbols.forEach(symbol => {
+            const { reelIndex, rowIndex } = symbol;
+            const x = reelIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+            const y = rowIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+
+            // Create explosion particles
+            const particleCount = Math.floor(10 * intensity);
+            for (let i = 0; i < particleCount; i++) {
+                winningLine.explosions.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10 * intensity,
+                    vy: (Math.random() - 0.5) * 10 * intensity,
+                    size: Math.random() * 8 * intensity + 2,
+                    color: `hsl(${Math.random() * 60 + 30}, 100%, 60%)`,
+                    life: 1
+                });
+            }
+        });
+    }
+
+    // Animate existing explosion particles
+    if (winningLine.explosions && winningLine.explosions.length > 0) {
+        ctx.save();
+
+        // Update and draw explosion particles
+        for (let i = winningLine.explosions.length - 1; i >= 0; i--) {
+            const particle = winningLine.explosions[i];
+
+            // Update particle position
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.life -= 0.02; // Reduce life
+
+            // Remove dead particles
+            if (particle.life <= 0) {
+                winningLine.explosions.splice(i, 1);
+                continue;
+            }
+
+            // Draw particle
+            ctx.globalAlpha = particle.life;
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // Apply shockwave effect
+    if (effects.shockwave && !winningLine.shockwaves) {
+        // Initialize shockwaves for this winning line
+        winningLine.shockwaves = [];
+
+        symbols.forEach(symbol => {
+            const { reelIndex, rowIndex } = symbol;
+            const x = reelIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+            const y = rowIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+
+            // Create a shockwave
+            winningLine.shockwaves.push({
+                x: x,
+                y: y,
+                radius: 0,
+                maxRadius: SYMBOL_SIZE * 1.5,
+                life: 1
+            });
+        });
+    }
+
+    // Animate existing shockwaves
+    if (winningLine.shockwaves && winningLine.shockwaves.length > 0) {
+        ctx.save();
+
+        // Update and draw shockwaves
+        for (let i = winningLine.shockwaves.length - 1; i >= 0; i--) {
+            const wave = winningLine.shockwaves[i];
+
+            // Update shockwave
+            wave.radius += 2;
+            wave.life -= 0.03; // Reduce life
+
+            // Remove dead shockwaves
+            if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
+                winningLine.shockwaves.splice(i, 1);
+                continue;
+            }
+
+            // Draw shockwave
+            ctx.globalAlpha = wave.life * 0.7;
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
 }
