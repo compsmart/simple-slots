@@ -15,11 +15,11 @@ export const ClassicTheme = {
         // Add win effects configuration
         winEffects: {
             enabled: true,
-            explosions: true,
-            shockwave: true,
-            flashingSymbols: true,
+            explosions: false,
+            shockwave: false,
+            flashingSymbols: false,
             spinEffect3d: {
-                enabled: true,
+                enabled: false,
                 rotations: 1,
                 duration: 1000,
                 easing: 'easeOutBack'

@@ -42,21 +42,21 @@ export const EffectDefaults = {
         }
     },
     winEffects: {
-        enabled: true,           // Special effects for wins
-        explosions: true,        // Explosive particle effects on wins
-        shockwave: true,         // Shockwave effect
-        flashingSymbols: true,   // Make winning symbols flash
+        enabled: false,           // Special effects for wins
+        explosions: false,        // Explosive particle effects on wins
+        shockwave: false,         // Shockwave effect
+        flashingSymbols: false,   // Make winning symbols flash
         spinEffect3d: {
-            enabled: true,       // 3D rotation effect on win
+            enabled: false,       // 3D rotation effect on win
             rotations: 1,        // Number of full rotations
             duration: 1000,      // Duration in ms
             easing: 'easeOutBack'// Easing function
         }
     },
     reelEffects: {
-        enabled: true,           // Effects during reel spin
+        enabled: false,           // Effects during reel spin
         blurAmount: 5,           // Motion blur intensity
-        lightTrails: true,       // Light trails behind symbols
+        lightTrails: false,       // Light trails behind symbols
         spinningGlow: true,      // Glow during spinning
         spinColor: '#3498db'     // Color during spin
     },

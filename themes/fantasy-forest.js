@@ -62,6 +62,18 @@ export const FantasyForestTheme = {
                 intensity: 0.5
             }
         },
+        winEffects: {
+            enabled: true,           // Special effects for wins
+            explosions: false,        // Explosive particle effects on wins
+            shockwave: false,         // Shockwave effect
+            flashingSymbols: true,   // Make winning symbols flash
+            spinEffect3d: {
+                enabled: false,       // 3D rotation effect on win
+                rotations: 1,        // Number of full rotations
+                duration: 1000,      // Duration in ms
+                easing: 'easeOutBack'// Easing function
+            }
+        },
         themeSpecific: {
             floatingLeaves: {
                 enabled: true,

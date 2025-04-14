@@ -35,6 +35,18 @@ export const AztecTheme = {
                 intensity: 0.3
             }
         },
+        winEffects: {
+            enabled: true,
+            explosions: true,
+            shockwave: false,
+            flashingSymbols: false,
+            spinEffect3d: {
+                enabled: true,
+                rotations: 1,
+                duration: 1000,
+                easing: 'easeOutBack'
+            }
+        },
         themeSpecific: {
             jungleVines: {
                 enabled: true,

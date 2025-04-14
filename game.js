@@ -2975,195 +2975,227 @@ function applyReelEffects(ctx, reel, timestamp) {
     ctx.restore();
 }
 
-// --- Win Effects Implementation ---
+// --- Win Effects Implementation (Corrected) ---
 function applyWinEffects(ctx, winningLine, timestamp) {
-    // Get the current theme
-    const themeKey = currentThemeName.toLowerCase().replace(/\s+/g, '');
     const currentTheme = THEMES[currentThemeName];
 
-    // Check if effects are available and enabled for this theme
-    if (!currentTheme || !currentTheme.visualEffects || !currentTheme.visualEffects.winEffects || !currentTheme.visualEffects.winEffects.enabled) {
+    // Check if effects are available and enabled
+    if (!currentTheme?.visualEffects?.winEffects?.enabled) {
         return; // No effects to apply
     }
 
     const effects = currentTheme.visualEffects.winEffects;
-    const intensity = currentTheme.visualEffects.intensity || 0.7; // Default intensity if not specified
+    const intensity = currentTheme.visualEffects.intensity || 0.7;
+    const positions = winningLine.positions; // Use positions array
 
-    // Get the positions of symbols in the winning line
-    const symbols = winningLine.symbols;
-    if (!symbols || !symbols.length) return;
+    if (!positions || positions.length === 0) return;
+
+    // Constants needed for coordinate calculation (match drawReels/drawWinLines)
+    const reelWidth = SYMBOL_SIZE;
+    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
+    const startX = reelSpacing;
+    const startY = 100;
 
     // Apply flashing effect to winning symbols
     if (effects.flashingSymbols) {
-        const flashIntensity = 0.7 * intensity;
-        const flashRate = 500; // ms
-        const flashOpacity = Math.abs(Math.sin(timestamp / flashRate)) * flashIntensity;
+        const flashIntensity = 0.6 * intensity; // Slightly less intense flash
+        const flashRate = 400; // ms cycle time
+        const flashOpacity = Math.abs(Math.sin(timestamp / flashRate * Math.PI)) * flashIntensity; // Use PI for full 0-1-0 cycle
 
         ctx.save();
-        // Draw a white overlay over the winning symbols with varying opacity
         ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
-
-        symbols.forEach(symbol => {
-            const { reelIndex, rowIndex } = symbol;
-            // Calculate position
-            const x = reelIndex * SYMBOL_SIZE;
-            const y = rowIndex * SYMBOL_SIZE;
-
-            // Draw the highlight
-            ctx.fillRect(x, y, SYMBOL_SIZE, SYMBOL_SIZE);
+        positions.forEach(pos => {
+            // Calculate correct top-left position
+            const symbolX = startX + pos.reel * (reelWidth + reelSpacing);
+            const symbolY = startY + pos.row * SYMBOL_SIZE;
+            ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
         });
         ctx.restore();
     }
 
     // Apply 3D spin effect on win
-    if (effects.spinEffect3d && effects.spinEffect3d.enabled) {
-        // Calculate the animation progress (assuming animation started at winningLine.timestamp)
-        if (!winningLine.timestamp) winningLine.timestamp = timestamp;
+    if (effects.spinEffect3d?.enabled) {
+        // Initialize timestamp on the line data if it's the first time
+        if (!winningLine.animationStartTime) {
+            winningLine.animationStartTime = timestamp;
+        }
 
-        const elapsedTime = timestamp - winningLine.timestamp;
+        const elapsedTime = timestamp - winningLine.animationStartTime;
         const duration = effects.spinEffect3d.duration || 1000;
 
-        // Only apply during the effect duration
         if (elapsedTime <= duration) {
             const progress = elapsedTime / duration;
             const rotations = effects.spinEffect3d.rotations || 1;
-
-            // Apply easing function if specified
             let easedProgress = progress;
+
+            // Example easing (can use a library or more functions)
             if (effects.spinEffect3d.easing === 'easeOutBack') {
-                // Simple easeOutBack implementation
                 const c1 = 1.70158;
                 const c3 = c1 + 1;
                 easedProgress = 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
-            }
+            } else if (effects.spinEffect3d.easing === 'easeOutQuad') {
+                easedProgress = 1 - (1 - progress) * (1 - progress);
+            } // Add more easing functions as needed
 
-            symbols.forEach(symbol => {
-                const { reelIndex, rowIndex } = symbol;
-                // Calculate position
-                const x = reelIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
-                const y = rowIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+            const angle = Math.PI * 2 * rotations * easedProgress;
+            const scaleX = Math.cos(angle); // Creates the shrinking/expanding effect
 
-                // Apply 3D rotation effect
+            positions.forEach(pos => {
+                const symbolX = startX + pos.reel * (reelWidth + reelSpacing);
+                const symbolY = startY + pos.row * SYMBOL_SIZE;
+                const centerX = symbolX + SYMBOL_SIZE / 2;
+                const centerY = symbolY + SYMBOL_SIZE / 2;
+
                 ctx.save();
-                ctx.translate(x, y);
+                ctx.translate(centerX, centerY);
+                ctx.scale(scaleX, 1); // Apply scaling on X-axis for 3D flip illusion
+                ctx.translate(-centerX, -centerY); // Translate back
 
-                // Scale based on rotation to create 3D effect
-                const scaleX = Math.abs(Math.cos(Math.PI * 2 * rotations * easedProgress));
-                ctx.scale(scaleX, 1);
-
-                // Draw a highlight
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * (1 - scaleX)})`;
-                ctx.fillRect(-SYMBOL_SIZE / 2, -SYMBOL_SIZE / 2, SYMBOL_SIZE, SYMBOL_SIZE);
+                // Draw the symbol again (or a placeholder during flip?)
+                // Getting the actual symbol requires accessing 'symbols[winningLine.symbolIndex]'
+                const symbolData = symbols[winningLine.symbolIndex];
+                if (symbolData) {
+                    // Draw the symbol image or placeholder (copied logic from drawReels/drawPaytable)
+                    let drawnFromSprite = false;
+                    if (svgLoaded && symbolData.name) {
+                        ctx.fillStyle = symbolData.backgroundColor || symbolData.color || '#cccccc';
+                        ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE); // Draw background first
+                        drawnFromSprite = drawSymbol(symbolData.name, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                    }
+                    if (!drawnFromSprite) {
+                        if (symbolData.image && symbolData.image.complete && symbolData.image.naturalHeight !== 0) {
+                            if (symbolData.imagePath) { // Draw background for transparent PNGs
+                                ctx.fillStyle = symbolData.backgroundColor || symbolData.color || '#cccccc';
+                                ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                            }
+                            ctx.drawImage(symbolData.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                        } else {
+                            ctx.fillStyle = symbolData.color || '#cccccc';
+                            ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                            ctx.fillStyle = '#000000'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', centerX, centerY);
+                        }
+                    }
+                } else {
+                    // Fallback: just draw a simple rect if symbolData is missing
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * Math.abs(1 - scaleX)})`;
+                    ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                }
 
                 ctx.restore();
             });
+        } else {
+            // Reset timestamp after animation completes if needed for looping/retriggering
+            // delete winningLine.animationStartTime;
         }
     }
 
     // Apply explosion effect
-    if (effects.explosions && !winningLine.explosions) {
-        // Initialize explosion particles for this winning line
-        winningLine.explosions = [];
+    if (effects.explosions) {
+        // Initialize particles ONCE per winning line reveal
+        if (!winningLine.explosions) {
+            winningLine.explosions = [];
+            winningLine.explosionsActive = true; // Flag to control particle updates
 
-        symbols.forEach(symbol => {
-            const { reelIndex, rowIndex } = symbol;
-            const x = reelIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
-            const y = rowIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+            positions.forEach(pos => {
+                const centerX = startX + pos.reel * (reelWidth + reelSpacing) + SYMBOL_SIZE / 2;
+                const centerY = startY + pos.row * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+                const particleCount = Math.floor(15 * intensity); // More particles
 
-            // Create explosion particles
-            const particleCount = Math.floor(10 * intensity);
-            for (let i = 0; i < particleCount; i++) {
-                winningLine.explosions.push({
-                    x: x,
-                    y: y,
-                    vx: (Math.random() - 0.5) * 10 * intensity,
-                    vy: (Math.random() - 0.5) * 10 * intensity,
-                    size: Math.random() * 8 * intensity + 2,
-                    color: `hsl(${Math.random() * 60 + 30}, 100%, 60%)`,
-                    life: 1
-                });
-            }
-        });
-    }
-
-    // Animate existing explosion particles
-    if (winningLine.explosions && winningLine.explosions.length > 0) {
-        ctx.save();
-
-        // Update and draw explosion particles
-        for (let i = winningLine.explosions.length - 1; i >= 0; i--) {
-            const particle = winningLine.explosions[i];
-
-            // Update particle position
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            particle.life -= 0.02; // Reduce life
-
-            // Remove dead particles
-            if (particle.life <= 0) {
-                winningLine.explosions.splice(i, 1);
-                continue;
-            }
-
-            // Draw particle
-            ctx.globalAlpha = particle.life;
-            ctx.fillStyle = particle.color;
-            ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-            ctx.fill();
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 8 * intensity + 2;
+                    winningLine.explosions.push({
+                        x: centerX, y: centerY,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: Math.random() * 5 * intensity + 2, // Smaller particles
+                        color: `hsl(${Math.random() * 60 + 20}, 100%, ${Math.random() * 30 + 50}%)`, // Yellow/Orange/Red sparks
+                        life: 1.0, // Start with full life
+                        gravity: 0.1 // Slight downward pull
+                    });
+                }
+            });
         }
 
-        ctx.restore();
+        // Animate existing particles if the effect is active
+        if (winningLine.explosionsActive && winningLine.explosions.length > 0) {
+            ctx.save();
+            let activeParticles = false;
+            for (let i = winningLine.explosions.length - 1; i >= 0; i--) {
+                const p = winningLine.explosions[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity; // Apply gravity
+                p.life -= 0.025; // Fade rate
+                p.vx *= 0.98; // Air resistance
+                p.vy *= 0.98;
+
+                if (p.life <= 0) {
+                    winningLine.explosions.splice(i, 1);
+                } else {
+                    activeParticles = true;
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); // Size shrinks with life
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+            // Deactivate particle updates once all particles are gone
+            if (!activeParticles) {
+                winningLine.explosionsActive = false;
+            }
+        }
     }
 
     // Apply shockwave effect
-    if (effects.shockwave && !winningLine.shockwaves) {
-        // Initialize shockwaves for this winning line
-        winningLine.shockwaves = [];
+    if (effects.shockwave) {
+        // Initialize ONCE per winning line reveal
+        if (!winningLine.shockwaves) {
+            winningLine.shockwaves = [];
+            winningLine.shockwavesActive = true;
 
-        symbols.forEach(symbol => {
-            const { reelIndex, rowIndex } = symbol;
-            const x = reelIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
-            const y = rowIndex * SYMBOL_SIZE + SYMBOL_SIZE / 2;
-
-            // Create a shockwave
-            winningLine.shockwaves.push({
-                x: x,
-                y: y,
-                radius: 0,
-                maxRadius: SYMBOL_SIZE * 1.5,
-                life: 1
+            positions.forEach(pos => {
+                const centerX = startX + pos.reel * (reelWidth + reelSpacing) + SYMBOL_SIZE / 2;
+                const centerY = startY + pos.row * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+                winningLine.shockwaves.push({
+                    x: centerX, y: centerY,
+                    radius: 0,
+                    maxRadius: SYMBOL_SIZE * 1.2 * intensity, // Scale max radius with intensity
+                    life: 1.0,
+                    lineWidth: 4 // Initial line width
+                });
             });
-        });
-    }
-
-    // Animate existing shockwaves
-    if (winningLine.shockwaves && winningLine.shockwaves.length > 0) {
-        ctx.save();
-
-        // Update and draw shockwaves
-        for (let i = winningLine.shockwaves.length - 1; i >= 0; i--) {
-            const wave = winningLine.shockwaves[i];
-
-            // Update shockwave
-            wave.radius += 2;
-            wave.life -= 0.03; // Reduce life
-
-            // Remove dead shockwaves
-            if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
-                winningLine.shockwaves.splice(i, 1);
-                continue;
-            }
-
-            // Draw shockwave
-            ctx.globalAlpha = wave.life * 0.7;
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
-            ctx.stroke();
         }
 
-        ctx.restore();
+        // Animate existing shockwaves if active
+        if (winningLine.shockwavesActive && winningLine.shockwaves.length > 0) {
+            ctx.save();
+            let activeWaves = false;
+            for (let i = winningLine.shockwaves.length - 1; i >= 0; i--) {
+                const wave = winningLine.shockwaves[i];
+                wave.radius += 3 * intensity; // Speed scales with intensity
+                wave.life -= 0.03; // Fade rate
+                wave.lineWidth = Math.max(1, 4 * wave.life); // Line width shrinks
+
+                if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
+                    winningLine.shockwaves.splice(i, 1);
+                } else {
+                    activeWaves = true;
+                    ctx.globalAlpha = wave.life * 0.7; // Apply fade
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${wave.life})`; // Fade color too
+                    ctx.lineWidth = wave.lineWidth;
+                    ctx.beginPath();
+                    ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+            if (!activeWaves) {
+                winningLine.shockwavesActive = false;
+            }
+        }
     }
 }

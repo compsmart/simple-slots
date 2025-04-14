@@ -46,11 +46,11 @@ export const AncientEgyptTheme = {
         // Add win effects configuration
         winEffects: {
             enabled: true,
-            explosions: true,
+            explosions: false,
             shockwave: true,
-            flashingSymbols: true,
+            flashingSymbols: false,
             spinEffect3d: {
-                enabled: true,
+                enabled: false,
                 rotations: 1,
                 duration: 1000,
                 easing: 'easeOutBack'

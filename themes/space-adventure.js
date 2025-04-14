@@ -11,6 +11,18 @@ export const SpaceAdventureTheme = {
             color: '#00ccff',
             size: 15
         },
+        winEffects: {
+            enabled: true,           // Special effects for wins
+            explosions: true,        // Explosive particle effects on wins
+            shockwave: false,         // Shockwave effect
+            flashingSymbols: false,   // Make winning symbols flash
+            spinEffect3d: {
+                enabled: false,       // 3D rotation effect on win
+                rotations: 1,        // Number of full rotations
+                duration: 1000,      // Duration in ms
+                easing: 'easeOutBack'// Easing function
+            }
+        },
         backgroundEffects: {
             enabled: true,
             particles: {

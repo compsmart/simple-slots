@@ -20,6 +20,18 @@ export const GemstonesTheme = {
             speed: 800,
             intensity: 0.8
         },
+        winEffects: {
+            enabled: true,
+            explosions: false,
+            shockwave: false,
+            flashingSymbols: false,
+            spinEffect3d: {
+                enabled: true,
+                rotations: 1,
+                duration: 1000,
+                easing: 'easeOutBack'
+            }
+        },
         backgroundEffects: {
             enabled: true,
             particles: {
