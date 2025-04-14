@@ -23,7 +23,7 @@ export const symbolNumberMultipliers = {
     1: 2,   // Symbol number 1 (e.g., Bell in Classic) pays 5x base
     2: 1,   // Symbol number 2 (e.g., Bar in Classic) pays 4x base
     3: 0.5,   // Symbol number 3 (e.g., Lemon in Classic) pays 3x base
-    4: 0.2    // Symbol number 4 (e.g., Cherry in Classic) pays 2x base
+    4: 0.25    // Symbol number 4 (e.g., Cherry in Classic) pays 2x base
 };
 
 // --- Payout Multiplier Rules (Based on Consecutive Count) ---
