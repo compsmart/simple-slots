@@ -26,7 +26,6 @@ export const EffectDefaults = {
         speed: 800,       // Speed of movement in ms
         intensity: 0.7    // Specific effect intensity
     },
-
     backgroundEffects: {
         enabled: true,               // Master switch for background
         particles: {
@@ -41,7 +40,8 @@ export const EffectDefaults = {
             speed: 2000,             // Pulse cycle in ms
             intensity: 0.3           // How strong the pulse is
         }
-    }, winEffects: {
+    },
+    winEffects: {
         enabled: true,           // Special effects for wins
         explosions: true,        // Explosive particle effects on wins
         shockwave: true,         // Shockwave effect
@@ -53,7 +53,6 @@ export const EffectDefaults = {
             easing: 'easeOutBack'// Easing function
         }
     },
-
     reelEffects: {
         enabled: true,           // Effects during reel spin
         blurAmount: 5,           // Motion blur intensity
@@ -61,7 +60,6 @@ export const EffectDefaults = {
         spinningGlow: true,      // Glow during spinning
         spinColor: '#3498db'     // Color during spin
     },
-
     soundReactivity: {
         enabled: false,          // React to sound/music
         sensitivity: 0.5,        // Sensitivity to sound

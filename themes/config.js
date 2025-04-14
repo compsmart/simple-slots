@@ -80,3 +80,32 @@ export const PAYLINES = [
 
 // --- Optional: Minimum win length ---
 export const MIN_WIN_LENGTH = 3; // Most wins require at least 3 symbols
+
+export const themeSpecific = {
+    epicWinAnimation: {
+        enabled: true,
+        name: "Pirate's Treasure",
+        duration: 8000, // 8 seconds
+        treasureExplosion: true,
+        shipRocking: true,
+        waterSplash: true
+    },
+    oceanWaves: {
+        enabled: true,
+        waveColor: '#1e90ff',
+        waveHeight: 10,
+        waveSpeed: 2000,
+        intensity: 0.5
+    },
+    shipRocking: {
+        enabled: true,
+        rockingAngle: 5, // Degrees
+        rockingSpeed: 3000
+    },
+    treasureGlow: {
+        enabled: true,
+        glowColor: '#ffd700',
+        intensity: 0.7,
+        pulseSpeed: 2500
+    }
+};
