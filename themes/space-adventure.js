@@ -203,7 +203,7 @@ export const SpaceAdventureTheme = {
     },
 
     // Epic Win Animation for Space Adventure theme
-    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime) => {
+    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime, winAmount) => {
         const duration = 6200; // 6.2 seconds
         const progress = Math.min(elapsedTime / duration, 1.0);
 
@@ -415,7 +415,6 @@ export const SpaceAdventureTheme = {
             // Get the win amount from the game state (assuming it's passed via a variable)
             // For demo purposes, using a placeholder value - in real implementation,
             // this would be passed as a parameter to the function
-            const winAmount = window.lastWinAmount || 1000000;
             const formattedWinAmount = winAmount.toLocaleString();
 
             const winTextProgress = Math.min(1, (progress - 0.6) / 0.2);

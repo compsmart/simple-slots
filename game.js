@@ -93,7 +93,7 @@ function stopSpinSound() {
         }
     }
 }
-
+let winAmount;
 // DOM Elements
 let balanceElement;
 let betAmountElement;
@@ -1142,6 +1142,35 @@ function drawReelMask() {
     // Get the current theme's layout configuration
     const themeLayout = THEMES[currentThemeName]?.layout;
 
+    // Get the current theme's effect configuration for reelMask
+    const reelMaskEffects = THEMES[currentThemeName]?.visualEffects?.reelMask || {};
+    const effects = {
+        enabled: reelMaskEffects.enabled ?? true,
+        borderWidth: reelMaskEffects.borderWidth ?? 5,
+        separatorWidth: reelMaskEffects.separatorWidth ?? 2,
+        glowEffect: {
+            enabled: reelMaskEffects.glowEffect?.enabled ?? false,
+            color: reelMaskEffects.glowEffect?.color ?? '#ffcc00',
+            intensity: reelMaskEffects.glowEffect?.intensity ?? 0.8,
+            size: reelMaskEffects.glowEffect?.size ?? 10
+        },
+        pulseEffect: {
+            enabled: reelMaskEffects.pulseEffect?.enabled ?? false,
+            speed: reelMaskEffects.pulseEffect?.speed ?? 1500,
+            minOpacity: reelMaskEffects.pulseEffect?.minOpacity ?? 0.6,
+            maxOpacity: reelMaskEffects.pulseEffect?.maxOpacity ?? 1.0
+        },
+        colorTransition: {
+            enabled: reelMaskEffects.colorTransition?.enabled ?? false,
+            colors: reelMaskEffects.colorTransition?.colors ?? ['#ffcc00', '#ff5500', '#ff00ff', '#00ffff', '#ffcc00'],
+            speed: reelMaskEffects.colorTransition?.speed ?? 5000,
+            mode: reelMaskEffects.colorTransition?.mode ?? 'gradient'
+        }
+    };
+
+    // If effects are disabled, exit early
+    if (!effects.enabled) return;
+
     // Get the desired spacing from theme, or use a default value
     const desiredSpacing = themeLayout?.reelSpacing || 10; // Default to 10px if not specified
 
@@ -1171,14 +1200,75 @@ function drawReelMask() {
     // Calculate the total width properly accounting for spacing between reels
     const totalWidth = REEL_COUNT * reelWidth + (REEL_COUNT - 1) * actualSpacing;
 
+    // Get the current time for animations
+    const currentTime = performance.now();
+
+    // Calculate color based on color transition effect
+    let currentColor = '#ffcc00';  // Default color
+
+    if (effects.colorTransition.enabled) {
+        const colors = effects.colorTransition.colors;
+        if (colors && colors.length > 0) {
+            const cycleTime = currentTime % effects.colorTransition.speed;
+            const cycleProgress = cycleTime / effects.colorTransition.speed;
+
+            if (effects.colorTransition.mode === 'gradient') {
+                // Smooth transition between colors
+                const colorIndex = Math.floor(cycleProgress * (colors.length - 1));
+                const nextColorIndex = (colorIndex + 1) % colors.length;
+                const colorProgress = (cycleProgress * (colors.length - 1)) % 1;
+
+                const color1 = EffectsHelper.hexToRgb(colors[colorIndex]);
+                const color2 = EffectsHelper.hexToRgb(colors[nextColorIndex]);
+
+                if (color1 && color2) {
+                    const r = Math.floor(color1.r + (color2.r - color1.r) * colorProgress);
+                    const g = Math.floor(color1.g + (color2.g - color1.g) * colorProgress);
+                    const b = Math.floor(color1.b + (color2.b - color1.b) * colorProgress);
+
+                    currentColor = `rgb(${r}, ${g}, ${b})`;
+                }
+            } else {
+                // Solid color changes
+                const colorIndex = Math.floor(cycleProgress * colors.length) % colors.length;
+                currentColor = colors[colorIndex];
+            }
+        }
+    }
+
+    // Calculate opacity based on pulse effect
+    let currentOpacity = 1.0;
+
+    if (effects.pulseEffect.enabled) {
+        const pulseProgress = ((currentTime % effects.pulseEffect.speed) / effects.pulseEffect.speed);
+
+        // Create a sinusoidal pulse effect
+        const pulseValue = Math.sin(pulseProgress * Math.PI * 2);
+        const normalizedPulse = (pulseValue + 1) / 2; // Convert from -1..1 to 0..1
+
+        // Map to the configured opacity range
+        currentOpacity = effects.pulseEffect.minOpacity +
+            (effects.pulseEffect.maxOpacity - effects.pulseEffect.minOpacity) * normalizedPulse;
+    }
+
+    // Apply glow effect if enabled
+    if (effects.glowEffect.enabled) {
+        ctx.shadowColor = effects.glowEffect.color;
+        ctx.shadowBlur = effects.glowEffect.size * effects.glowEffect.intensity;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+    }
+
     // Draw a border around the entire reel area
-    ctx.strokeStyle = '#ffcc00'; // Gold border
-    ctx.lineWidth = 5;
-    ctx.strokeRect(startX - ctx.lineWidth / 2, startY - ctx.lineWidth / 2, totalWidth + ctx.lineWidth, reelViewportHeight + ctx.lineWidth);
+    ctx.strokeStyle = currentColor;
+    ctx.globalAlpha = currentOpacity;
+    ctx.lineWidth = effects.borderWidth;
+    ctx.strokeRect(startX - ctx.lineWidth / 2, startY - ctx.lineWidth / 2,
+        totalWidth + ctx.lineWidth, reelViewportHeight + ctx.lineWidth);
 
     // Draw separators between reels
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = effects.separatorWidth;
     for (let i = 1; i < REEL_COUNT; i++) {
         // Calculate the correct position for each divider
         const lineX = startX + i * (reelWidth + actualSpacing) - actualSpacing / 2;
@@ -1187,6 +1277,11 @@ function drawReelMask() {
         ctx.lineTo(lineX, startY + reelViewportHeight);
         ctx.stroke();
     }
+
+    // Reset shadow and opacity for other drawing operations
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1.0;
 }
 
 function spinReels() {
@@ -1360,17 +1455,22 @@ let isPlayingEpicWinAnimation = false;
 let epicWinStartTime = 0;
 
 // Function to trigger the epic win animation
-function triggerEpicWinAnimation() {
+function triggerEpicWinAnimation(winAmount) {
     if (spinning) return; // Don't trigger during spins
 
     // Prevent multiple animations from running simultaneously
     if (isPlayingEpicWinAnimation) {
         stopEpicWinAnimation();
         return;
-    }    // Start the epic win animation
+    }
+
+    // Store the current win amount globally so themes can access it
+    window.currentWinAmount = winAmount;
+
+    // Start the epic win animation
     isPlayingEpicWinAnimation = true;
     epicWinStartTime = performance.now();
-    console.log("Epic Win Animation Started!");
+    console.log("Epic Win Animation Started! Win amount:", window.currentWinAmount);
 
     // Stop background music before playing jackpot sound
     stopBackgroundMusic();
@@ -1406,7 +1506,7 @@ function checkWinAndFinalize() {
 
     // Check for wins using the stored currentReelResults
     const winInfo = checkWin(); // Returns null or win details object
-
+    winAmount = winInfo ? winInfo.totalAmount : 0;
     // Create a result object for history tracking
     const spinResult = {
         reels: currentReelResults,
@@ -1423,11 +1523,9 @@ function checkWinAndFinalize() {
         playSound('win');
         // Add to history display (use info from winInfo or winningLines)
         // Pass the number of winning paylines instead of symbol count
-        addToHistory(true, winInfo.bestMatch.symbolName, winInfo.allLines.length, winInfo.totalAmount);
-
-        // Check if this is a 5-of-a-kind win and trigger epic animation
+        addToHistory(true, winInfo.bestMatch.symbolName, winInfo.allLines.length, winInfo.totalAmount);        // Check if this is a 5-of-a-kind win and trigger epic animation
         if (winInfo.allLines.some(line => line.count >= 5)) {
-            triggerEpicWinAnimation();
+            triggerEpicWinAnimation(winInfo.totalAmount);
         }
         // Trigger win celebration if significant win
         else if (winInfo.totalAmount >= betAmount * 5) { // Example threshold
@@ -2039,7 +2137,7 @@ function handleMouseDown(e) {
 
     if (isMouseOver(mouseX, mouseY, testBtnX, testBtnY, testBtnWidth, testBtnHeight)) {
         playSound('click');
-        triggerEpicWinAnimation();
+        triggerEpicWinAnimation(winAmount);
     }
 }
 
@@ -2968,11 +3066,10 @@ function drawEpicWinAnimation(elapsedTime, deltaTime) {
     }
 
     // Get the animation duration from the theme configuration
-    const animDuration = currentTheme?.visualEffects?.themeSpecific?.epicWinAnimation?.duration || 6000;
-
-    // Pass the duration to the custom renderer or use it in the fallback
+    const animDuration = currentTheme?.visualEffects?.themeSpecific?.epicWinAnimation?.duration || 6000;    // Pass the win amount to the custom renderer or use animation duration in the fallback
     if (typeof currentTheme.renderEpicWinAnimation === 'function') {
-        currentTheme.renderEpicWinAnimation(ctx, canvas, elapsedTime, deltaTime, animDuration);
+        // Use the stored win amount instead of animation duration
+        currentTheme.renderEpicWinAnimation(ctx, canvas, elapsedTime, deltaTime, window.currentWinAmount || 0);
     } else {
         drawGenericEpicWinAnimation(elapsedTime, deltaTime, animDuration);
     }
@@ -3306,53 +3403,54 @@ function applyWinEffects(ctx, winningLine, timestamp) {
             winningLine.explosionsActive = false;
         }
     }
-}
 
-// Apply shockwave effect
-if (effects.shockwave) {
-    // Initialize ONCE per winning line reveal
-    if (!winningLine.shockwaves) {
-        winningLine.shockwaves = [];
-        winningLine.shockwavesActive = true;
 
-        positions.forEach(pos => {
-            const centerX = startX + pos.reel * (reelWidth + actualSpacing) + SYMBOL_SIZE / 2;
-            const centerY = startY + pos.row * SYMBOL_SIZE + SYMBOL_SIZE / 2;
-            winningLine.shockwaves.push({
-                x: centerX, y: centerY,
-                radius: 0,
-                maxRadius: SYMBOL_SIZE * 1.2 * intensity, // Scale max radius with intensity
-                life: 1.0,
-                lineWidth: 4 // Initial line width
+    // Apply shockwave effect
+    if (effects.shockwave) {
+        // Initialize ONCE per winning line reveal
+        if (!winningLine.shockwaves) {
+            winningLine.shockwaves = [];
+            winningLine.shockwavesActive = true;
+
+            positions.forEach(pos => {
+                const centerX = startX + pos.reel * (reelWidth + actualSpacing) + SYMBOL_SIZE / 2;
+                const centerY = startY + pos.row * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+                winningLine.shockwaves.push({
+                    x: centerX, y: centerY,
+                    radius: 0,
+                    maxRadius: SYMBOL_SIZE * 1.2 * intensity, // Scale max radius with intensity
+                    life: 1.0,
+                    lineWidth: 4 // Initial line width
+                });
             });
-        });
-    }
-
-    // Animate existing shockwaves if active
-    if (winningLine.shockwavesActive && winningLine.shockwaves.length > 0) {
-        ctx.save();
-        let activeWaves = false;
-        for (let i = winningLine.shockwaves.length - 1; i >= 0; i--) {
-            const wave = winningLine.shockwaves[i];
-            wave.radius += 3 * intensity; // Speed scales with intensity
-            wave.life -= 0.03; // Fade rate
-            wave.lineWidth = Math.max(1, 4 * wave.life); // Line width shrinks
-
-            if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
-                winningLine.shockwaves.splice(i, 1);
-            } else {
-                activeWaves = true;
-                ctx.globalAlpha = wave.life * 0.7; // Apply fade
-                ctx.strokeStyle = `rgba(255, 255, 255, ${wave.life})`; // Fade color too
-                ctx.lineWidth = wave.lineWidth;
-                ctx.beginPath();
-                ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
-                ctx.stroke();
-            }
         }
-        ctx.restore();
-        if (!activeWaves) {
-            winningLine.shockwavesActive = false;
+
+        // Animate existing shockwaves if active
+        if (winningLine.shockwavesActive && winningLine.shockwaves.length > 0) {
+            ctx.save();
+            let activeWaves = false;
+            for (let i = winningLine.shockwaves.length - 1; i >= 0; i--) {
+                const wave = winningLine.shockwaves[i];
+                wave.radius += 3 * intensity; // Speed scales with intensity
+                wave.life -= 0.03; // Fade rate
+                wave.lineWidth = Math.max(1, 4 * wave.life); // Line width shrinks
+
+                if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
+                    winningLine.shockwaves.splice(i, 1);
+                } else {
+                    activeWaves = true;
+                    ctx.globalAlpha = wave.life * 0.7; // Apply fade
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${wave.life})`; // Fade color too
+                    ctx.lineWidth = wave.lineWidth;
+                    ctx.beginPath();
+                    ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+            if (!activeWaves) {
+                winningLine.shockwavesActive = false;
+            }
         }
     }
 }

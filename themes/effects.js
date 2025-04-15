@@ -26,6 +26,32 @@ export const EffectDefaults = {
         speed: 800,       // Speed of movement in ms
         intensity: 0.7    // Specific effect intensity
     },
+
+    // New reelMask effects configuration
+    reelMask: {
+        enabled: true,             // Enable special effects for reel mask
+        borderWidth: 5,            // Width of the border in pixels
+        separatorWidth: 2,         // Width of separator lines
+        glowEffect: {
+            enabled: true,         // Enable glow around borders
+            color: '#ffcc00',      // Base glow color
+            intensity: 0.8,        // Glow intensity
+            size: 10              // Glow size in pixels
+        },
+        pulseEffect: {
+            enabled: true,         // Enable pulsing effect
+            speed: 1500,           // Pulse cycle in milliseconds
+            minOpacity: 0.6,       // Minimum opacity during pulse
+            maxOpacity: 1.0        // Maximum opacity during pulse
+        },
+        colorTransition: {
+            enabled: true,         // Enable color transition effect
+            colors: ['#ffcc00', '#ff5500', '#ff00ff', '#00ffff', '#ffcc00'], // Colors to cycle through
+            speed: 5000,           // Full color cycle duration in milliseconds
+            mode: 'gradient'       // 'gradient' or 'solid'
+        }
+    },
+
     backgroundEffects: {
         enabled: true,               // Master switch for background
         particles: {
@@ -60,14 +86,6 @@ export const EffectDefaults = {
         spinningGlow: true,      // Glow during spinning
         spinColor: '#3498db'     // Color during spin
     },
-    soundReactivity: {
-        enabled: false,          // React to sound/music
-        sensitivity: 0.5,        // Sensitivity to sound
-        bassEffect: true,        // Extra effects on bass
-        multiColor: false,       // Change colors with sound
-        colorPalette: ['#ff0000', '#00ff00', '#0000ff', '#ffff00']
-    },
-
     themeSpecific: {            // Theme-specific effect configurations
         // Can be extended by each theme
     }
@@ -75,7 +93,50 @@ export const EffectDefaults = {
 
 // Common helper functions for visual effects
 export const EffectsHelper = {
-    // Helper function (add to EffectsHelper or place globally if needed)
+    imageCache: {},
+
+    // Load image with caching
+    async loadImage(src) {
+        if (this.imageCache[src]) {
+            if (this.imageCache[src] instanceof Promise) {
+                // If loading is in progress, wait for it
+                return this.imageCache[src];
+            }
+            // If already loaded (or failed), return the result
+            return this.imageCache[src];
+        }
+
+        // Start loading
+        const promise = new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                this.imageCache[src] = img; // Cache the loaded image object
+                resolve(img);
+            };
+            img.onerror = (err) => {
+                console.error(`Failed to load image: ${src}`, err);
+                this.imageCache[src] = null; // Cache the failure
+                resolve(null); // Resolve with null on error
+            };
+            img.src = src;
+        });
+
+        this.imageCache[src] = promise; // Cache the promise while loading
+        return promise;
+    },
+
+    // Convert hex color to RGB object
+    hexToRgb(hex) {
+        // Remove '#' if present
+        hex = hex.replace(/^#/, '');
+
+        // Parse hex values to RGB
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+
+        return { r, g, b };
+    },    // Helper function (add to EffectsHelper or place globally if needed)
     hexToHsl(hex) {
         // Remove '#' if present
         hex = hex.replace(/^#/, '');
@@ -106,6 +167,48 @@ export const EffectsHelper = {
             s: Math.round(s * 100),
             l: Math.round(l * 100)
         };
+    },
+
+    // Render golden rain/coins falling effect
+    renderGoldenRain(ctx, canvas, timestamp, options = {}) {
+        const {
+            count = 100,
+            coinSize = 5,
+            coinColor = '#ffd700',
+            outlineColor = '#b7950b',
+            speed = 3,
+            swayAmount = 30,
+            swaySpeed = 1000,
+            detailsEnabled = true
+        } = options;
+
+        ctx.save();
+
+        // Draw falling gold coins
+        for (let i = 0; i < count; i++) {
+            const x = (i / count) * canvas.width + (Math.sin(timestamp / swaySpeed + i) * swayAmount);
+            const baseSpeed = speed + (i % 5) * 2;
+            const y = ((timestamp / baseSpeed + i * 30) % canvas.height);
+
+            // Draw gold coin body
+            ctx.fillStyle = coinColor;
+            ctx.beginPath();
+            ctx.arc(x, y, coinSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = outlineColor;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Add coin details if enabled
+            if (detailsEnabled) {
+                ctx.beginPath();
+                ctx.arc(x, y, coinSize * 0.6, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        ctx.restore();
     },
     // Get a pulsing value based on timestamp
     getPulseValue(timestamp, speed = 1000, min = 0, max = 1) {
@@ -187,6 +290,29 @@ export const EffectPresets = {
             speed: 600,
             intensity: 0.7
         },
+        reelMask: {
+            enabled: true,
+            borderWidth: 5,
+            separatorWidth: 2,
+            glowEffect: {
+                enabled: true,
+                color: '#00ffff',
+                intensity: 0.9,
+                size: 15
+            },
+            pulseEffect: {
+                enabled: false,
+                speed: 15000,
+                minOpacity: 0.7,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
+                enabled: false,
+                colors: ['#FFD700', '#228B22', '#DAA520', '#006400', '#FFD700'],
+                speed: 30000,
+                mode: 'gradient'
+            }
+        },
         backgroundEffects: {
             enabled: true,
             particles: {
@@ -213,6 +339,7 @@ export const EffectPresets = {
 
     // Retro arcade style
     retro: {
+        ...EffectDefaults,
         enabled: true,
         intensity: 0.7,
         neonGlow: {
@@ -224,6 +351,29 @@ export const EffectPresets = {
         },
         electricEdges: {
             enabled: false
+        },
+        reelMask: {
+            enabled: true,
+            borderWidth: 6,
+            separatorWidth: 3,
+            glowEffect: {
+                enabled: true,
+                color: '#ff00ff',
+                intensity: 0.8,
+                size: 12
+            },
+            pulseEffect: {
+                enabled: true,
+                speed: 1200,
+                minOpacity: 0.5,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
+                enabled: true,
+                colors: ['#ff00ff', '#ff44aa', '#ff0044', '#aa00ff', '#ff00ff'],
+                speed: 6000,
+                mode: 'solid'
+            }
         },
         backgroundEffects: {
             enabled: true,
@@ -251,6 +401,7 @@ export const EffectPresets = {
 
     // Electric energetic style
     electric: {
+        ...EffectDefaults,
         enabled: true,
         intensity: 0.85,
         neonGlow: {
@@ -266,6 +417,29 @@ export const EffectPresets = {
             arcs: 8,
             speed: 400,
             intensity: 0.9
+        },
+        reelMask: {
+            enabled: true,
+            borderWidth: 5,
+            separatorWidth: 2,
+            glowEffect: {
+                enabled: true,
+                color: '#ffff00',
+                intensity: 0.9,
+                size: 14
+            },
+            pulseEffect: {
+                enabled: true,
+                speed: 800,
+                minOpacity: 0.6,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
+                enabled: true,
+                colors: ['#ffff00', '#ffaa00', '#ff5500', '#ffdd00', '#ffff00'],
+                speed: 3000,
+                mode: 'gradient'
+            }
         },
         backgroundEffects: {
             enabled: true,
@@ -293,6 +467,7 @@ export const EffectPresets = {
 
     // Subtle professional style
     subtle: {
+        ...EffectDefaults,
         enabled: true,
         intensity: 0.4,
         neonGlow: {
@@ -304,6 +479,29 @@ export const EffectPresets = {
         },
         electricEdges: {
             enabled: false
+        },
+        reelMask: {
+            enabled: true,
+            borderWidth: 3,
+            separatorWidth: 1,
+            glowEffect: {
+                enabled: true,
+                color: '#4488ff',
+                intensity: 0.6,
+                size: 10
+            },
+            pulseEffect: {
+                enabled: true,
+                speed: 2000,
+                minOpacity: 0.5,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
+                enabled: true,
+                colors: ['#4488ff', '#44aaff', '#44ccff', '#4488ff'],
+                speed: 6000,
+                mode: 'gradient'
+            }
         },
         backgroundEffects: {
             enabled: true,
@@ -331,6 +529,7 @@ export const EffectPresets = {
 
     // No effects - classic clean look
     none: {
+        ...EffectDefaults,
         enabled: false
     }
 };

@@ -1,38 +1,5 @@
 // filepath: c:\projects\copilot-agent\slot-game\themes\fantasy-forest.js
-import { EffectPresets } from './effects.js';
-
-// Simple cache for loaded images to avoid reloading
-const imageCache = {};
-
-async function loadImage(src) {
-    if (imageCache[src]) {
-        if (imageCache[src] instanceof Promise) {
-            // If loading is in progress, wait for it
-            return imageCache[src];
-        }
-        // If already loaded (or failed), return the result
-        return imageCache[src];
-    }
-
-    // Start loading
-    const promise = new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            imageCache[src] = img; // Cache the loaded image object
-            resolve(img);
-        };
-        img.onerror = (err) => {
-            console.error(`Failed to load image: ${src}`, err);
-            imageCache[src] = null; // Cache the failure
-            resolve(null); // Resolve with null on error
-        };
-        img.src = src;
-    });
-
-    imageCache[src] = promise; // Cache the promise while loading
-    return promise;
-}
-
+import { EffectPresets, EffectDefaults, EffectsHelper } from './effects.js';
 
 export const FantasyForestTheme = {
     name: "FantasyForest",
@@ -47,7 +14,7 @@ export const FantasyForestTheme = {
     },
     visualEffects: {
         // ... (other visual effects properties remain the same) ...
-        ...EffectPresets.magical,
+        ...EffectPresets.neon,
         intensity: 0.85,
         neonGlow: {
             enabled: false,
@@ -214,8 +181,7 @@ export const FantasyForestTheme = {
 
         // Call the epic win animation renderer if it's supposed to be playing
         // Note: The logic to *start* the epic win animation (setting isPlayingEpicWinAnimation = true,
-        // epicWinStartTime = timestamp, and providing the winAmount) should happen elsewhere,
-        // likely in the main game loop when a large win is detected.
+        // epicWinStartTime = timestamp, and providing the winAmount) should happen elsewhere,        // likely in the main game loop when a large win is detected.
         // This function *only renders* if the state indicates it should.
         if (specific?.epicWinAnimation?.enabled && window.isPlayingEpicWinAnimation) {
             // Assume window.epicWinStartTime and window.currentWinAmount are set externally
@@ -229,7 +195,7 @@ export const FantasyForestTheme = {
                 canvas,
                 elapsedTime,
                 deltaTime || 16.67, // Provide a fallback delta
-                winAmount
+                window.currentWinAmount || 0 // Use window.currentWinAmount directly
             );
 
             if (!stillPlaying) {
@@ -400,7 +366,7 @@ export const FantasyForestTheme = {
         if (!config._bgLoadInitiated) {
             config._bgLoadInitiated = true;
             // Use async loading but don't block rendering
-            loadImage(bgPath).then(img => {
+            EffectsHelper.loadImage(bgPath).then(img => {
                 config._backgroundImage = img; // Store loaded image (or null if failed)
             }).catch(() => { // Catch potential promise rejection just in case
                 config._backgroundImage = null;
@@ -545,8 +511,7 @@ export const FantasyForestTheme = {
         ctx.restore(); // Restore rotation/translation
 
 
-        // --- Win Amount Text ---
-        const amountY = canvas.height * 0.6;
+        // --- Win Amount Text ---        const amountY = canvas.height * 0.6;
         const amountBaseSize = Math.min(canvas.width / 12, 60);
         const countUpDuration = duration * 0.6; // Spend 60% of time counting up
 
@@ -558,18 +523,16 @@ export const FantasyForestTheme = {
             displayAmount = winAmount * easedProgress;
         } else {
             displayAmount = winAmount; // Hold final amount
-        }
-
+        }        // Ensure we're using the passed win amount parameter, not a constant
         // Format amount (e.g., with commas and 2 decimal places)
         const formattedAmount = displayAmount.toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-        });
-
-        // Size pulse when amount reaches final value
+        });        // Size pulse when amount reaches final value
         let amountSize = amountBaseSize;
         let amountShakeX = 0;
         let amountShakeY = 0;
+        let amountY = canvas.height / 2; // Position text vertically centered
         const shakeIntensity = 3;
 
         if (elapsedTime >= countUpDuration) {

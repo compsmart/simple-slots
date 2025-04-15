@@ -1,22 +1,22 @@
 // filepath: c:\projects\copilot-agent\slot-game\themes\ancient-egypt.js
-import { EffectPresets, EffectsHelper } from './effects.js';
+import { EffectPresets, EffectDefaults, EffectsHelper } from './effects.js';
 
 export const AncientEgyptTheme = {
     name: "AncientEgypt",
     // Layout and appearance settings
     layout: {
-        reelSpacing: 15, // Slightly tighter spacing for ancient stone look
+        reelSpacing: 0, // Slightly tighter spacing for ancient stone look
         reelsContainer: {
             backgroundColor: "#8d6e63", // Sandy brown background for reels area
             opacity: 0.8 // 80% opacity
         },
-        themeColor: "#ffd700" // Gold theme color to match Egyptian aesthetics
+        themeColor: "#ff1600" // Gold theme color to match Egyptian aesthetics
     },
     visualEffects: {
         ...EffectPresets.neon,
         intensity: 0.75,
         neonGlow: {
-            enabled: true,
+            enabled: false,
             color: '#ffd700', // Gold color
             size: 10,
             pulseSpeed: 1500,
@@ -28,7 +28,8 @@ export const AncientEgyptTheme = {
             arcs: 4,
             speed: 1000,
             intensity: 0.6
-        }, backgroundEffects: {
+        },
+        backgroundEffects: {
             enabled: true,
             backgroundImage: {
                 enabled: true,
@@ -42,10 +43,33 @@ export const AncientEgyptTheme = {
                 size: { min: 1, max: 4 }
             },
             pulse: {
-                enabled: true,
+                enabled: false,
                 color: '#332200',
                 speed: 3000,
                 intensity: 0.4
+            }
+        },
+        reelMask: {
+            enabled: true,
+            borderWidth: 5,
+            separatorWidth: 2,
+            glowEffect: {
+                enabled: false,
+                color: '#00ffff',
+                intensity: 0.9,
+                size: 15
+            },
+            pulseEffect: {
+                enabled: false,
+                speed: 15000,
+                minOpacity: 0.7,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
+                enabled: true,
+                colors: ['#4a973d'],
+                speed: 30000,
+                mode: 'gradient'
             }
         },
         // Add reel effects configuration
@@ -72,7 +96,7 @@ export const AncientEgyptTheme = {
         themeSpecific: {
             sandStorm: {
                 enabled: true,
-                intensity: 0.7,
+                intensity: 2,
                 color: '#d4b683'
             },
             hieroglyphGlow: {
@@ -83,9 +107,7 @@ export const AncientEgyptTheme = {
                 enabled: true,
                 name: "Pharaoh's Treasure",
                 duration: 8000, // 8 seconds
-                pyramidExplosion: true,
-                goldenRain: true,
-                sphinxReveal: false
+                goldParticles: true,
             }
         }
     },
@@ -193,91 +215,6 @@ export const AncientEgyptTheme = {
 
             ctx.save();
 
-            // Pyramid explosion effect
-            if (epicWin.pyramidExplosion) {
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2 + 50;
-
-                // Draw the pyramid
-                const pyramidHeight = 200;
-                const pyramidBase = 250;
-                const pyramidTop = centerY - pyramidHeight;
-                const pyramidLeft = centerX - pyramidBase / 2;
-                const pyramidRight = centerX + pyramidBase / 2;
-
-                // Base pyramid
-                ctx.fillStyle = '#ffd700';
-                ctx.beginPath();
-                ctx.moveTo(centerX, pyramidTop - 20 * Math.sin(timestamp / 200));
-                ctx.lineTo(pyramidLeft, centerY);
-                ctx.lineTo(pyramidRight, centerY);
-                ctx.closePath();
-                ctx.fill();
-
-                // Add texture lines
-                ctx.strokeStyle = '#8d6e63';
-                ctx.lineWidth = 2;
-                for (let i = 0; i < 5; i++) {
-                    const y = pyramidTop + (centerY - pyramidTop) * (i / 5);
-                    const width = pyramidBase * (i / 5);
-                    ctx.beginPath();
-                    ctx.moveTo(centerX - width / 2, y);
-                    ctx.lineTo(centerX + width / 2, y);
-                    ctx.stroke();
-                }
-
-                // Explosion particles
-                const particles = 30;
-                for (let i = 0; i < particles; i++) {
-                    const angle = (i / particles) * Math.PI * 2;
-                    const distance = progress * canvas.width * 0.4;
-                    const x = centerX + Math.cos(angle) * distance;
-                    const y = centerY - 50 + Math.sin(angle) * distance;
-
-                    // Draw particle
-                    ctx.fillStyle = i % 2 === 0 ? '#ffd700' : '#f5f5dc';
-
-                    // Randomize particle shape
-                    if (i % 3 === 0) { // Triangle
-                        ctx.beginPath();
-                        ctx.moveTo(x, y - 15);
-                        ctx.lineTo(x - 10, y + 5);
-                        ctx.lineTo(x + 10, y + 5);
-                        ctx.closePath();
-                        ctx.fill();
-                    } else { // Square
-                        ctx.fillRect(x - 8, y - 8, 16, 16);
-                    }
-                }
-            }
-
-            // Golden rain effect
-            if (epicWin.goldenRain) {
-                const raindrops = 100;
-
-                for (let i = 0; i < raindrops; i++) {
-                    const x = (i / raindrops) * canvas.width + (Math.sin(timestamp / 1000 + i) * 30);
-                    const speed = 3 + (i % 5) * 2;
-                    const y = ((timestamp / speed + i * 30) % canvas.height);
-
-                    // Draw gold coins
-                    ctx.fillStyle = '#ffd700';
-                    ctx.beginPath();
-                    ctx.arc(x, y, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#b7950b';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-
-                    // Add coin details
-                    ctx.beginPath();
-                    ctx.arc(x, y, 3, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-            }
-
-
-
             // Big text announcement
             const textProgress = Math.min(1, progress * 2);
             const textSize = 60 + Math.sin(timestamp / 200) * 10;
@@ -315,9 +252,22 @@ export const AncientEgyptTheme = {
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3;
             ctx.fillText(`${(window.betAmount * 100).toFixed(2)}`, canvas.width / 2, canvas.height / 2 - 50);
-            ctx.strokeText(`${(window.betAmount * 100).toFixed(2)}`, canvas.width / 2, canvas.height / 2 - 50);
+            ctx.strokeText(`${(window.betAmount * 100).toFixed(2)}`, canvas.width / 2, canvas.height / 2 - 50); ctx.restore();
 
-            ctx.restore();
+            // Golden rain effect - rendered last to appear on top of everything
+            if (epicWin.goldenRain) {
+                // Use the shared helper function for golden rain effect
+                EffectsHelper.renderGoldenRain(ctx, canvas, timestamp, {
+                    count: 100,
+                    coinSize: 5,
+                    coinColor: '#ffd700',
+                    outlineColor: '#b7950b',
+                    speed: 3,
+                    swayAmount: 30,
+                    swaySpeed: 1000,
+                    detailsEnabled: true
+                });
+            }
 
             // End animation if complete
             if (progress >= 1) {
@@ -514,36 +464,44 @@ export const AncientEgyptTheme = {
         }
     },
     /**
- * Renders an Epic Win Animation with improved graphics and effects.
- *
- * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
- * @param {HTMLCanvasElement} canvas - The canvas element.
- * @param {number} elapsedTime - Total time elapsed since animation start (ms).
- * @param {number} deltaTime - Time elapsed since last frame (ms).
- */    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime) => {
-        const duration = 7000; // Increased duration for more spectacle (7 seconds)
-        const progress = Math.min(elapsedTime / duration, 1.0);
+         * Renders the Fantasy Forest Epic Win Animation.
+         * Assumes this is called repeatedly within an animation loop.
+         * Manages internal state like particle positions and image loading.
+         *
+         * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+         * @param {HTMLCanvasElement} canvas - The canvas element.
+         * @param {number} elapsedTime - Total time elapsed since animation start (ms).
+         * @param {number} deltaTime - Time elapsed since last frame (ms).
+         * @param {number} winAmount - The final amount won for display.
+         * @returns {boolean} - true if animation is still playing, false if complete.
+         */
+    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime, winAmount) => {
+        const config = AncientEgyptTheme.visualEffects.themeSpecific.epicWinAnimation;
+        const duration = config.duration;
+        const progress = Math.min(1.0, elapsedTime / duration); // Ensure progress doesn't exceed 1
 
-        // --- Background Image ---
+        // --- Background ---
         const bgPath = `images/${AncientEgyptTheme.name.toLowerCase()}/epic_bg.jpg`;
-        const epicConfig = AncientEgyptTheme.visualEffects.themeSpecific.epicWinAnimation;
 
-        // Initialize state objects if needed
-        if (!epicConfig._backgroundImage && !epicConfig._bgLoadInitiated) {
-            epicConfig._bgLoadInitiated = true;
+        // Initiate loading if not already started
+        if (!config._bgLoadInitiated) {
+            config._bgLoadInitiated = true;
+            // Initialize gold particles storage
+            config._particles = [];
+            config._particlesInitialized = false;
             // Use async loading but don't block rendering
-            const img = new Image();
-            img.onload = () => {
-                epicConfig._backgroundImage = img;
-            };
-            img.src = bgPath;
+            EffectsHelper.loadImage(bgPath).then(img => {
+                config._backgroundImage = img; // Store loaded image (or null if failed)
+            }).catch(() => { // Catch potential promise rejection just in case
+                config._backgroundImage = null;
+            });
         }
 
         ctx.save();        // Draw background image if loaded, otherwise draw fallback
-        if (epicConfig._backgroundImage) {
+        if (config._backgroundImage) {
             // Ensure the image covers the entire canvas while maintaining aspect ratio
-            const imgWidth = epicConfig._backgroundImage.width;
-            const imgHeight = epicConfig._backgroundImage.height;
+            const imgWidth = config._backgroundImage.width;
+            const imgHeight = config._backgroundImage.height;
             const canvasRatio = canvas.width / canvas.height;
             const imgRatio = imgWidth / imgHeight;
 
@@ -560,430 +518,172 @@ export const AncientEgyptTheme = {
                 drawHeight = canvas.height;
                 drawWidth = canvas.height * imgRatio;
                 offsetX = (canvas.width - drawWidth) / 2;
-            }            // Draw the image to cover the entire canvas
-            ctx.drawImage(epicConfig._backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
+            }
+
+            // Draw the image to cover the entire canvas
+            ctx.drawImage(config._backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
         } else {
             // Fallback gradient background
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#1f1a13'); // Dark sand color
-            gradient.addColorStop(0.5, '#544b34'); // Mid sand color
-            gradient.addColorStop(1, '#997f4e'); // Lighter sand color
+            gradient.addColorStop(0, '#1a472a'); // Dark deep green
+            gradient.addColorStop(0.5, '#2e7d32'); // Forest green
+            gradient.addColorStop(1, '#1b5e20'); // Darker base green
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+            // Optionally draw text indicating loading state if desired
+            // ctx.fillStyle = "white"; ctx.fillText("Loading background...", canvas.width/2, canvas.height/2);
+        }        // We'll move the gold particles rendering to the end to ensure they're on top of everything// --- Title Text ---
+        const titleText = config.name || "EPIC WIN";
+        const titleBaseSize = Math.min(canvas.width / 15, 100); // Increased base size (was /10, 70)
+        const titlePulse = Math.sin(elapsedTime / 300) * (titleBaseSize * 0.1); // Increased pulse effect
+        const titleSize = titleBaseSize + titlePulse;
+        const titleY = titleSize + 50;
 
-        // --- Easing Function (Ease-in-out Quad) ---
-        const easeInOutQuad = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `900 ${titleSize}px 'Papyrus', fantasy, cursive`; // Bolder font weight (900 instead of bold)
 
-        // --- Configuration ---
-        const config = {
-            pyramidBaseWidth: canvas.width * 0.6,
-            pyramidHeightRatio: 0.75, // height relative to base width
-            pyramidColor1: '#c7a76a', // Lighter sand stone
-            pyramidColor2: '#a1814a', // Darker sand stone
-            pyramidOutline: '#4d3a1f', // Dark brown outline
-            gold1: '#ffd700', // Bright Gold
-            gold2: '#f0c000', // Medium Gold
-            gold3: '#b8860b', // Dark Gold / Bronze
-            skyColor1: '#0b1a33', // Deep night blue
-            skyColor2: '#203050', // Lighter night blue
-            sandColor1: '#e6b143', // Dune highlight
-            sandColor2: '#996633', // Dune shadow
-            textColor: '#ffe070', // Golden yellow text
-            textOutline: '#604010', // Dark brown text outline
-            shadowColor: 'rgba(0, 0, 0, 0.6)',
-            starCount: 150,
-            coinCount: 100,
-            fragmentCount: 50,
-        };
+        // Enhanced glowing effect
+        ctx.shadowColor = '#dddddd'; // Brighter yellow-gold glow
+        ctx.shadowBlur = 30 + Math.sin(elapsedTime / 250) * 15; // Increased glow intensity & variation        // Bright yellow text gradient fill
+        const titleGradient = ctx.createLinearGradient(
+            canvas.width / 2 - 200, titleY,
+            canvas.width / 2 + 200, titleY
+        );
+        titleGradient.addColorStop(0, '#ffffFF'); // Bright yellow
+        titleGradient.addColorStop(0.3, '#ffffFF'); // Slightly lighter yellow
+        titleGradient.addColorStop(0.7, '#ffffFF'); // Bright yellow again
+        titleGradient.addColorStop(1, '#ffff66'); // Light yellow with a slight hint of gold
+        ctx.fillStyle = titleGradient;
 
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
-        // --- Helper Functions ---
-        const drawStar = (x, y, radius, alpha) => {
-            ctx.fillStyle = `rgba(255, 255, 200, ${alpha * (0.5 + Math.random() * 0.5)})`; // Twinkle effect
-            ctx.beginPath();
-            ctx.arc(x, y, radius * (0.8 + Math.random() * 0.4), 0, Math.PI * 2);
-            ctx.fill();
-        };
-
-        const drawHieroglyph = (x, y, size, alpha, seed) => {
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = config.pyramidOutline;
-            ctx.font = `${size}px Arial`; // Using simple characters for variety
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const glyphs = ['𓂀', '𓋹', ' V', ' ~', '𓅊', 'II', 'O']; // Eye, Ankh, simple shapes
-            ctx.fillText(glyphs[Math.floor(seed * glyphs.length) % glyphs.length], x, y);
-            ctx.globalAlpha = 1.0;
-        };
-
-        const drawCoin = (x, y, size, rotation, tilt, type) => {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(rotation);
-
-            const thickness = Math.max(1, size * 0.15 * Math.abs(Math.cos(tilt))); // Simulate thickness based on tilt
-            const radiusX = size / 2;
-            const radiusY = size / 2 * Math.abs(Math.sin(tilt)); // Ellipse for 3D effect
-
-            // Determine color based on type
-            let grad1, grad2, grad3;
-            if (type === 'gold') {
-                grad1 = config.gold1; grad2 = config.gold2; grad3 = config.gold3;
-            } else if (type === 'silver') {
-                grad1 = '#f0f0f0'; grad2 = '#c0c0c0'; grad3 = '#a8a8a8';
-            } else { // Gem (e.g., Ruby)
-                grad1 = '#ff7070'; grad2 = '#d03030'; grad3 = '#a01010';
-            }
-
-            // Edge (darker side)
-            ctx.fillStyle = grad3;
-            ctx.beginPath();
-            ctx.ellipse(0, thickness / 2, radiusX, radiusY, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Face (gradient)
-            const coinGradient = ctx.createLinearGradient(-radiusX, -radiusY, radiusX, radiusY);
-            coinGradient.addColorStop(0, grad1);
-            coinGradient.addColorStop(0.5, grad2);
-            coinGradient.addColorStop(1, grad3);
-            ctx.fillStyle = coinGradient;
-            ctx.beginPath();
-            ctx.ellipse(0, -thickness / 2, radiusX, radiusY, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Shine / Detail (simplified)
-            if (type !== 'gem' && Math.sin(tilt) > 0.3) { // Only add detail if face is visible
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.lineWidth = Math.max(1, size * 0.05);
-                ctx.beginPath();
-                ctx.arc(0, -thickness / 2, radiusX * 0.7, Math.PI * 1.6, Math.PI * 1.9);
-                ctx.stroke();
-            } else if (type === 'gem') { // Sparkle for gems
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.beginPath();
-                ctx.arc(radiusX * 0.3, -thickness / 2 - radiusY * 0.3, size * 0.08, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            ctx.restore();
-        };
-
-        // --- Background ---
-        // Starry Night Sky
-        const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7);
-        skyGradient.addColorStop(0, config.skyColor1);
-        skyGradient.addColorStop(1, config.skyColor2);
-        ctx.fillStyle = skyGradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Stars (subtle twinkle)
+        // Optional: Gentle rocking motion
+        const titleRock = Math.sin(elapsedTime / 500) * 0.02; // Radians for rotation
         ctx.save();
-        for (let i = 0; i < config.starCount; i++) {
-            // Pre-calculate star positions and sizes using a seed for consistency
-            const seed = i / config.starCount;
-            const x = seed * canvas.width + Math.sin(elapsedTime / 5000 + i) * 5; // Slow drift
-            const y = Math.pow(seed, 1.5) * canvas.height * 0.6; // More stars near horizon
-            const radius = (1 - seed) * 1.5 + 0.5;
-            const alpha = 0.3 + Math.pow(1 - seed, 2) * 0.7; // Brighter near top
-            drawStar(x, y, radius, alpha * (0.8 + Math.sin(elapsedTime / 700 + i * 10) * 0.2)); // Twinkle
+        ctx.translate(canvas.width / 2, titleY);
+        ctx.rotate(titleRock);
+        ctx.fillText(titleText, 0, 0);
+        // Optional outline for better contrast
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.lineWidth = 2;
+        ctx.strokeText(titleText, 0, 0);
+        ctx.restore(); // Restore rotation/translation
+
+
+        // --- Win Amount Text ---        const amountY = canvas.height * 0.6;
+        const amountBaseSize = Math.min(canvas.width / 12, 60);
+        const countUpDuration = duration * 0.6; // Spend 60% of time counting up
+
+        let displayAmount = 0;
+        if (elapsedTime < countUpDuration) {
+            // Fast, non-linear count-up (ease-out)
+            const countProgress = elapsedTime / countUpDuration;
+            const easedProgress = 1 - Math.pow(1 - countProgress, 3); // Cubic ease-out
+            displayAmount = winAmount * easedProgress;
+        } else {
+            displayAmount = winAmount; // Hold final amount
+        }        // Ensure we're using the passed win amount parameter, not a constant
+        // Format amount (e.g., with commas and 2 decimal places)
+        const formattedAmount = displayAmount.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });        // Size pulse when amount reaches final value
+        let amountSize = amountBaseSize;
+        let amountShakeX = 0;
+        let amountShakeY = 0;
+        let amountY = canvas.height / 2; // Position text vertically centered
+        const shakeIntensity = 3;
+
+        if (elapsedTime >= countUpDuration) {
+            amountSize = amountBaseSize * (1 + Math.sin((elapsedTime - countUpDuration) / 150) * 0.1); // Pulse size
+        } else {
+            // Shake effect while counting
+            amountShakeX = (Math.random() - 0.5) * shakeIntensity;
+            amountShakeY = (Math.random() - 0.5) * shakeIntensity;
         }
-        ctx.restore();
 
 
-        // Sandy Dunes
-        const duneGradient = ctx.createLinearGradient(0, canvas.height * 0.6, 0, canvas.height);
-        duneGradient.addColorStop(0, config.sandColor1);
-        duneGradient.addColorStop(1, config.sandColor2);
-        ctx.fillStyle = duneGradient;
-        ctx.beginPath();
-        ctx.moveTo(0, canvas.height);
-        ctx.lineTo(0, canvas.height * 0.65);
-        // Simple rolling dunes shape
-        ctx.bezierCurveTo(canvas.width * 0.2, canvas.height * 0.55, canvas.width * 0.3, canvas.height * 0.75, canvas.width * 0.5, canvas.height * 0.7);
-        ctx.bezierCurveTo(canvas.width * 0.7, canvas.height * 0.65, canvas.width * 0.8, canvas.height * 0.8, canvas.width, canvas.height * 0.75);
-        ctx.lineTo(canvas.width, canvas.height);
-        ctx.closePath();
-        ctx.fill();
+        ctx.font = `bold ${amountSize}px 'Arial', sans-serif`;
+        ctx.fillStyle = '#ffffff'; // White for contrast
+        ctx.shadowColor = '#000000'; // Black shadow for readability
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
 
-        // --- Animation Phases ---
-        const phase1End = 0.35; // Pyramid Rise
-        const phase2End = 0.55; // Explosion
-        const phase3End = 0.9;  // Coin Rain Start & Sphinx Reveal
-        const phase4End = 1.0;  // Text Fade In / Hold
+        ctx.fillText(formattedAmount, canvas.width / 2 + amountShakeX, amountY + amountShakeY);
+        // Optional: Add currency symbol (e.g., '$')
+        // const currencySymbol = "$";
+        // ctx.fillText(currencySymbol + formattedAmount, canvas.width / 2 + amountShakeX, amountY + amountShakeY);        // --- Gold Particles rendering at the very end (on top of everything) ---
+        if (config.goldParticles) {
 
-        // --- Phase 1: Rising Pyramid (0% - 35%) ---
-        if (progress < phase2End) { // Keep drawing pyramid until explosion is over
-            const riseProgress = easeInOutQuad(Math.min(1, progress / phase1End));
-            const isExploding = progress >= phase1End;
-            const explosionProgress = isExploding ? (progress - phase1End) / (phase2End - phase1End) : 0;
+            const particleCount = 150; // More particles for an epic feel
+            const particleBaseSpeed = canvas.height / 3000; // Speed relative to canvas height/time
 
-            const pyramidBase = config.pyramidBaseWidth;
-            const pyramidHeight = pyramidBase * config.pyramidHeightRatio;
-            const currentHeight = pyramidHeight * riseProgress;
-            const currentWidth = pyramidBase * riseProgress;
-            const pyramidY = canvas.height * 0.75; // Set base position on dunes
-            const pyramidTopY = pyramidY - currentHeight;
-
-            // Draw pyramid only if not fully exploded
-            if (!isExploding || explosionProgress < 1) {
-                ctx.save();
-                // Slight shake before explosion
-                if (isExploding && explosionProgress < 0.3) {
-                    const shakeAmount = 10 * Math.sin(elapsedTime / 20);
-                    ctx.translate(shakeAmount, shakeAmount / 2);
+            // Initialize particles once
+            if (!config._particlesInitialized) {
+                config._particles = [];
+                for (let i = 0; i < particleCount; i++) {
+                    config._particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * -canvas.height, // Start above the screen
+                        size: Math.random() * 8 + 4, // Coin size range
+                        speedY: (Math.random() * 0.5 + 0.75) * particleBaseSpeed * 1000, // Base speed + variation (in pixels/sec)
+                        rotation: Math.random() * Math.PI * 2,
+                        rotationSpeed: (Math.random() - 0.5) * 0.1 * (Math.PI / 180) * 1000, // degrees/sec
+                        swaySpeed: Math.random() * 1.0 + 0.5, // Sway frequency
+                        swayAmplitude: Math.random() * 15 + 5, // Sway distance
+                        initialX: Math.random() * canvas.width // Store initial X for reset
+                    });
                 }
-
-                // Fade out pyramid during explosion
-                ctx.globalAlpha = 1.0 - Math.max(0, explosionProgress - 0.1) * 1.1;
-
-
-                // Pyramid Gradient (Simulating light from one side)
-                const pyramidGradient = ctx.createLinearGradient(
-                    centerX - currentWidth * 0.3, pyramidTopY,
-                    centerX + currentWidth * 0.3, pyramidY
-                );
-                pyramidGradient.addColorStop(0, config.pyramidColor1); // Highlight side
-                pyramidGradient.addColorStop(0.6, config.pyramidColor2); // Shadow side
-                pyramidGradient.addColorStop(1, config.pyramidColor2);
-
-                ctx.fillStyle = pyramidGradient;
-                ctx.strokeStyle = config.pyramidOutline;
-                ctx.lineWidth = Math.max(1, 4 * riseProgress); // Scale line width
-
-                // Draw Pyramid Shape
-                ctx.beginPath();
-                ctx.moveTo(centerX, pyramidTopY); // Top point
-                ctx.lineTo(centerX - currentWidth / 2, pyramidY); // Bottom left
-                ctx.lineTo(centerX + currentWidth / 2, pyramidY); // Bottom right
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                // Add subtle block lines
-                ctx.lineWidth = Math.max(0.5, 1.5 * riseProgress);
-                ctx.strokeStyle = `rgba(77, 58, 31, ${0.4 * riseProgress})`; // Faint outline color
-                const levels = 10;
-                for (let i = 1; i < levels; i++) {
-                    const levelY = pyramidY - (currentHeight / levels) * i;
-                    const levelWidth = (currentWidth / levels) * (levels - i);
-                    ctx.beginPath();
-                    ctx.moveTo(centerX - levelWidth / 2, levelY);
-                    ctx.lineTo(centerX + levelWidth / 2, levelY);
-                    ctx.stroke();
-                }
-
-                // Hieroglyphs (appearing smoothly)
-                if (riseProgress > 0.6) {
-                    const hieroglyphOpacity = Math.min(1, (riseProgress - 0.6) / 0.4);
-                    const hieroSize = currentWidth * 0.05;
-                    for (let i = 0; i < 10; i++) {
-                        // Distribute more realistically on the face
-                        const side = (i % 2 === 0) ? -1 : 1;
-                        const level = Math.floor(i / 2);
-                        const levelProgress = (level + 1) / 6; // 5 levels
-                        const x = centerX + side * (currentWidth * 0.15 * levelProgress + Math.random() * 10 - 5);
-                        const y = pyramidY - currentHeight * levelProgress * 0.8 + (Math.random() * 10 - 5);
-                        const seed = i / 10 + elapsedTime / 10000; // Use time for subtle change
-                        drawHieroglyph(x, y, hieroSize, hieroglyphOpacity, seed);
-                    }
-                }
-                ctx.restore(); // Restore alpha and transform
+                config._particlesInitialized = true;
             }
-        }
 
-
-        // --- Phase 2: Pyramid Explosion (35% - 55%) ---
-        if (progress >= phase1End && progress < phase2End) {
-            const explosionProgress = easeInOutQuad((progress - phase1End) / (phase2End - phase1End));
-
-            // Central Flash & Glow
-            const flashIntensity = Math.sin(explosionProgress * Math.PI); // Peaks in the middle
-            const glowRadius = canvas.width * 0.6 * explosionProgress;
-            const flashGradient = ctx.createRadialGradient(
-                centerX, canvas.height * 0.7 - config.pyramidBaseWidth * config.pyramidHeightRatio * 0.3, 0, // Center near pyramid top
-                centerX, canvas.height * 0.7 - config.pyramidBaseWidth * config.pyramidHeightRatio * 0.3, glowRadius
-            );
-            flashGradient.addColorStop(0, `rgba(255, 235, 180, ${0.9 * flashIntensity})`); // Intense white-gold center
-            flashGradient.addColorStop(0.3, `rgba(255, 215, 0, ${0.7 * flashIntensity})`);
-            flashGradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
-            ctx.fillStyle = flashGradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-
-            // Fragments
+            // Make sure we're drawing on top of everything
             ctx.save();
-            const pyramidTopY = canvas.height * 0.75 - config.pyramidBaseWidth * config.pyramidHeightRatio;
-            const explosionCenterY = pyramidTopY + config.pyramidBaseWidth * config.pyramidHeightRatio * 0.5; // Explode from mid-pyramid
+            // Update and draw particles
+            ctx.fillStyle = '#ffd700'; // Gold color
+            ctx.shadowColor = 'rgba(255, 215, 0, 0.6)'; // Gold glow
+            ctx.shadowBlur = 10;
 
-            for (let i = 0; i < config.fragmentCount; i++) {
-                // Consistent random values per fragment
-                const seed = i / config.fragmentCount;
-                const angle = seed * Math.PI * 2 + (seed * 10); // Add swirl
-                const maxDist = canvas.width * 0.8;
-                const speedFactor = 0.5 + seed * 0.8; // Outer fragments move faster
-                const distance = maxDist * explosionProgress * speedFactor;
-                const fragX = centerX + Math.cos(angle) * distance;
-                const fragY = explosionCenterY + Math.sin(angle) * distance - (50 * explosionProgress * (1 - explosionProgress)); // Add slight upward arc then fall
+            config._particles.forEach(p => {
+                // Update position based on deltaTime for smoother animation
+                const dtSec = deltaTime / 1000.0;
+                p.y += p.speedY * dtSec;
+                p.rotation += p.rotationSpeed * dtSec;
+                // Add horizontal sway based on elapsed time
+                p.x = p.initialX + Math.sin(elapsedTime / 1000 * p.swaySpeed) * p.swayAmplitude;
 
-                const startSize = 15 + seed * 30;
-                const currentSize = startSize * (1 - explosionProgress * 0.7); // Shrink over time
-                const rotation = angle * 3 + elapsedTime / (150 + seed * 100); // Vary rotation speed
-
-                if (currentSize < 1) continue;
-
-                ctx.save();
-                ctx.translate(fragX, fragY);
-                ctx.rotate(rotation);
-
-                // Fragment gradient (mix of stone and gold)
-                const fragGradient = ctx.createLinearGradient(-currentSize / 2, -currentSize / 2, currentSize / 2, currentSize / 2);
-                if (i % 3 === 0) { // More gold fragments
-                    fragGradient.addColorStop(0, config.gold1);
-                    fragGradient.addColorStop(1, config.gold3);
-                } else { // Stone fragments
-                    fragGradient.addColorStop(0, config.pyramidColor1);
-                    fragGradient.addColorStop(1, config.pyramidColor2);
+                // Reset particle if it falls off the bottom
+                if (p.y > canvas.height + p.size) {
+                    p.y = -p.size * 2; // Reset above the screen
+                    p.initialX = Math.random() * canvas.width; // New random horizontal start
+                    p.x = p.initialX;
                 }
 
-                ctx.fillStyle = fragGradient;
-                ctx.shadowColor = config.shadowColor;
-                ctx.shadowBlur = 5;
-                ctx.shadowOffsetX = 2;
-                ctx.shadowOffsetY = 2;
-
-                // Irregular fragment shape
+                // Draw coin (simple circle)
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
                 ctx.beginPath();
-                ctx.moveTo(-currentSize / 2, -currentSize / 4);
-                ctx.lineTo(currentSize / 3, -currentSize / 2);
-                ctx.lineTo(currentSize / 2, currentSize / 3);
-                ctx.lineTo(-currentSize / 4, currentSize / 2);
-                ctx.closePath();
-                ctx.fill();
+                ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
 
+                // Simple gradient for a bit of depth
+                const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size / 2);
+                grad.addColorStop(0, '#fff8dc'); // Lighter center (Cornsilk)
+                grad.addColorStop(0.7, '#ffd700'); // Gold
+                grad.addColorStop(1, '#b8860b'); // Darker edge (DarkGoldenrod)
+                ctx.fillStyle = grad;
+
+                ctx.fill();
                 ctx.restore();
-            }
-            ctx.restore(); // Restore shadow settings etc.
-        }
-
-
-        // --- Phase 3: Golden Rain & Sphinx (55% - 90%) ---
-        if (progress >= phase2End && progress < phase4End) {
-            const rainStartProgress = (progress - phase2End) / (phase3End - phase2End);
-            const rainProgress = easeInOutQuad(Math.min(1.0, rainStartProgress)); // Smooth start
-
-            // Draw falling coins/gems
-            for (let i = 0; i < config.coinCount; i++) {
-                const seed = i / config.coinCount;
-                const stagger = seed * 0.4; // Stagger start times based on seed
-                const individualProgress = Math.max(0, Math.min(1.0, (rainProgress - stagger) / (1 - stagger)));
-
-                if (individualProgress > 0) {
-                    // Use consistent random start X for each coin
-                    const startX = seed * canvas.width * 1.2 - canvas.width * 0.1; // Spread wider than canvas
-                    const startY = -50 - Math.pow(seed, 2) * 200; // Start higher up based on seed
-                    const fallSpeed = (0.8 + seed * 0.4) * (canvas.height + 100); // Vary speed
-                    const currentY = startY + fallSpeed * individualProgress;
-
-                    // Skip if off-screen
-                    if (currentY > canvas.height + 50) continue;
-
-                    // Add horizontal drift/wobble
-                    const wobble = Math.sin(elapsedTime / (300 + seed * 200) + i) * (20 + seed * 30);
-                    const currentX = startX + wobble;
-
-                    // Rotation and Tilt
-                    const rotation = (elapsedTime / (200 + seed * 300) + seed * 10) % (Math.PI * 2);
-                    const tilt = Math.PI / 2 + Math.sin(elapsedTime / (400 + seed * 200) + seed * 5) * (Math.PI * 0.45); // Tilt back and forth
-
-                    const baseSize = 25;
-                    const size = baseSize + seed * 25; // Vary size
-
-                    // Alternate between gold, silver, and gems
-                    let type = 'gold';
-                    if (i % 7 === 0) type = 'gem';
-                    else if (i % 3 === 0) type = 'silver';
-
-                    drawCoin(currentX, currentY, size, rotation, tilt, type);
-                }
-            }
-
-            // Sphinx Reveal (Starts slightly later within Phase 3)
-            const sphinxStart = 0.1; // Starts at 10% of phase 3 progress
-
-
-        }
-
-
-        // --- Phase 4: Text Display (Starts ~30%, fades fully in by ~60%, stays) ---
-        const textAppearStart = 0.3;
-        const textAppearEnd = 0.6;
-        if (progress > textAppearStart) {
-            const textProgress = easeInOutQuad(Math.min(1, (progress - textAppearStart) / (textAppearEnd - textAppearStart)));
-
-            ctx.save();
-            ctx.globalAlpha = textProgress; // Fade text in
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle'; // Center vertically too
-
-            const mainText = "JACKPOT!";
-            const subText = "PHARAOH'S TREASURE";
-
-            // --- Main Text: JACKPOT! ---
-            const maxMainFontSize = canvas.width / 8; // Adjust as needed
-            const mainFontSize = maxMainFontSize * textProgress; // Scale up effect
-            ctx.font = `bold ${mainFontSize}px "Impact", "Arial Black", sans-serif`; // Use impactful font
-
-            // Calculate position (slightly above center)
-            const mainTextY = centerY - maxMainFontSize * 0.3;
-
-            // 3D / Bevel Effect
-            const offset = mainFontSize * 0.05;
-            // Shadow first
-            ctx.fillStyle = config.shadowColor;
-            ctx.fillText(mainText, centerX + offset * 1.5, mainTextY + offset * 1.5);
-            // Darker edge
-            ctx.fillStyle = config.gold3;
-            ctx.fillText(mainText, centerX + offset, mainTextY + offset);
-            // Main Fill Gradient
-            const mainTextGradient = ctx.createLinearGradient(0, mainTextY - mainFontSize / 2, 0, mainTextY + mainFontSize / 2);
-            mainTextGradient.addColorStop(0, config.gold1);
-            mainTextGradient.addColorStop(0.5, config.gold2);
-            mainTextGradient.addColorStop(1, config.gold3);
-            ctx.fillStyle = mainTextGradient;
-            ctx.fillText(mainText, centerX, mainTextY);
-            // Outline
-            ctx.strokeStyle = config.textOutline;
-            ctx.lineWidth = mainFontSize * 0.02;
-            ctx.strokeText(mainText, centerX, mainTextY);
-
-            // --- Sub Text: PHARAOH'S TREASURE ---
-            if (textProgress > 0.5) { // Start subtext slightly later
-                const subTextProgress = Math.min(1, (textProgress - 0.5) * 2);
-                ctx.globalAlpha = textProgress * subTextProgress; // Fade in subtext as well
-
-                const maxSubFontSize = maxMainFontSize * 0.4;
-                const subFontSize = maxSubFontSize; // Keep fixed size after appearing
-                ctx.font = `bold ${subFontSize}px "Papyrus", fantasy, serif`; // Keep Papyrus for theme
-
-                // Calculate position (below main text)
-                const subTextY = mainTextY + mainFontSize * 0.5 + subFontSize * 0.7;
-
-                // Shadow
-                ctx.fillStyle = config.shadowColor;
-                ctx.fillText(subText, centerX + 2, subTextY + 2);
-                // Main Fill (Simpler gold)
-                ctx.fillStyle = config.textColor;
-                ctx.fillText(subText, centerX, subTextY);
-                // Outline
-                ctx.strokeStyle = config.textOutline;
-                ctx.lineWidth = 1;
-                ctx.strokeText(subText, centerX, subTextY);
-            }
-
+            });
+            ctx.shadowColor = 'transparent'; // Reset shadow
+            ctx.shadowBlur = 0;
             ctx.restore();
         }
+
+        ctx.restore(); // Restore context state from the beginning
+
+        // Return true if animation is ongoing, false if finished
+        return progress < 1.0;
     }
 }
