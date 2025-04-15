@@ -3,6 +3,15 @@ import { EffectPresets } from './effects.js';
 
 export const SpaceAdventureTheme = {
     name: "SpaceAdventure",
+    // Layout and appearance settings
+    layout: {
+        reelSpacing: 25, // Wider spacing to represent the vast emptiness of space
+        reelsContainer: {
+            backgroundColor: "#000a1a", // Deep space dark blue background
+            opacity: 0.75 // 75% opacity
+        },
+        themeColor: "#00ccff" // Cosmic blue theme color
+    },
     visualEffects: {
         ...EffectPresets.electric,
         intensity: 0.9,

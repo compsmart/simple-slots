@@ -2,6 +2,15 @@ import { EffectPresets, EffectsHelper } from './effects.js';
 
 export const AztecTheme = {
     name: "Aztec",
+    // Layout and appearance settings
+    layout: {
+        reelSpacing: 18, // Medium spacing for carved stone effect
+        reelsContainer: {
+            backgroundColor: "#5d4037", // Dark brown background for reels area
+            opacity: 0.85 // 85% opacity
+        },
+        themeColor: "#e6a11f" // Golden yellow theme color to match Aztec gold
+    },
     visualEffects: {
         ...EffectPresets.vibrant,
         intensity: 0.8,
@@ -18,9 +27,13 @@ export const AztecTheme = {
             arcs: 3,
             speed: 1200,
             intensity: 0.5
-        },
-        backgroundEffects: {
+        }, backgroundEffects: {
             enabled: true,
+            backgroundImage: {
+                enabled: true,
+                path: 'images/aztec/background.jpg',
+                opacity: 1.0
+            },
             particles: {
                 enabled: true,
                 count: 35,
@@ -77,9 +90,67 @@ export const AztecTheme = {
         { name: "Jade Stone", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23795548'/%3E%3Cpolygon points='60,30 85,50 85,80 60,100 35,80 35,50' fill='%2326a69a' stroke='%23004d40' stroke-width='3'/%3E%3Cpath d='M55 50 L 65 50 L 70 60 L 65 70 L 55 70 L 50 60 Z' fill='%23004d40'/%3E%3Cpath d='M45 50 L 50 45 M 75 50 L 70 45 M 75 70 L 70 75 M 45 70 L 50 75' stroke='%23b2dfdb' stroke-width='2'/%3E%3C/svg%3E", multiplier: 5, winAnimation: { frames: 8, currentFrame: 0, frameRate: 120 } },
         { name: "Snake", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23388e3c'/%3E%3Cpath d='M30 90 Q 45 75 60 90 Q 75 105 90 90 Q 105 75 90 60 Q 75 45 60 60 Q 45 75 30 60 Q 15 45 30 30' fill='none' stroke='%23ffeb3b' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='30' cy='30' r='5' fill='%23f44336'/%3E%3Ccircle cx='25' cy='28' r='2' fill='%23000000'/%3E%3C/svg%3E", multiplier: 3, winAnimation: { frames: 8, currentFrame: 0, frameRate: 130 } },
         { name: "Jaguar", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffcc80'/%3E%3Cellipse cx='60' cy='60' rx='35' ry='30' fill='%23ef6c00'/%3E%3Ccircle cx='45' cy='50' r='5' fill='%23000000'/%3E%3Ccircle cx='75' cy='50' r='5' fill='%23000000'/%3E%3Cpath d='M50 70 Q 60 75 70 70' stroke='%23000000' stroke-width='3' fill='none'/%3E%3Cpath d='M30 40 L 40 30 M 80 30 L 90 40' stroke='%23000000' stroke-width='3'/%3E%3Cpath d='M40 65 Q 60 90 80 65' fill='%23ffcc80' stroke='none'/%3E%3Cpath d='M45 55 Q 50 60 55 55 M 65 55 Q 70 60 75 55' fill='none' stroke='%23000000' stroke-width='2'/%3E%3Ccircle cx='45' cy='50' r='2' fill='%23ffffff'/%3E%3Ccircle cx='75' cy='50' r='2' fill='%23ffffff'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
-    ],
-    // Renderer for Aztec theme-specific effects
+    ],    // Renderer for Aztec theme-specific effects
     renderThemeEffects: (ctx, canvas, timestamp, specific) => {
+        // Draw background image if configured
+        const bgEffects = AztecTheme.visualEffects.backgroundEffects;
+        if (bgEffects?.enabled && bgEffects?.backgroundImage?.enabled) {
+            // Check if we need to load the background image
+            if (!AztecTheme.bgImage) {
+                AztecTheme.bgImage = new Image();
+                AztecTheme.bgImage.src = bgEffects.backgroundImage.path;
+                AztecTheme.bgImageLoaded = false;
+                AztecTheme.bgImage.onload = () => {
+                    AztecTheme.bgImageLoaded = true;
+                };
+            }
+
+            // Draw the background image if it's loaded
+            if (AztecTheme.bgImageLoaded) {
+                const opacity = bgEffects.backgroundImage.opacity || 1.0;
+
+                // Ensure the image covers the entire canvas while maintaining aspect ratio
+                const imgWidth = AztecTheme.bgImage.width;
+                const imgHeight = AztecTheme.bgImage.height;
+                const canvasRatio = canvas.width / canvas.height;
+                const imgRatio = imgWidth / imgHeight;
+
+                let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+
+                // Calculate dimensions to cover the entire canvas
+                if (canvasRatio > imgRatio) {
+                    // Canvas is wider than image aspect ratio
+                    drawWidth = canvas.width;
+                    drawHeight = canvas.width / imgRatio;
+                    offsetY = (canvas.height - drawHeight) / 2;
+                } else {
+                    // Canvas is taller than image aspect ratio
+                    drawHeight = canvas.height;
+                    drawWidth = canvas.height * imgRatio;
+                    offsetX = (canvas.width - drawWidth) / 2;
+                }
+
+                if (opacity < 1.0) {
+                    // If opacity is less than 1, need to use globalAlpha
+                    ctx.save();
+                    ctx.globalAlpha = opacity;
+                    ctx.drawImage(AztecTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
+                    ctx.restore();
+                } else {
+                    // Full opacity, just draw directly
+                    ctx.drawImage(AztecTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
+                }
+            } else {
+                // Fallback if image isn't loaded yet
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#5d4037'); // Dark brown
+                gradient.addColorStop(0.5, '#795548'); // Medium brown
+                gradient.addColorStop(1, '#8d6e63'); // Lighter brown
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
         // Epic Win Animation for Aztec theme
         if (specific?.epicWinAnimation?.enabled && window.isPlayingEpicWinAnimation) {
             const epicWin = specific.epicWinAnimation;
@@ -509,10 +580,61 @@ export const AztecTheme = {
  * @param {HTMLCanvasElement} canvas - The canvas element.
  * @param {number} elapsedTime - Total time elapsed since animation start (ms).
  * @param {number} deltaTime - Time elapsed since last frame (ms).
- */
-    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime) => {
+ */    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime) => {
         const duration = 6500; // Increased duration for more spectacle (7.5 seconds)
         const progress = Math.min(elapsedTime / duration, 1.0);
+
+        // --- Background Image ---
+        const bgPath = `images/${AztecTheme.name.toLowerCase()}/epic_bg.jpg`;
+        const epicConfig = AztecTheme.visualEffects.themeSpecific.epicWinAnimation;
+
+        // Initialize state objects if needed
+        if (!epicConfig._backgroundImage && !epicConfig._bgLoadInitiated) {
+            epicConfig._bgLoadInitiated = true;
+            // Use async loading but don't block rendering
+            const img = new Image();
+            img.onload = () => {
+                epicConfig._backgroundImage = img;
+            };
+            img.src = bgPath;
+        }
+
+        ctx.save();
+
+        // Draw background image if loaded, otherwise draw fallback
+        if (epicConfig._backgroundImage) {
+            // Ensure the image covers the entire canvas while maintaining aspect ratio
+            const imgWidth = epicConfig._backgroundImage.width;
+            const imgHeight = epicConfig._backgroundImage.height;
+            const canvasRatio = canvas.width / canvas.height;
+            const imgRatio = imgWidth / imgHeight;
+
+            let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+
+            // Calculate dimensions to cover the entire canvas
+            if (canvasRatio > imgRatio) {
+                // Canvas is wider than image aspect ratio
+                drawWidth = canvas.width;
+                drawHeight = canvas.width / imgRatio;
+                offsetY = (canvas.height - drawHeight) / 2;
+            } else {
+                // Canvas is taller than image aspect ratio
+                drawHeight = canvas.height;
+                drawWidth = canvas.height * imgRatio;
+                offsetX = (canvas.width - drawWidth) / 2;
+            }
+
+            // Draw the image to cover the entire canvas
+            ctx.drawImage(epicConfig._backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
+        } else {
+            // Fallback gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#5d4037'); // Dark brown
+            gradient.addColorStop(0.5, '#795548'); // Medium brown
+            gradient.addColorStop(1, '#8d6e63'); // Lighter brown
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
         // --- Easing Functions ---
         const easeInOutQuad = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;

@@ -2,6 +2,15 @@ import { EffectPresets, EffectsHelper } from './effects.js';
 
 export const ClassicTheme = {
     name: "Classic",
+    // Layout and appearance settings
+    layout: {
+        reelSpacing: 10, // Classic slots have tight spacing
+        reelsContainer: {
+            backgroundColor: "#263238", // Dark blue-gray background for classic look
+            opacity: 0.9 // 90% opacity
+        },
+        themeColor: "#d32f2f" // Classic red color for traditional slot feel
+    },
     visualEffects: {
         ...EffectPresets.retro,
         intensity: 0.85,

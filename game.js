@@ -12,6 +12,22 @@ import {
 const REEL_COUNT = 5;
 // const SYMBOL_COUNT = 5; // No longer needed directly, derived from theme
 const SYMBOL_SIZE = 100; // Pixel size of each symbol
+
+// Helper function to lighten a color by a percentage
+function lightenColor(color, percent) {
+    // Convert hex to RGB
+    let r = parseInt(color.substring(1, 3), 16);
+    let g = parseInt(color.substring(3, 5), 16);
+    let b = parseInt(color.substring(5, 7), 16);
+
+    // Lighten
+    r = Math.min(255, Math.round(r + (255 - r) * (percent / 100)));
+    g = Math.min(255, Math.round(g + (255 - g) * (percent / 100)));
+    b = Math.min(255, Math.round(b + (255 - b) * (percent / 100)));
+
+    // Convert back to hex
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
 const REEL_SPIN_SPEED_FACTOR = 50; // Controls max speed (higher = faster) - ADJUST AS NEEDED
 const SPIN_DURATION = 4000; // Base duration in ms
 const DECELERATION_DURATION_RATIO = 0.4; // % of duration used for deceleration
@@ -129,8 +145,7 @@ function initGame() {
     if (!ctx) {
         console.error("CRITICAL: Failed to get 2D context from canvas!");
         return; // Stop if no context
-    }
-    console.log("[DEBUG] initGame - Canvas and Context obtained."); balanceElement = document.getElementById('balance');
+    } console.log("[DEBUG] initGame - Canvas and Context obtained."); balanceElement = document.getElementById('balance');
     betAmountElement = document.getElementById('betAmount');
     spinButton = document.getElementById('spinButton');
     decreaseBetButton = document.getElementById('decreaseBet');
@@ -861,12 +876,53 @@ function drawThemeSpecificBackgroundEffects(timestamp, themeEffects) {
 
 function drawReels(deltaTime, timestamp) {
     const reelWidth = SYMBOL_SIZE;
-    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
-    const startX = reelSpacing;
+
+    // Get the current theme's layout configuration
+    const themeLayout = THEMES[currentThemeName]?.layout;
+    const themeEffects = THEMES[currentThemeName]?.visualEffects;
+
+    // Get the desired spacing from theme, or use a default value
+    const desiredSpacing = themeLayout?.reelSpacing || 10; // Default to 10px if not specified
+
+    // Calculate total space needed for all reels
+    const totalReelWidth = reelWidth * REEL_COUNT;
+
+    // Calculate total space available for spacing (between and on edges)
+    const totalAvailableForSpacing = canvas.width - totalReelWidth;
+
+    // Ensure we have at least minimal spacing between reels
+    const minSpacingNeeded = REEL_COUNT + 1; // One space between each reel and on both ends
+
+    let actualSpacing;
+    if (totalAvailableForSpacing >= desiredSpacing * minSpacingNeeded) {
+        // We can use the desired spacing
+        actualSpacing = desiredSpacing;
+    } else {
+        // Not enough space for desired spacing, calculate maximum possible
+        actualSpacing = totalAvailableForSpacing / minSpacingNeeded;
+    }
+
+    // Center the entire reel area
+    const startX = (canvas.width - (totalReelWidth + actualSpacing * (REEL_COUNT - 1))) / 2;
     const startY = 100;
     const reelViewportHeight = SYMBOL_SIZE * VISIBLE_ROWS;
 
-    const themeEffects = THEMES[currentThemeName]?.visualEffects;
+    // Draw reels container background with theme-specific color and opacity
+    if (themeLayout?.reelsContainer) {
+        // Calculate container dimensions to fit all reels with proper padding
+        const reelContainerWidth = totalReelWidth + (actualSpacing * (REEL_COUNT - 1)); // Add padding on both sides
+        const reelContainerHeight = reelViewportHeight; // Add a little padding
+
+        // Calculate container position to center it
+        const containerX = (canvas.width - reelContainerWidth) / 2;
+
+        ctx.save();
+        ctx.fillStyle = themeLayout.reelsContainer.backgroundColor || "#333333";
+        ctx.globalAlpha = themeLayout.reelsContainer.opacity || 0.8;
+        ctx.fillRect(containerX, startY - 0, reelContainerWidth, reelContainerHeight);
+        ctx.globalAlpha = 1.0; // Reset alpha
+        ctx.restore();
+    }
     const effectsEnabled = themeEffects?.enabled !== false;
     const reelEffectsConfig = effectsEnabled ? themeEffects?.reelEffects : null;
     const reelEffectsIntensity = reelEffectsConfig?.intensity || 0.7; // Use theme intensity or default
@@ -874,7 +930,8 @@ function drawReels(deltaTime, timestamp) {
     for (let i = 0; i < REEL_COUNT; i++) {
         const reel = reels[i];
         if (!reel) continue;
-        const reelX = startX + i * (reelWidth + reelSpacing);
+        // Use the proper spacing for positioning each reel
+        const reelX = startX + (i * (reelWidth + actualSpacing));
 
         // --- Animate Reel Position if Spinning ---
         if (reel.spinning) {
@@ -1081,11 +1138,38 @@ EffectsHelper.hexToHsl = function (hex) {
 
 function drawReelMask() {
     const reelWidth = SYMBOL_SIZE;
-    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
-    const startX = reelSpacing;
+
+    // Get the current theme's layout configuration
+    const themeLayout = THEMES[currentThemeName]?.layout;
+
+    // Get the desired spacing from theme, or use a default value
+    const desiredSpacing = themeLayout?.reelSpacing || 10; // Default to 10px if not specified
+
+    // Calculate total space needed for all reels
+    const totalReelWidth = reelWidth * REEL_COUNT;
+
+    // Calculate total space available for spacing (between and on edges)
+    const totalAvailableForSpacing = canvas.width - totalReelWidth;
+
+    // Ensure we have at least minimal spacing between reels
+    const minSpacingNeeded = REEL_COUNT + 1; // One space between each reel and on both ends
+
+    let actualSpacing;
+    if (totalAvailableForSpacing >= desiredSpacing * minSpacingNeeded) {
+        // We can use the desired spacing
+        actualSpacing = desiredSpacing;
+    } else {
+        // Not enough space for desired spacing, calculate maximum possible
+        actualSpacing = totalAvailableForSpacing / minSpacingNeeded;
+    }
+
+    // Center the entire reel area
+    const startX = (canvas.width - (totalReelWidth + actualSpacing * (REEL_COUNT - 1))) / 2;
     const startY = 100;
     const reelViewportHeight = SYMBOL_SIZE * VISIBLE_ROWS;
-    const totalWidth = REEL_COUNT * reelWidth + (REEL_COUNT - 1) * reelSpacing;
+
+    // Calculate the total width properly accounting for spacing between reels
+    const totalWidth = REEL_COUNT * reelWidth + (REEL_COUNT - 1) * actualSpacing;
 
     // Draw a border around the entire reel area
     ctx.strokeStyle = '#ffcc00'; // Gold border
@@ -1096,7 +1180,8 @@ function drawReelMask() {
     ctx.strokeStyle = '#ffcc00';
     ctx.lineWidth = 2;
     for (let i = 1; i < REEL_COUNT; i++) {
-        const lineX = startX + i * reelWidth + (i - 0.5) * reelSpacing;
+        // Calculate the correct position for each divider
+        const lineX = startX + i * (reelWidth + actualSpacing) - actualSpacing / 2;
         ctx.beginPath();
         ctx.moveTo(lineX, startY);
         ctx.lineTo(lineX, startY + reelViewportHeight);
@@ -1988,8 +2073,33 @@ function drawWinLines(timestamp) {
     if (!winningLines || winningLines.length === 0) return;
 
     const reelWidth = SYMBOL_SIZE;
-    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
-    const startX = reelSpacing;
+
+    // Get the current theme's layout configuration
+    const themeLayout = THEMES[currentThemeName]?.layout;
+
+    // Get the desired spacing from theme, or use a default value
+    const desiredSpacing = themeLayout?.reelSpacing || 10; // Default to 10px if not specified
+
+    // Calculate total space needed for all reels
+    const totalReelWidth = reelWidth * REEL_COUNT;
+
+    // Calculate total space available for spacing (between and on edges)
+    const totalAvailableForSpacing = canvas.width - totalReelWidth;
+
+    // Ensure we have at least minimal spacing between reels
+    const minSpacingNeeded = REEL_COUNT - 1; // Spacing only needed between reels, not on edges
+
+    let actualSpacing;
+    if (totalAvailableForSpacing >= desiredSpacing * minSpacingNeeded) {
+        // We can use the desired spacing
+        actualSpacing = desiredSpacing;
+    } else {
+        // Not enough space for desired spacing, calculate maximum possible
+        actualSpacing = totalAvailableForSpacing / minSpacingNeeded;
+    }
+
+    // Center the entire reel area
+    const startX = (canvas.width - (totalReelWidth + actualSpacing * (REEL_COUNT - 1))) / 2;
     const startY = 100;
     const symbolCenterOffsetY = SYMBOL_SIZE / 2;
     const symbolCenterOffsetX = SYMBOL_SIZE / 2;
@@ -2008,13 +2118,10 @@ function drawWinLines(timestamp) {
         ctx.lineWidth = 5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.globalAlpha = 0.85;
-
-        ctx.beginPath();
-        for (let k = 0; k < lineData.positions.length; k++) { // Iterate ONLY through positions of THIS line
+        ctx.globalAlpha = 0.85; ctx.beginPath(); for (let k = 0; k < lineData.positions.length; k++) { // Iterate ONLY through positions of THIS line
             const pos = lineData.positions[k];
-            // Fix: Use 'reel' and 'row' from the position objects (not reelIndex/rowIndex)
-            const x = startX + pos.reel * (reelWidth + reelSpacing) + symbolCenterOffsetX;
+            // Use the configured actualSpacing to calculate correct position
+            const x = startX + pos.reel * (reelWidth + actualSpacing) + symbolCenterOffsetX;
             const y = startY + pos.row * SYMBOL_SIZE + symbolCenterOffsetY;
 
             if (k === 0) {
@@ -2027,10 +2134,8 @@ function drawWinLines(timestamp) {
         ctx.globalAlpha = 1.0; // Reset alpha        // --- Highlight Symbols ON THIS LINE ---
         lineData.positions.forEach(pos => {
             const symbolData = symbols[lineData.symbolIndex]; // Get visual data
-            if (!symbolData) return;
-
-            // Fix: Use 'reel' and 'row' properties consistent with line drawing
-            const x = startX + pos.reel * (reelWidth + reelSpacing);
+            if (!symbolData) return;            // Fix: Use 'reel' and 'row' properties consistent with line drawing
+            const x = startX + pos.reel * (reelWidth + actualSpacing);
             const y = startY + pos.row * SYMBOL_SIZE;
             const highlightColor = flash ? color : '#ffffff'; // Match line color
             let highlightInset = 4;
@@ -2090,8 +2195,33 @@ function drawAllPaylines(timestamp) {
     if (!showPaylines) return;
 
     const reelWidth = SYMBOL_SIZE;
-    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
-    const startX = reelSpacing;
+
+    // Get the current theme's layout configuration
+    const themeLayout = THEMES[currentThemeName]?.layout;
+
+    // Get the desired spacing from theme, or use a default value
+    const desiredSpacing = themeLayout?.reelSpacing || 10; // Default to 10px if not specified
+
+    // Calculate total space needed for all reels
+    const totalReelWidth = reelWidth * REEL_COUNT;
+
+    // Calculate total space available for spacing (between and on edges)
+    const totalAvailableForSpacing = canvas.width - totalReelWidth;
+
+    // Ensure we have at least minimal spacing between reels
+    const minSpacingNeeded = REEL_COUNT + 1; // One space between each reel and on both ends
+
+    let actualSpacing;
+    if (totalAvailableForSpacing >= desiredSpacing * minSpacingNeeded) {
+        // We can use the desired spacing
+        actualSpacing = desiredSpacing;
+    } else {
+        // Not enough space for desired spacing, calculate maximum possible
+        actualSpacing = totalAvailableForSpacing / minSpacingNeeded;
+    }
+
+    // Center the entire reel area
+    const startX = (canvas.width - (totalReelWidth + actualSpacing * (REEL_COUNT - 1))) / 2;
     const startY = 100;
     const symbolCenterOffsetY = SYMBOL_SIZE / 2;
     const symbolCenterOffsetX = SYMBOL_SIZE / 2;
@@ -2109,12 +2239,10 @@ function drawAllPaylines(timestamp) {
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.globalAlpha = 0.7;
-
-        ctx.beginPath();
+        ctx.globalAlpha = 0.7; ctx.beginPath();
         for (let i = 0; i < payline.length; i++) {
             const pos = payline[i];
-            const x = startX + pos.reel * (reelWidth + reelSpacing) + symbolCenterOffsetX;
+            const x = startX + pos.reel * (reelWidth + actualSpacing) + symbolCenterOffsetX;
             const y = startY + pos.row * SYMBOL_SIZE + symbolCenterOffsetY;
 
             if (i === 0) {
@@ -2123,11 +2251,9 @@ function drawAllPaylines(timestamp) {
                 ctx.lineTo(x, y);
             }
         }
-        ctx.stroke();
-
-        // Add line number indicator at the first position
+        ctx.stroke();        // Add line number indicator at the first position
         const firstPos = payline[0];
-        const labelX = startX + firstPos.reel * (reelWidth + reelSpacing) + symbolCenterOffsetX - 15;
+        const labelX = startX + firstPos.reel * (reelWidth + actualSpacing) + symbolCenterOffsetX - 15;
         const labelY = startY + firstPos.row * SYMBOL_SIZE + symbolCenterOffsetY;
 
         // Draw small circle with line number
@@ -2688,14 +2814,22 @@ function changeTheme(newThemeName) {
         return;
     }
 
-    console.log(`Changing theme to: ${newThemeName}`);
-
-    // Load theme visuals
+    console.log(`Changing theme to: ${newThemeName}`);    // Load theme visuals
     loadThemeVisuals(newThemeName).then(() => {
         console.log("Theme visuals loaded successfully.");
 
         // Load theme sounds
         loadThemeSounds(newThemeName);
+
+        // Apply theme color from the layout configuration
+        const themeLayout = THEMES[newThemeName]?.layout;
+        if (themeLayout && themeLayout.themeColor) {
+            // Update CSS variables for theme colors
+            document.documentElement.style.setProperty('--theme-color', themeLayout.themeColor);
+            // Create a slightly lighter version for hover effects
+            document.documentElement.style.setProperty('--theme-color-hover', lightenColor(themeLayout.themeColor, 10));
+            console.log(`Applied theme color: ${themeLayout.themeColor}`);
+        }
 
         // Update paytable display with new visuals/names
         populatePaytable();
@@ -2765,6 +2899,7 @@ function setupThemeSwitcher() {
 // --- History ---
 // ... (addToHistory function remains the same) ...
 function addToHistory(isWin, details, count, amount) {
+    return;
     if (!historyElement) return; // Don't run if element missing
 
     const item = document.createElement('div');
@@ -2989,12 +3124,35 @@ function applyWinEffects(ctx, winningLine, timestamp) {
     const intensity = currentTheme.visualEffects.intensity || 0.7;
     const positions = winningLine.positions; // Use positions array
 
-    if (!positions || positions.length === 0) return;
-
-    // Constants needed for coordinate calculation (match drawReels/drawWinLines)
+    if (!positions || positions.length === 0) return;    // Constants needed for coordinate calculation (match drawReels/drawWinLines)
     const reelWidth = SYMBOL_SIZE;
-    const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
-    const startX = reelSpacing;
+
+    // Get the current theme's layout configuration
+    const themeLayout = THEMES[currentThemeName]?.layout;
+
+    // Get the desired spacing from theme, or use a default value
+    const desiredSpacing = themeLayout?.reelSpacing || 10; // Default to 10px if not specified
+
+    // Calculate total space needed for all reels
+    const totalReelWidth = reelWidth * REEL_COUNT;
+
+    // Calculate total space available for spacing
+    const totalAvailableForSpacing = canvas.width - totalReelWidth;
+
+    // Ensure we have at least minimal spacing between reels
+    const minSpacingNeeded = REEL_COUNT - 1; // Spacing only needed between reels
+
+    let actualSpacing;
+    if (totalAvailableForSpacing >= desiredSpacing * minSpacingNeeded) {
+        // We can use the desired spacing
+        actualSpacing = desiredSpacing;
+    } else {
+        // Not enough space for desired spacing, calculate maximum possible
+        actualSpacing = totalAvailableForSpacing / minSpacingNeeded;
+    }
+
+    // Center the entire reel area
+    const startX = (canvas.width - (totalReelWidth + actualSpacing * (REEL_COUNT - 1))) / 2;
     const startY = 100;
 
     // Apply flashing effect to winning symbols
@@ -3004,10 +3162,9 @@ function applyWinEffects(ctx, winningLine, timestamp) {
         const flashOpacity = Math.abs(Math.sin(timestamp / flashRate * Math.PI)) * flashIntensity; // Use PI for full 0-1-0 cycle
 
         ctx.save();
-        ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
-        positions.forEach(pos => {
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`; positions.forEach(pos => {
             // Calculate correct top-left position
-            const symbolX = startX + pos.reel * (reelWidth + reelSpacing);
+            const symbolX = startX + pos.reel * (reelWidth + actualSpacing);
             const symbolY = startY + pos.row * SYMBOL_SIZE;
             ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
         });
@@ -3042,7 +3199,7 @@ function applyWinEffects(ctx, winningLine, timestamp) {
             const scaleX = Math.cos(angle); // Creates the shrinking/expanding effect
 
             positions.forEach(pos => {
-                const symbolX = startX + pos.reel * (reelWidth + reelSpacing);
+                const symbolX = startX + pos.reel * (reelWidth + actualSpacing);
                 const symbolY = startY + pos.row * SYMBOL_SIZE;
                 const centerX = symbolX + SYMBOL_SIZE / 2;
                 const centerY = symbolY + SYMBOL_SIZE / 2;
@@ -3092,14 +3249,13 @@ function applyWinEffects(ctx, winningLine, timestamp) {
     }
 
     // Apply explosion effect
-    if (effects.explosions) {
-        // Initialize particles ONCE per winning line reveal
+    if (effects.explosions) {        // Initialize particles ONCE per winning line reveal
         if (!winningLine.explosions) {
             winningLine.explosions = [];
             winningLine.explosionsActive = true; // Flag to control particle updates
 
             positions.forEach(pos => {
-                const centerX = startX + pos.reel * (reelWidth + reelSpacing) + SYMBOL_SIZE / 2;
+                const centerX = startX + pos.reel * (reelWidth + actualSpacing) + SYMBOL_SIZE / 2;
                 const centerY = startY + pos.row * SYMBOL_SIZE + SYMBOL_SIZE / 2;
                 const particleCount = Math.floor(15 * intensity); // More particles
 
@@ -3118,85 +3274,85 @@ function applyWinEffects(ctx, winningLine, timestamp) {
                 }
             });
         }
-
-        // Animate existing particles if the effect is active
-        if (winningLine.explosionsActive && winningLine.explosions.length > 0) {
-            ctx.save();
-            let activeParticles = false;
-            for (let i = winningLine.explosions.length - 1; i >= 0; i--) {
-                const p = winningLine.explosions[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += p.gravity; // Apply gravity
-                p.life -= 0.025; // Fade rate
-                p.vx *= 0.98; // Air resistance
-                p.vy *= 0.98;
-
-                if (p.life <= 0) {
-                    winningLine.explosions.splice(i, 1);
-                } else {
-                    activeParticles = true;
-                    ctx.globalAlpha = p.life;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); // Size shrinks with life
-                    ctx.fill();
-                }
-            }
-            ctx.restore();
-            // Deactivate particle updates once all particles are gone
-            if (!activeParticles) {
-                winningLine.explosionsActive = false;
-            }
-        }
     }
 
-    // Apply shockwave effect
-    if (effects.shockwave) {
-        // Initialize ONCE per winning line reveal
-        if (!winningLine.shockwaves) {
-            winningLine.shockwaves = [];
-            winningLine.shockwavesActive = true;
+    // Animate existing particles if the effect is active
+    if (winningLine.explosionsActive && winningLine.explosions.length > 0) {
+        ctx.save();
+        let activeParticles = false;
+        for (let i = winningLine.explosions.length - 1; i >= 0; i--) {
+            const p = winningLine.explosions[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += p.gravity; // Apply gravity
+            p.life -= 0.025; // Fade rate
+            p.vx *= 0.98; // Air resistance
+            p.vy *= 0.98;
 
-            positions.forEach(pos => {
-                const centerX = startX + pos.reel * (reelWidth + reelSpacing) + SYMBOL_SIZE / 2;
-                const centerY = startY + pos.row * SYMBOL_SIZE + SYMBOL_SIZE / 2;
-                winningLine.shockwaves.push({
-                    x: centerX, y: centerY,
-                    radius: 0,
-                    maxRadius: SYMBOL_SIZE * 1.2 * intensity, // Scale max radius with intensity
-                    life: 1.0,
-                    lineWidth: 4 // Initial line width
-                });
-            });
+            if (p.life <= 0) {
+                winningLine.explosions.splice(i, 1);
+            } else {
+                activeParticles = true;
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); // Size shrinks with life
+                ctx.fill();
+            }
         }
+        ctx.restore();
+        // Deactivate particle updates once all particles are gone
+        if (!activeParticles) {
+            winningLine.explosionsActive = false;
+        }
+    }
+}
 
-        // Animate existing shockwaves if active
-        if (winningLine.shockwavesActive && winningLine.shockwaves.length > 0) {
-            ctx.save();
-            let activeWaves = false;
-            for (let i = winningLine.shockwaves.length - 1; i >= 0; i--) {
-                const wave = winningLine.shockwaves[i];
-                wave.radius += 3 * intensity; // Speed scales with intensity
-                wave.life -= 0.03; // Fade rate
-                wave.lineWidth = Math.max(1, 4 * wave.life); // Line width shrinks
+// Apply shockwave effect
+if (effects.shockwave) {
+    // Initialize ONCE per winning line reveal
+    if (!winningLine.shockwaves) {
+        winningLine.shockwaves = [];
+        winningLine.shockwavesActive = true;
 
-                if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
-                    winningLine.shockwaves.splice(i, 1);
-                } else {
-                    activeWaves = true;
-                    ctx.globalAlpha = wave.life * 0.7; // Apply fade
-                    ctx.strokeStyle = `rgba(255, 255, 255, ${wave.life})`; // Fade color too
-                    ctx.lineWidth = wave.lineWidth;
-                    ctx.beginPath();
-                    ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
+        positions.forEach(pos => {
+            const centerX = startX + pos.reel * (reelWidth + actualSpacing) + SYMBOL_SIZE / 2;
+            const centerY = startY + pos.row * SYMBOL_SIZE + SYMBOL_SIZE / 2;
+            winningLine.shockwaves.push({
+                x: centerX, y: centerY,
+                radius: 0,
+                maxRadius: SYMBOL_SIZE * 1.2 * intensity, // Scale max radius with intensity
+                life: 1.0,
+                lineWidth: 4 // Initial line width
+            });
+        });
+    }
+
+    // Animate existing shockwaves if active
+    if (winningLine.shockwavesActive && winningLine.shockwaves.length > 0) {
+        ctx.save();
+        let activeWaves = false;
+        for (let i = winningLine.shockwaves.length - 1; i >= 0; i--) {
+            const wave = winningLine.shockwaves[i];
+            wave.radius += 3 * intensity; // Speed scales with intensity
+            wave.life -= 0.03; // Fade rate
+            wave.lineWidth = Math.max(1, 4 * wave.life); // Line width shrinks
+
+            if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
+                winningLine.shockwaves.splice(i, 1);
+            } else {
+                activeWaves = true;
+                ctx.globalAlpha = wave.life * 0.7; // Apply fade
+                ctx.strokeStyle = `rgba(255, 255, 255, ${wave.life})`; // Fade color too
+                ctx.lineWidth = wave.lineWidth;
+                ctx.beginPath();
+                ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+                ctx.stroke();
             }
-            ctx.restore();
-            if (!activeWaves) {
-                winningLine.shockwavesActive = false;
-            }
+        }
+        ctx.restore();
+        if (!activeWaves) {
+            winningLine.shockwavesActive = false;
         }
     }
 }

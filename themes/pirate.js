@@ -3,6 +3,15 @@ import { EffectPresets, EffectsHelper } from './effects.js';
 
 export const PirateTheme = {
     name: "Pirate",
+    // Layout and appearance settings
+    layout: {
+        reelSpacing: 19, // Wider spacing to represent the ocean between islands
+        reelsContainer: {
+            backgroundColor: "#0a3b5c", // Deep sea blue background
+            opacity: 0.8 // 80% opacity
+        },
+        themeColor: "#ff9800" // Treasure gold theme color
+    },
     visualEffects: {
         ...EffectPresets.adventurous,
         intensity: 0.9,

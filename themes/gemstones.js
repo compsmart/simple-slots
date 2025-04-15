@@ -3,6 +3,15 @@ import { EffectPresets, EffectsHelper } from './effects.js';
 
 export const GemstonesTheme = {
     name: "Gemstones",
+    // Layout and appearance settings
+    layout: {
+        reelSpacing: 16, // Medium spacing to showcase the gem symbols
+        reelsContainer: {
+            backgroundColor: "#2c003a", // Deep purple background for gem contrast
+            opacity: 0.85 // 85% opacity
+        },
+        themeColor: "#9c27b0" // Rich purple theme color to match gemstones
+    },
     visualEffects: {
         ...EffectPresets.neon,
         intensity: 0.85,

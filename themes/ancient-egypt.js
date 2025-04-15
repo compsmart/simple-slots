@@ -3,6 +3,15 @@ import { EffectPresets, EffectsHelper } from './effects.js';
 
 export const AncientEgyptTheme = {
     name: "AncientEgypt",
+    // Layout and appearance settings
+    layout: {
+        reelSpacing: 15, // Slightly tighter spacing for ancient stone look
+        reelsContainer: {
+            backgroundColor: "#8d6e63", // Sandy brown background for reels area
+            opacity: 0.8 // 80% opacity
+        },
+        themeColor: "#ffd700" // Gold theme color to match Egyptian aesthetics
+    },
     visualEffects: {
         ...EffectPresets.neon,
         intensity: 0.75,
@@ -19,9 +28,13 @@ export const AncientEgyptTheme = {
             arcs: 4,
             speed: 1000,
             intensity: 0.6
-        },
-        backgroundEffects: {
+        }, backgroundEffects: {
             enabled: true,
+            backgroundImage: {
+                enabled: true,
+                path: 'images/ancientegypt/background.jpg',
+                opacity: 1.0
+            },
             particles: {
                 enabled: false,
                 count: 40,
@@ -112,9 +125,67 @@ export const AncientEgyptTheme = {
             multiplier: 2,
             winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 }
         }
-    ],
-    // Renderer for Ancient Egypt theme-specific effects
+    ],    // Renderer for Ancient Egypt theme-specific effects
     renderThemeEffects: (ctx, canvas, timestamp, specific) => {
+        // Draw background image if configured
+        const bgEffects = AncientEgyptTheme.visualEffects.backgroundEffects;
+        if (bgEffects?.enabled && bgEffects?.backgroundImage?.enabled) {
+            // Check if we need to load the background image
+            if (!AncientEgyptTheme.bgImage) {
+                AncientEgyptTheme.bgImage = new Image();
+                AncientEgyptTheme.bgImage.src = bgEffects.backgroundImage.path;
+                AncientEgyptTheme.bgImageLoaded = false;
+                AncientEgyptTheme.bgImage.onload = () => {
+                    AncientEgyptTheme.bgImageLoaded = true;
+                };
+            }
+
+            // Draw the background image if it's loaded
+            if (AncientEgyptTheme.bgImageLoaded) {
+                const opacity = bgEffects.backgroundImage.opacity || 1.0;
+
+                // Ensure the image covers the entire canvas while maintaining aspect ratio
+                const imgWidth = AncientEgyptTheme.bgImage.width;
+                const imgHeight = AncientEgyptTheme.bgImage.height;
+                const canvasRatio = canvas.width / canvas.height;
+                const imgRatio = imgWidth / imgHeight;
+
+                let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+
+                // Calculate dimensions to cover the entire canvas
+                if (canvasRatio > imgRatio) {
+                    // Canvas is wider than image aspect ratio
+                    drawWidth = canvas.width;
+                    drawHeight = canvas.width / imgRatio;
+                    offsetY = (canvas.height - drawHeight) / 2;
+                } else {
+                    // Canvas is taller than image aspect ratio
+                    drawHeight = canvas.height;
+                    drawWidth = canvas.height * imgRatio;
+                    offsetX = (canvas.width - drawWidth) / 2;
+                }
+
+                if (opacity < 1.0) {
+                    // If opacity is less than 1, need to use globalAlpha
+                    ctx.save();
+                    ctx.globalAlpha = opacity;
+                    ctx.drawImage(AncientEgyptTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
+                    ctx.restore();
+                } else {
+                    // Full opacity, just draw directly
+                    ctx.drawImage(AncientEgyptTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
+                }
+            } else {
+                // Fallback if image isn't loaded yet
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#1f1a13'); // Dark sand color
+                gradient.addColorStop(0.5, '#544b34'); // Mid sand color
+                gradient.addColorStop(1, '#997f4e'); // Lighter sand color
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
         // Epic Win Animation for Ancient Egypt theme
         if (specific?.epicWinAnimation?.enabled && window.isPlayingEpicWinAnimation) {
             const epicWin = specific.epicWinAnimation;
@@ -449,10 +520,57 @@ export const AncientEgyptTheme = {
  * @param {HTMLCanvasElement} canvas - The canvas element.
  * @param {number} elapsedTime - Total time elapsed since animation start (ms).
  * @param {number} deltaTime - Time elapsed since last frame (ms).
- */
-    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime) => {
+ */    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime) => {
         const duration = 7000; // Increased duration for more spectacle (7 seconds)
         const progress = Math.min(elapsedTime / duration, 1.0);
+
+        // --- Background Image ---
+        const bgPath = `images/${AncientEgyptTheme.name.toLowerCase()}/epic_bg.jpg`;
+        const epicConfig = AncientEgyptTheme.visualEffects.themeSpecific.epicWinAnimation;
+
+        // Initialize state objects if needed
+        if (!epicConfig._backgroundImage && !epicConfig._bgLoadInitiated) {
+            epicConfig._bgLoadInitiated = true;
+            // Use async loading but don't block rendering
+            const img = new Image();
+            img.onload = () => {
+                epicConfig._backgroundImage = img;
+            };
+            img.src = bgPath;
+        }
+
+        ctx.save();        // Draw background image if loaded, otherwise draw fallback
+        if (epicConfig._backgroundImage) {
+            // Ensure the image covers the entire canvas while maintaining aspect ratio
+            const imgWidth = epicConfig._backgroundImage.width;
+            const imgHeight = epicConfig._backgroundImage.height;
+            const canvasRatio = canvas.width / canvas.height;
+            const imgRatio = imgWidth / imgHeight;
+
+            let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+
+            // Calculate dimensions to cover the entire canvas
+            if (canvasRatio > imgRatio) {
+                // Canvas is wider than image aspect ratio
+                drawWidth = canvas.width;
+                drawHeight = canvas.width / imgRatio;
+                offsetY = (canvas.height - drawHeight) / 2;
+            } else {
+                // Canvas is taller than image aspect ratio
+                drawHeight = canvas.height;
+                drawWidth = canvas.height * imgRatio;
+                offsetX = (canvas.width - drawWidth) / 2;
+            }            // Draw the image to cover the entire canvas
+            ctx.drawImage(epicConfig._backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
+        } else {
+            // Fallback gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1f1a13'); // Dark sand color
+            gradient.addColorStop(0.5, '#544b34'); // Mid sand color
+            gradient.addColorStop(1, '#997f4e'); // Lighter sand color
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
         // --- Easing Function (Ease-in-out Quad) ---
         const easeInOutQuad = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;

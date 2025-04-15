@@ -36,6 +36,15 @@ async function loadImage(src) {
 
 export const FantasyForestTheme = {
     name: "FantasyForest",
+    // Layout and appearance settings
+    layout: {
+        reelSpacing: 0, // Spacing between reels in pixels
+        reelsContainer: {
+            backgroundColor: "#2c3e50", // Dark blue-gray background for reels area
+            opacity: 0.7 // 70% opacity
+        },
+        themeColor: "#4caf50" // Primary theme color (green to match forest theme)
+    },
     visualEffects: {
         // ... (other visual effects properties remain the same) ...
         ...EffectPresets.magical,
