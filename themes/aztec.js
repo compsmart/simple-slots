@@ -1,4 +1,4 @@
-import { EffectPresets, EffectsHelper } from './effects.js';
+import { EffectPresets, EffectDefaults, EffectsHelper } from './effects.js';
 
 export const AztecTheme = {
     name: "Aztec",
@@ -75,11 +75,9 @@ export const AztecTheme = {
             },
             epicWinAnimation: {
                 enabled: true,
-                name: "Temple Awakening",
-                duration: 8000, // 5.5 seconds
-                templeRise: true,
-                tribalDance: true,
-                goldIdolReveal: true
+                name: "Temple Treasure",
+                duration: 8000, // 8 seconds
+                goldParticles: true,
             }
         }
     },
@@ -573,39 +571,34 @@ export const AztecTheme = {
             ctx.restore();
         }
     },
-    /**
- * Renders an Epic Aztec Win Animation with enhanced graphics and effects.
- *
- * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
- * @param {HTMLCanvasElement} canvas - The canvas element.
- * @param {number} elapsedTime - Total time elapsed since animation start (ms).
- * @param {number} deltaTime - Time elapsed since last frame (ms).
- */    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime) => {
-        const duration = 6500; // Increased duration for more spectacle (7.5 seconds)
-        const progress = Math.min(elapsedTime / duration, 1.0);
 
-        // --- Background Image ---
+    renderEpicWinAnimation: (ctx, canvas, elapsedTime, deltaTime, winAmount) => {
+        const config = AztecTheme.visualEffects.themeSpecific.epicWinAnimation;
+        const duration = config.duration;
+        const progress = Math.min(1.0, elapsedTime / duration); // Ensure progress doesn't exceed 1
+
+        // --- Background ---
         const bgPath = `images/${AztecTheme.name.toLowerCase()}/epic_bg.jpg`;
-        const epicConfig = AztecTheme.visualEffects.themeSpecific.epicWinAnimation;
 
-        // Initialize state objects if needed
-        if (!epicConfig._backgroundImage && !epicConfig._bgLoadInitiated) {
-            epicConfig._bgLoadInitiated = true;
+        // Initiate loading if not already started
+        if (!config._bgLoadInitiated) {
+            config._bgLoadInitiated = true;
+            // Initialize gold particles storage
+            config._particles = [];
+            config._particlesInitialized = false;
             // Use async loading but don't block rendering
-            const img = new Image();
-            img.onload = () => {
-                epicConfig._backgroundImage = img;
-            };
-            img.src = bgPath;
+            EffectsHelper.loadImage(bgPath).then(img => {
+                config._backgroundImage = img; // Store loaded image (or null if failed)
+            }).catch(() => { // Catch potential promise rejection just in case
+                config._backgroundImage = null;
+            });
         }
 
-        ctx.save();
-
-        // Draw background image if loaded, otherwise draw fallback
-        if (epicConfig._backgroundImage) {
+        ctx.save();        // Draw background image if loaded, otherwise draw fallback
+        if (config._backgroundImage) {
             // Ensure the image covers the entire canvas while maintaining aspect ratio
-            const imgWidth = epicConfig._backgroundImage.width;
-            const imgHeight = epicConfig._backgroundImage.height;
+            const imgWidth = config._backgroundImage.width;
+            const imgHeight = config._backgroundImage.height;
             const canvasRatio = canvas.width / canvas.height;
             const imgRatio = imgWidth / imgHeight;
 
@@ -625,709 +618,213 @@ export const AztecTheme = {
             }
 
             // Draw the image to cover the entire canvas
-            ctx.drawImage(epicConfig._backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
+            ctx.drawImage(config._backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
         } else {
             // Fallback gradient background
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#5d4037'); // Dark brown
-            gradient.addColorStop(0.5, '#795548'); // Medium brown
-            gradient.addColorStop(1, '#8d6e63'); // Lighter brown
+            gradient.addColorStop(0, '#1a472a'); // Dark deep green
+            gradient.addColorStop(0.5, '#2e7d32'); // Forest green
+            gradient.addColorStop(1, '#1b5e20'); // Darker base green
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+            // Optionally draw text indicating loading state if desired
+            // ctx.fillStyle = "white"; ctx.fillText("Loading background...", canvas.width/2, canvas.height/2);
+        }        // We'll move the gold particles rendering to the end to ensure they're on top of everything// --- Title Text ---
+        const titleText = config.name || "EPIC WIN";
+        const titleBaseSize = Math.min(canvas.width / 15, 100); // Increased base size (was /10, 70)
+        const titlePulse = Math.sin(elapsedTime / 300) * (titleBaseSize * 0.1); // Increased pulse effect
+        const titleSize = titleBaseSize + titlePulse;
+        const titleY = titleSize + 50;
 
-        // --- Easing Functions ---
-        const easeInOutQuad = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        const easeOutQuad = t => 1 - (1 - t) * (1 - t);
-        const easeInQuad = t => t * t;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `900 ${titleSize}px fantasy, cursive`; // Bolder font weight (900 instead of bold)
 
-        // --- Configuration ---
-        const config = {
-            jungleColor1: '#0a4d1a', // Deeper green
-            jungleColor2: '#1b5e20',
-            jungleColor3: '#2e7d32', // Lighter green for highlights/mist
-            mistColor: 'rgba(46, 125, 50, 0.15)', // Subtle green mist
-            stoneColor1: '#8d6e63', // Main stone
-            stoneColor2: '#a1887f', // Lighter stone
-            stoneDetailColor: '#5d4037', // Darker detail/shadow
-            mossColor: 'rgba(56, 87, 35, 0.6)', // Mossy green overlay
-            gold1: '#ffd700', // Bright Gold
-            gold2: '#f0c000', // Medium Gold
-            gold3: '#b8860b', // Dark Gold / Bronze
-            gemColorJade: '#00a86b',
-            gemColorRuby: '#e0115f',
-            gemColorObsidian: '#3b3140',
-            textColor: '#ffe070', // Golden yellow text
-            textOutline: '#4d3a1f', // Dark brown text outline
-            shadowColor: 'rgba(0, 0, 0, 0.6)',
-            templeSteps: 6,
-            templeBaseWidthFactor: 0.7, // Relative to canvas width
-            templeHeightFactor: 0.5, // Relative to canvas height
-            sunstoneDetailColor: '#4d3a1f',
-            torchFlameColor1: 'rgba(255, 230, 100, 0.9)',
-            torchFlameColor2: 'rgba(255, 165, 0, 0.8)',
-            torchFlameColor3: 'rgba(255, 69, 0, 0)',
-            treasureItemCount: 40,
-            quetzalcoatlSegments: 25,
-            quetzalcoatlColor1: '#00a86b', // Jade green
-            quetzalcoatlColor2: '#34d399', // Lighter jade
-            quetzalcoatlFeatherColor: '#ff5733', // Orange/Red feathers
-        };
+        // Enhanced glowing effect
+        ctx.shadowColor = '#FFFFFF'; // Brighter yellow-gold glow
+        ctx.shadowBlur = 30 + Math.sin(elapsedTime / 250) * 15; // Increased glow intensity & variation        // Bright yellow text gradient fill
+        const titleGradient = ctx.createLinearGradient(
+            canvas.width / 2 - 200, titleY,
+            canvas.width / 2 + 200, titleY
+        );
+        titleGradient.addColorStop(0, '#ffff66'); // Bright yellow
+        titleGradient.addColorStop(0.3, '#2e7d32'); // Slightly lighter yellow
+        titleGradient.addColorStop(0.7, '#2e7d32'); // Bright yellow again
+        titleGradient.addColorStop(1, '#ffff66'); // Light yellow with a slight hint of gold
+        ctx.fillStyle = titleGradient;
 
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
-        // --- Helper Functions ---
-        const drawVine = (x, y, length, thickness, segments, alpha) => {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            let currentX = x;
-            let currentY = y;
-            ctx.strokeStyle = `rgba(27, 94, 32, ${alpha})`; // Dark vine color
-            ctx.lineWidth = thickness;
-            ctx.globalAlpha = alpha;
-
-            for (let i = 0; i < segments; i++) {
-                const angle = (Math.random() - 0.5) * 0.8;
-                const segLength = length / segments;
-                const nextX = currentX + Math.sin(angle) * segLength;
-                const nextY = currentY + Math.cos(angle) * segLength;
-                ctx.quadraticCurveTo(currentX + (Math.random() - 0.5) * 20, currentY + segLength / 2, nextX, nextY);
-
-                // Simple leaves
-                if (i % 3 === 0 && thickness > 1) {
-                    ctx.save();
-                    ctx.translate(nextX, nextY);
-                    ctx.rotate(angle + (Math.random() - 0.5) * 0.5);
-                    ctx.fillStyle = `rgba(46, 125, 50, ${alpha * 0.8})`; // Leaf color
-                    ctx.beginPath();
-                    ctx.ellipse(thickness * 1.5, 0, thickness * 1.5, thickness * 0.8, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-                currentX = nextX;
-                currentY = nextY;
-            }
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
-        };
-
-        const drawStoneStep = (y, width, height, baseColor, detailColor, mossColor, mossAmount) => {
-            // Base color
-            ctx.fillStyle = baseColor;
-            ctx.fillRect(centerX - width / 2, y, width, height);
-
-            // Subtle gradient for depth
-            const grad = ctx.createLinearGradient(centerX - width / 2, y, centerX + width / 2, y);
-            grad.addColorStop(0, 'rgba(0,0,0,0.1)');
-            grad.addColorStop(0.5, 'rgba(255,255,255,0.05)');
-            grad.addColorStop(1, 'rgba(0,0,0,0.1)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(centerX - width / 2, y, width, height);
+        // Optional: Gentle rocking motion
+        const titleRock = Math.sin(elapsedTime / 500) * 0.02; // Radians for rotation
+        ctx.save();
+        ctx.translate(canvas.width / 2, titleY);
+        ctx.rotate(titleRock);
+        ctx.fillText(titleText, 0, 0);
+        // Optional outline for better contrast
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.lineWidth = 2;
+        ctx.strokeText(titleText, 0, 0);
+        ctx.restore(); // Restore rotation/translation
 
 
-            // Stone block lines (less regular)
-            ctx.strokeStyle = detailColor;
-            ctx.lineWidth = 1.5;
-            ctx.globalAlpha = 0.7;
-            let currentX = centerX - width / 2;
-            while (currentX < centerX + width / 2) {
-                const stoneW = (40 + Math.random() * 40);
-                if (currentX + stoneW < centerX + width / 2) {
-                    ctx.beginPath();
-                    ctx.moveTo(currentX + stoneW, y + height * (Math.random() * 0.1)); // Jagged top
-                    ctx.lineTo(currentX + stoneW, y + height * (0.9 + Math.random() * 0.1)); // Jagged bottom
-                    ctx.stroke();
-                }
-                currentX += stoneW;
-            }
-            // Horizontal line
-            ctx.beginPath();
-            ctx.moveTo(centerX - width / 2, y + height * (0.95 + Math.random() * 0.1)); // Slightly uneven bottom edge
-            ctx.lineTo(centerX + width / 2, y + height * (0.95 + Math.random() * 0.1));
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
+        // --- Win Amount Text ---        const amountY = canvas.height * 0.6;
+        const amountBaseSize = Math.min(canvas.width / 12, 60);
+        const countUpDuration = duration * 0.6; // Spend 60% of time counting up
 
-            // Moss overlay
-            if (mossAmount > 0) {
-                ctx.fillStyle = mossColor;
-                ctx.globalAlpha = mossAmount * 0.6; // Control moss intensity
-                // Random patches of moss, concentrated near edges/top
-                for (let k = 0; k < 10; k++) {
-                    const mossX = centerX - width / 2 + Math.random() * width;
-                    const mossY = y + Math.random() * height * 0.6; // More moss near top
-                    const mossWidth = Math.random() * width * 0.15;
-                    const mossHeight = Math.random() * height * 0.2;
-                    ctx.fillRect(mossX, mossY, mossWidth, mossHeight);
-                }
-                ctx.globalAlpha = 1.0;
-            }
-        };
+        let displayAmount = 0;
+        if (elapsedTime < countUpDuration) {
+            // Fast, non-linear count-up (ease-out)
+            const countProgress = elapsedTime / countUpDuration;
+            const easedProgress = 1 - Math.pow(1 - countProgress, 3); // Cubic ease-out
+            displayAmount = winAmount * easedProgress;
+        } else {
+            displayAmount = winAmount; // Hold final amount
+        }        // Ensure we're using the passed win amount parameter, not a constant
+        // Format amount (e.g., with commas and 2 decimal places)
+        const formattedAmount = displayAmount.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });        // Size pulse when amount reaches final value
+        let amountSize = amountBaseSize;
+        let amountShakeX = 0;
+        let amountShakeY = 0;
+        let amountY = canvas.height / 2; // Position text vertically centered
+        const shakeIntensity = 3;
 
-        const drawTreasureItem = (x, y, size, rotation, typeSeed, elapsedTime) => {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(rotation);
-            ctx.shadowColor = config.shadowColor;
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetX = 3;
-            ctx.shadowOffsetY = 3;
-
-            const type = Math.floor(typeSeed * 5); // 0: Coin, 1: Jade, 2: Ruby, 3: Mask, 4: Obsidian Knife
-
-            switch (type) {
-                case 0: // Gold Coin (3D)
-                    const tilt = Math.PI / 2 + Math.sin(elapsedTime / 300 + typeSeed * 10) * (Math.PI * 0.45);
-                    const thickness = Math.max(1, size * 0.15 * Math.abs(Math.cos(tilt)));
-                    const radiusX = size / 2;
-                    const radiusY = size / 2 * Math.abs(Math.sin(tilt));
-                    // Edge
-                    ctx.fillStyle = config.gold3;
-                    ctx.beginPath(); ctx.ellipse(0, thickness / 2, radiusX, radiusY, 0, 0, Math.PI * 2); ctx.fill();
-                    // Face
-                    const coinGrad = ctx.createLinearGradient(-radiusX, -radiusY, radiusX, radiusY);
-                    coinGrad.addColorStop(0, config.gold1); coinGrad.addColorStop(0.5, config.gold2); coinGrad.addColorStop(1, config.gold3);
-                    ctx.fillStyle = coinGrad;
-                    ctx.beginPath(); ctx.ellipse(0, -thickness / 2, radiusX, radiusY, 0, 0, Math.PI * 2); ctx.fill();
-                    // Shine
-                    if (Math.sin(tilt) > 0.3) {
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; ctx.lineWidth = Math.max(1, size * 0.05);
-                        ctx.beginPath(); ctx.arc(0, -thickness / 2, radiusX * 0.7, Math.PI * 1.6, Math.PI * 1.9); ctx.stroke();
-                    }
-                    break;
-                case 1: // Jade Gem (faceted)
-                    ctx.fillStyle = config.gemColorJade;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -size * 0.6); ctx.lineTo(size * 0.5, -size * 0.2); ctx.lineTo(size * 0.3, size * 0.5);
-                    ctx.lineTo(-size * 0.3, size * 0.5); ctx.lineTo(-size * 0.5, -size * 0.2); ctx.closePath(); ctx.fill();
-                    // Facet lines
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(0, -size * 0.6); ctx.lineTo(0, size * 0.1); ctx.lineTo(size * 0.3, size * 0.5);
-                    ctx.moveTo(0, size * 0.1); ctx.lineTo(-size * 0.3, size * 0.5); ctx.stroke();
-                    // Sparkle
-                    ctx.fillStyle = 'rgba(200, 255, 220, 0.9)'; ctx.beginPath(); ctx.arc(size * 0.2, -size * 0.3, size * 0.08, 0, Math.PI * 2); ctx.fill();
-                    break;
-                case 2: // Ruby Gem (faceted)
-                    ctx.fillStyle = config.gemColorRuby;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -size * 0.5); ctx.lineTo(size * 0.5, 0); ctx.lineTo(0, size * 0.5); ctx.lineTo(-size * 0.5, 0); ctx.closePath(); ctx.fill();
-                    // Facet lines
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(size * 0.5, 0); ctx.lineTo(-size * 0.5, 0); ctx.moveTo(0, -size * 0.5); ctx.lineTo(0, size * 0.5); ctx.stroke();
-                    // Sparkle
-                    ctx.fillStyle = 'rgba(255, 200, 200, 0.9)'; ctx.beginPath(); ctx.arc(-size * 0.15, -size * 0.15, size * 0.07, 0, Math.PI * 2); ctx.fill();
-                    break;
-                case 3: // Gold Mask
-                    ctx.fillStyle = config.gold2;
-                    ctx.beginPath(); ctx.ellipse(0, 0, size * 0.5, size * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-                    // Darker inlay/features
-                    ctx.fillStyle = config.gold3;
-                    ctx.beginPath(); ctx.ellipse(0, size * 0.1, size * 0.3, size * 0.15, 0, 0, Math.PI); ctx.fill(); // Mouth area
-                    ctx.fillRect(-size * 0.25, -size * 0.2, size * 0.15, size * 0.2); // Left eye socket
-                    ctx.fillRect(size * 0.1, -size * 0.2, size * 0.15, size * 0.2); // Right eye socket
-                    // Jade inlays
-                    ctx.fillStyle = config.gemColorJade;
-                    ctx.beginPath(); ctx.arc(-size * 0.18, -size * 0.1, size * 0.05, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(size * 0.17, -size * 0.1, size * 0.05, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(0, size * 0.35, size * 0.06, 0, Math.PI * 2); ctx.fill(); // Chin jewel
-                    break;
-                case 4: // Obsidian Knife
-                    ctx.fillStyle = config.gemColorObsidian; // Obsidian blade
-                    ctx.beginPath();
-                    ctx.moveTo(-size * 0.1, size * 0.5); // Handle base left
-                    ctx.lineTo(-size * 0.1, 0); // Handle top left
-                    ctx.quadraticCurveTo(0, -size * 0.6, size * 0.1, 0); // Blade tip
-                    ctx.lineTo(size * 0.1, size * 0.5); // Handle base right
-                    ctx.closePath(); ctx.fill();
-                    // Gold Handle wrap
-                    ctx.fillStyle = config.gold3;
-                    ctx.fillRect(-size * 0.15, size * 0.3, size * 0.3, size * 0.2);
-                    // Shine on blade
-                    ctx.fillStyle = 'rgba(200, 200, 220, 0.5)';
-                    ctx.beginPath(); ctx.moveTo(-size * 0.05, 0); ctx.lineTo(0, -size * 0.4); ctx.lineTo(size * 0.05, 0); ctx.closePath(); ctx.fill();
-                    break;
-            }
-
-            ctx.restore();
-        };
-
-        // --- Background ---
-        // Deep Jungle Gradient
-        const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        bgGradient.addColorStop(0, config.jungleColor1);
-        bgGradient.addColorStop(0.6, config.jungleColor2);
-        bgGradient.addColorStop(1, config.jungleColor1);
-        ctx.fillStyle = bgGradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Background Vines (subtle parallax)
-        const parallaxOffset = Math.sin(elapsedTime / 8000) * 15;
-        for (let i = 0; i < 5; i++) {
-            const vineX = (i / 5) * canvas.width + parallaxOffset + (i * 30);
-            drawVine(vineX, -20, canvas.height * 0.8, 3 + i, 10, 0.4);
-        }
-
-        // Ground Mist
-        const mistHeight = canvas.height * 0.3;
-        const mistGradient = ctx.createLinearGradient(0, canvas.height - mistHeight, 0, canvas.height);
-        mistGradient.addColorStop(0, 'rgba(46, 125, 50, 0)');
-        mistGradient.addColorStop(0.5, config.mistColor);
-        mistGradient.addColorStop(1, config.mistColor);
-        ctx.fillStyle = mistGradient;
-        ctx.fillRect(0, canvas.height - mistHeight, canvas.width, mistHeight);
-
-        // Foreground Vines
-        for (let i = 0; i < 3; i++) {
-            const vineX = (i / 3) * canvas.width - parallaxOffset * 1.5 + (i * 50) + 100;
-            drawVine(vineX, -50, canvas.height * 1.1, 8 - i * 2, 15, 0.7);
+        if (elapsedTime >= countUpDuration) {
+            amountSize = amountBaseSize * (1 + Math.sin((elapsedTime - countUpDuration) / 150) * 0.1); // Pulse size
+        } else {
+            // Shake effect while counting
+            amountShakeX = (Math.random() - 0.5) * shakeIntensity;
+            amountShakeY = (Math.random() - 0.5) * shakeIntensity;
         }
 
 
-        // --- Animation Phases ---
-        const phase1End = 0.40; // Temple Rise & Detail
-        const phase2End = 0.60; // Sunstone Activation & Treasure Burst
-        const phase3End = 0.90; // Quetzalcoatl Appearance & Fire
-        const phase4End = 1.0;  // Text Fade In / Hold
+        ctx.font = `bold ${amountSize}px 'Arial', sans-serif`;
+        ctx.fillStyle = '#ffffff'; // White for contrast
+        ctx.shadowColor = '#000000'; // Black shadow for readability
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
 
-        // --- Phase 1: Temple Emergence (0% - 40%) ---
-        const templeBaseWidth = canvas.width * config.templeBaseWidthFactor;
-        const templeBaseHeight = canvas.height * config.templeHeightFactor;
-        const baseTempleY = canvas.height * 0.95; // Anchor point slightly below canvas bottom edge
+        ctx.fillText(formattedAmount, canvas.width / 2 + amountShakeX, amountY + amountShakeY);
+        // Optional: Add currency symbol (e.g., '$')
+        // const currencySymbol = "$";
+        // ctx.fillText(currencySymbol + formattedAmount, canvas.width / 2 + amountShakeX, amountY + amountShakeY);        // --- Gold Particles rendering at the very end (on top of everything) ---
+        if (config.goldParticles) {
 
-        if (progress < phase2End) { // Keep drawing temple until burst is over
-            const riseProgress = easeInOutQuad(Math.min(1, progress / phase1End));
-            const isBursting = progress >= phase1End;
-            const burstProgress = isBursting ? easeInOutQuad((progress - phase1End) / (phase2End - phase1End)) : 0;
+            const particleCount = 150; // More particles for an epic feel
+            const gravity = 150; // Pixels per second squared (adjust as needed)
+            const terminalVelocity = canvas.height * 0.8; // Max speed (pixels per second)
 
-            const currentTempleHeight = templeBaseHeight * riseProgress;
-            const bottomY = baseTempleY - currentTempleHeight; // Top of the base rises
-
-            // Draw temple body with steps
-            const steps = config.templeSteps;
-            const totalStepStructureHeight = currentTempleHeight * 0.7; // Steps take 70% of height
-            const topPlatformHeight = currentTempleHeight * 0.3;
-            const topPlatformY = bottomY;
-            const stepStartY = topPlatformY + topPlatformHeight;
-
-            ctx.save();
-            // Fade out during burst peak? Optional.
-            // ctx.globalAlpha = 1.0 - Math.sin(burstProgress * Math.PI) * 0.5;
-
-            // Draw top platform
-            const topWidth = templeBaseWidth * (1 - (steps / (steps + 1.5))); // Width matches the top step
-            drawStoneStep(topPlatformY, topWidth * riseProgress, topPlatformHeight, config.stoneColor1, config.stoneDetailColor, config.mossColor, riseProgress * 0.6);
-
-            // Draw Steps
-            for (let i = 0; i < steps; i++) {
-                const stepProgress = (steps - i) / steps; // 1 for bottom step, ~0 for top
-                const stepWidth = templeBaseWidth * stepProgress * riseProgress;
-                const stepHeight = totalStepStructureHeight / steps;
-                const stepY = stepStartY + i * stepHeight;
-
-                // Only draw step if its top edge is above the base Y
-                if (stepY < baseTempleY) {
-                    const effectiveHeight = Math.min(stepHeight, baseTempleY - stepY);
-                    const color = i % 2 === 0 ? config.stoneColor1 : config.stoneColor2;
-                    const mossAmount = riseProgress * (i / steps) * 0.8; // More moss on lower steps
-                    drawStoneStep(stepY, stepWidth, effectiveHeight, color, config.stoneDetailColor, config.mossColor, mossAmount);
+            // Initialize particles once
+            if (!config._particlesInitialized) {
+                config._particles = [];
+                for (let i = 0; i < particleCount; i++) {
+                    const initialY = Math.random() * -canvas.height * 1.5; // Start further above
+                    const initialX = Math.random() * canvas.width;
+                    config._particles.push({
+                        x: initialX,
+                        y: initialY,
+                        initialX: initialX, // Store baseline X for sway
+                        initialY: initialY, // Store for reset
+                        size: Math.random() * 10 + 5, // Coin diameter range
+                        speedY: Math.random() * 50 + 20, // Initial downward speed (pixels/sec)
+                        // --- Coin Rotation ---
+                        zRotation: Math.random() * Math.PI * 2, // Flat spin angle
+                        zRotationSpeed: (Math.random() - 0.5) * 4, // Flat spin speed (radians/sec)
+                        tiltAngle: Math.random() * Math.PI * 2, // Tumble angle (around X-axis)
+                        tiltSpeed: (Math.random() - 0.5) * 5, // Tumble speed (radians/sec)
+                        // --- Sway ---
+                        swayPhase: Math.random() * Math.PI * 2, // Start sway at random point
+                        swaySpeed: Math.random() * 1.5 + 0.8, // Sway frequency (cycles/sec)
+                        swayAmplitude: Math.random() * 20 + 8, // Sway distance
+                        // --- Optional: Physics ---
+                        // accelerationY: gravity,
+                        // terminalVelocityY: terminalVelocity * (Math.random() * 0.3 + 0.85), // Add slight variation
+                    });
                 }
+                config._particlesInitialized = true;
             }
 
-            // Temple Top Structure (Door, Sunstone, Torches) - Appear after steps are mostly formed
-            if (riseProgress > 0.7) {
-                const topStructureProgress = easeOutQuad((riseProgress - 0.7) / 0.3);
-                const structureY = topPlatformY; // On top of the main platform
-                const structureWidth = topWidth * 0.6 * topStructureProgress;
-                const structureHeight = topPlatformHeight * 0.8 * topStructureProgress; // Smaller building on top
+            // --- Update and Draw Particles ---
+            ctx.save(); // Save context state for clean drawing
 
-                // Doorway (glowing slightly)
-                const doorWidth = structureWidth * 0.3;
-                const doorHeight = structureHeight * 0.7;
-                const doorX = centerX - doorWidth / 2;
-                const doorY = structureY + structureHeight - doorHeight;
+            const dtSec = deltaTime / 1000.0; // Delta time in seconds
 
-                ctx.fillStyle = '#211a16'; // Very dark doorway
-                ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
-                // Inner glow (subtle before burst)
-                if (!isBursting) {
-                    const doorGlow = ctx.createRadialGradient(centerX, doorY + doorHeight / 2, 0, centerX, doorY + doorHeight / 2, doorWidth * 2);
-                    doorGlow.addColorStop(0, `rgba(255, 200, 50, ${topStructureProgress * 0.1})`);
-                    doorGlow.addColorStop(1, 'rgba(255, 200, 50, 0)');
-                    ctx.fillStyle = doorGlow;
-                    ctx.fillRect(doorX - doorWidth, doorY - doorHeight * 0.5, doorWidth * 3, doorHeight * 2);
+            config._particles.forEach(p => {
+                // --- Update Physics (Optional) ---
+                // p.speedY = Math.min(p.speedY + p.accelerationY * dtSec, p.terminalVelocityY);
+
+                // --- Update Position & Rotation ---
+                p.y += p.speedY * dtSec;
+                p.zRotation += p.zRotationSpeed * dtSec;
+                p.tiltAngle += p.tiltSpeed * dtSec;
+
+                // Add horizontal sway based on its own phase and speed
+                p.x = p.initialX + Math.sin(p.swayPhase + elapsedTime / 1000 * p.swaySpeed) * p.swayAmplitude;
+
+                // --- Reset particle if it falls off the bottom ---
+                if (p.y > canvas.height + p.size * 2) { // Check slightly below screen
+                    p.y = p.initialY - Math.random() * 50; // Reset above the screen with variation
+                    p.initialX = Math.random() * canvas.width; // New random horizontal start
+                    p.x = p.initialX;
+                    p.speedY = Math.random() * 50 + 20; // Reset initial speed
+                    p.swayPhase = Math.random() * Math.PI * 2; // Reset sway phase
                 }
 
-
-                // Sunstone Calendar (more detailed)
-                const sunstoneSize = structureWidth * 0.5 * topStructureProgress;
-                const sunstoneY = doorY - sunstoneSize * 0.6; // Position above door
-
-                if (sunstoneSize > 5) {
-                    ctx.save();
-                    ctx.translate(centerX, sunstoneY);
-                    const rotationSpeed = isBursting ? 5 : 1; // Spin faster during burst
-                    ctx.rotate(elapsedTime / (1000 / rotationSpeed) + riseProgress * 2);
-                    ctx.lineWidth = Math.max(1, sunstoneSize * 0.05);
-
-                    // Base Disc (Gold Gradient)
-                    const sunGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, sunstoneSize / 2);
-                    sunGrad.addColorStop(0, config.gold1); sunGrad.addColorStop(0.7, config.gold2); sunGrad.addColorStop(1, config.gold3);
-                    ctx.fillStyle = sunGrad; ctx.beginPath(); ctx.arc(0, 0, sunstoneSize / 2, 0, Math.PI * 2); ctx.fill();
-
-                    // Outer Ring (Darker)
-                    ctx.strokeStyle = config.sunstoneDetailColor; ctx.stroke();
-                    // Inner Ring
-                    ctx.beginPath(); ctx.arc(0, 0, sunstoneSize * 0.4, 0, Math.PI * 2); ctx.stroke();
-                    // Center Ring
-                    ctx.beginPath(); ctx.arc(0, 0, sunstoneSize * 0.15, 0, Math.PI * 2); ctx.stroke();
-
-
-                    // Glyphs/Rays (Simplified)
-                    ctx.strokeStyle = config.sunstoneDetailColor;
-                    for (let i = 0; i < 8; i++) { // Outer rays/markers
-                        const angle = (Math.PI * 2 / 8) * i;
-                        ctx.beginPath();
-                        ctx.moveTo(Math.cos(angle) * sunstoneSize * 0.4, Math.sin(angle) * sunstoneSize * 0.4);
-                        ctx.lineTo(Math.cos(angle) * sunstoneSize * 0.5, Math.sin(angle) * sunstoneSize * 0.5);
-                        ctx.stroke();
-                    }
-                    for (let i = 0; i < 12; i++) { // Inner markers
-                        const angle = (Math.PI * 2 / 12) * i;
-                        ctx.beginPath();
-                        ctx.moveTo(Math.cos(angle) * sunstoneSize * 0.15, Math.sin(angle) * sunstoneSize * 0.15);
-                        ctx.lineTo(Math.cos(angle) * sunstoneSize * 0.25, Math.sin(angle) * sunstoneSize * 0.25);
-                        ctx.stroke();
-                    }
-
-                    // Central Face (Simple)
-                    ctx.fillStyle = config.sunstoneDetailColor;
-                    ctx.beginPath(); ctx.arc(-sunstoneSize * 0.04, -sunstoneSize * 0.03, sunstoneSize * 0.03, 0, Math.PI * 2); ctx.fill(); // Eye L
-                    ctx.beginPath(); ctx.arc(sunstoneSize * 0.04, -sunstoneSize * 0.03, sunstoneSize * 0.03, 0, Math.PI * 2); ctx.fill(); // Eye R
-                    ctx.beginPath(); ctx.arc(0, sunstoneSize * 0.05, sunstoneSize * 0.05, 0, Math.PI, false); ctx.fill(); // Mouth
-
-
-                    // Glowing effect (intensifies during burst)
-                    const glowIntensity = isBursting ? Math.sin(burstProgress * Math.PI) * 0.8 : topStructureProgress * 0.2;
-                    if (glowIntensity > 0.01) {
-                        ctx.shadowColor = config.gold1;
-                        ctx.shadowBlur = sunstoneSize * 0.5 * glowIntensity;
-                        // Redraw base disc with shadow to create glow
-                        ctx.fillStyle = sunGrad; ctx.beginPath(); ctx.arc(0, 0, sunstoneSize / 2, 0, Math.PI * 2); ctx.fill();
-                        ctx.shadowColor = 'transparent'; // Reset shadow
-                    }
-
-                    ctx.restore();
-                }
-
-
-                // Torches (with dynamic flames and light casting)
-                const torchProgress = topStructureProgress;
-                if (torchProgress > 0.3) {
-                    const torchGlow = (Math.sin(elapsedTime / 150 + riseProgress) * 0.4 + 0.6) * torchProgress; // Flicker + Fade in
-                    for (const xPos of [-1, 1]) {
-                        const torchBaseX = centerX + xPos * (structureWidth * 0.4);
-                        const torchBaseY = structureY + structureHeight * 0.6;
-                        const torchHeight = structureHeight * 0.4;
-
-                        // Torch Holder (Stone)
-                        ctx.fillStyle = config.stoneDetailColor;
-                        ctx.beginPath();
-                        ctx.moveTo(torchBaseX - 10 * torchProgress, torchBaseY);
-                        ctx.lineTo(torchBaseX - 5 * torchProgress, torchBaseY - torchHeight);
-                        ctx.lineTo(torchBaseX + 5 * torchProgress, torchBaseY - torchHeight);
-                        ctx.lineTo(torchBaseX + 10 * torchProgress, torchBaseY);
-                        ctx.closePath();
-                        ctx.fill();
-
-                        // Flame
-                        const flameX = torchBaseX;
-                        const flameY = torchBaseY - torchHeight;
-                        const flameSize = 35 * torchProgress * (0.8 + Math.random() * 0.4); // Vary size
-
-                        // Draw multiple layers for a more complex flame
-                        for (let f = 0; f < 3; f++) {
-                            const layerSize = flameSize * (1 - f * 0.3);
-                            const layerY = flameY - f * 5;
-                            const flameGrad = ctx.createRadialGradient(flameX, layerY, 0, flameX, layerY, layerSize * 0.8);
-                            flameGrad.addColorStop(0, `rgba(255, 255, 180, ${torchGlow * (1 - f * 0.2)})`);
-                            flameGrad.addColorStop(0.4, `rgba(255, 180, 50, ${torchGlow * (1 - f * 0.2)})`);
-                            flameGrad.addColorStop(1, `rgba(255, 80, 0, 0)`);
-
-                            ctx.fillStyle = flameGrad;
-                            ctx.beginPath();
-                            ctx.moveTo(flameX, layerY + layerSize * 0.3); // Base
-                            // Wobbly top using curves
-                            ctx.quadraticCurveTo(flameX - layerSize * 0.4, layerY - layerSize * 0.3, flameX + (Math.random() - 0.5) * layerSize * 0.2, layerY - layerSize * (0.8 + Math.random() * 0.2));
-                            ctx.quadraticCurveTo(flameX + layerSize * 0.4, layerY - layerSize * 0.3, flameX, layerY + layerSize * 0.3);
-                            ctx.fill();
-                        }
-
-                        // Cast light onto temple
-                        const lightRadius = 80 * torchProgress * torchGlow;
-                        const lightGrad = ctx.createRadialGradient(flameX, flameY, lightRadius * 0.1, flameX, flameY, lightRadius);
-                        lightGrad.addColorStop(0, `rgba(255, 180, 50, 0.15)`);
-                        lightGrad.addColorStop(1, `rgba(255, 180, 50, 0)`);
-                        ctx.fillStyle = lightGrad;
-                        ctx.globalCompositeOperation = 'lighter'; // Additive blending for light
-                        ctx.fillRect(flameX - lightRadius, flameY - lightRadius, lightRadius * 2, lightRadius * 2);
-                        ctx.globalCompositeOperation = 'source-over'; // Reset blend mode
-                    }
-                }
-            }
-
-            ctx.restore(); // Restore alpha potentially set earlier
-        }
-
-        // --- Phase 2: Sunstone Activation & Treasure Burst (40% - 60%) ---
-        if (progress >= phase1End && progress < phase2End) {
-            const burstProgress = easeInOutQuad((progress - phase1End) / (phase2End - phase1End));
-            const pulse = Math.sin(burstProgress * Math.PI); // 0 -> 1 -> 0
-
-            // Find Door Position (Recalculate based on final temple size)
-            const finalTempleHeight = templeBaseHeight;
-            const finalTopPlatformHeight = finalTempleHeight * 0.3;
-            const finalTopPlatformY = baseTempleY - finalTempleHeight;
-            const finalStructureHeight = finalTopPlatformHeight * 0.8;
-            const finalDoorHeight = finalStructureHeight * 0.7;
-            const doorCenterY = finalTopPlatformY + finalStructureHeight - finalDoorHeight / 2;
-
-            // Intense Light Burst from Doorway
-            const lightRadius = canvas.width * 0.8 * pulse;
-            const lightGradient = ctx.createRadialGradient(centerX, doorCenterY, 0, centerX, doorCenterY, lightRadius);
-            lightGradient.addColorStop(0, `rgba(255, 235, 180, ${pulse * 0.95})`); // White hot center
-            lightGradient.addColorStop(0.15, `rgba(255, 215, 0, ${pulse * 0.8})`);
-            lightGradient.addColorStop(0.5, `rgba(255, 165, 0, ${pulse * 0.5})`);
-            lightGradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
-            ctx.fillStyle = lightGradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Treasure Items Bursting Outwards
-            for (let i = 0; i < config.treasureItemCount; i++) {
-                const seed = i / config.treasureItemCount;
-                const angle = seed * Math.PI * 4 + burstProgress * 2; // Spiral outwards slightly
-                const maxDist = canvas.width * 0.6;
-                const speedFactor = 0.6 + seed * 0.7;
-                const distance = maxDist * burstProgress * speedFactor * (1 - burstProgress * 0.3); // Slow down towards end
-                const itemX = centerX + Math.cos(angle) * distance;
-                const itemY = doorCenterY + Math.sin(angle) * distance * 0.8 - (100 * pulse); // Add upward thrust
-
-                const startSize = 15 + seed * 40;
-                const currentSize = startSize * (1 - burstProgress * 0.5); // Shrink slightly
-                const rotation = angle * 2 + elapsedTime / (200 + seed * 200);
-
-                if (currentSize < 1) continue;
-
-                drawTreasureItem(itemX, itemY, currentSize, rotation, seed, elapsedTime);
-            }
-
-            // Add Particles (Gold Dust/Sparks)
-            for (let i = 0; i < 50; i++) {
-                const seed = Math.random();
-                const angle = Math.random() * Math.PI * 2;
-                const maxDist = canvas.width * 0.7 * pulse;
-                const distance = Math.random() * maxDist;
-                const particleX = centerX + Math.cos(angle) * distance;
-                const particleY = doorCenterY + Math.sin(angle) * distance * 0.8 - (150 * pulse);
-                const size = 1 + Math.random() * 3 * (1 - burstProgress); // Fade out size
-                const alpha = pulse * (1 - distance / maxDist) * (1 - burstProgress) * 0.8; // Fade out alpha
-
-                if (alpha > 0.05 && size > 0.5) {
-                    ctx.fillStyle = `rgba(255, 215, 100, ${alpha})`;
-                    ctx.beginPath(); ctx.arc(particleX, particleY, size, 0, Math.PI * 2); ctx.fill();
-                }
-            }
-        }
-
-        // --- Phase 3: Quetzalcoatl & Celebration Fire (60% - 90%) ---
-        if (progress >= phase2End && progress < phase4End) { // Continue drawing through text phase
-            const celebrationProgress = easeInOutQuad(Math.min(1.0, (progress - phase2End) / (phase3End - phase2End)));
-
-            // Quetzalcoatl Appearance
-            const qProgress = Math.min(1, celebrationProgress / 0.8); // Takes 80% of this phase to fully appear
-            const qSegments = config.quetzalcoatlSegments;
-            const qBaseRadius = canvas.width * 0.4 * qProgress;
-            const qVerticalOffset = canvas.height * 0.3 * (1 - qProgress); // Start lower, rise up
-            const qWobble = elapsedTime / 800;
-            const qTurn = Math.PI * 2.5 * qProgress; // How much it wraps around
-
-            ctx.save();
-            ctx.translate(centerX, centerY + qVerticalOffset);
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-            ctx.shadowBlur = 15;
-            ctx.shadowOffsetY = 5;
-
-
-            let lastX = 0, lastY = 0, lastAngle = 0;
-            for (let i = qSegments - 1; i >= 0; i--) { // Draw from tail to head
-                const segProgress = i / qSegments;
-                const angle = qWobble + segProgress * qTurn;
-                const radius = qBaseRadius * (1 - segProgress * 0.5); // Taper towards tail
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius * 0.7 + (i * 5) * (1 - qProgress); // Add vertical offset that reduces as it rises & slight Y wave
-
-                const size = (15 + (qSegments - i) * 1.5) * qProgress; // Thicker towards head
-
-                if (size < 1) continue;
-
-                const segmentAngle = Math.atan2(y - lastY, x - lastX);
-
-                // Segment Body Gradient
-                const bodyGrad = ctx.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
-                bodyGrad.addColorStop(0, config.quetzalcoatlColor1);
-                bodyGrad.addColorStop(1, config.quetzalcoatlColor2);
-
+                // --- Draw Coin ---
                 ctx.save();
-                ctx.translate(x, y);
-                ctx.rotate(segmentAngle + Math.PI / 2); // Align segment to path
+                ctx.translate(p.x, p.y);          // Move to particle position
+                ctx.rotate(p.zRotation);        // Apply flat spin
 
-                ctx.fillStyle = bodyGrad;
+                // Calculate horizontal radius based on tilt angle (cosine makes it thin when edge-on)
+                // Clamp to a minimum width (e.g., 1 pixel) so it doesn't disappear
+                const radiusX = Math.max(1, (p.size / 2) * Math.abs(Math.cos(p.tiltAngle)));
+                const radiusY = p.size / 2;
+
+                // 1. Draw Dark Edge (for thickness illusion) - slightly larger vertically
+                const edgeThickness = 1; // Pixel thickness for the edge
+                ctx.fillStyle = '#a07000'; // Darker gold/brownish
                 ctx.beginPath();
-                ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+                ctx.ellipse(0, 0, radiusX, radiusY + edgeThickness * 0.5, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Feather Ruff (near head)
-                if (i < 5 && qProgress > 0.5) { // Only draw on head segments when mostly visible
-                    const featherProgress = (qProgress - 0.5) * 2;
-                    ctx.fillStyle = config.quetzalcoatlFeatherColor;
-                    const featherCount = 5;
-                    for (let f = 0; f < featherCount; f++) {
-                        const fAngle = (f / featherCount - 0.5) * Math.PI * 0.8 + Math.sin(elapsedTime / 200 + i * 0.5) * 0.2; // Fan out + wave
-                        const fLength = size * 1.5 * featherProgress;
-                        const fWidth = size * 0.3 * featherProgress;
-                        ctx.save();
-                        ctx.rotate(fAngle);
-                        ctx.beginPath();
-                        ctx.ellipse(0, -fLength * 0.6, fWidth / 2, fLength / 2, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                    }
-                }
+                // 2. Draw Main Coin Body (using gradient)
+                const grad = ctx.createRadialGradient(
+                    radiusX * -0.1, radiusY * -0.1, 0, // Offset gradient slightly for light source illusion
+                    0, 0, radiusY * 1.2 // Make gradient cover the ellipse
+                );
+                grad.addColorStop(0, '#fff8dc');    // Lighter center (Cornsilk)
+                grad.addColorStop(0.6, '#ffd700');  // Main Gold
+                grad.addColorStop(0.9, '#daa520');  // Goldenrod edge
+                grad.addColorStop(1, '#b8860b');    // Darker edge (DarkGoldenrod)
+                ctx.fillStyle = grad;
 
-                // Eyes (on head segment i=0)
-                if (i === 0 && size > 10) {
-                    const eyeSize = size * 0.15;
-                    ctx.fillStyle = '#FFFF00'; // Yellow glowing eyes
-                    ctx.beginPath(); ctx.arc(-size * 0.15, -size * 0.1, eyeSize, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(size * 0.15, -size * 0.1, eyeSize, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#000000'; // Pupil
-                    ctx.beginPath(); ctx.arc(-size * 0.15, -size * 0.1, eyeSize * 0.5, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(size * 0.15, -size * 0.1, eyeSize * 0.5, 0, Math.PI * 2); ctx.fill();
-                }
+                ctx.beginPath();
+                ctx.ellipse(0, 0, radiusX, radiusY, 0, 0, Math.PI * 2); // Draw the main ellipse
+                ctx.fill();
+
+                // 3. Draw Highlight (small bright ellipse)
+                const highlightRadiusX = radiusX * 0.4;
+                const highlightRadiusY = radiusY * 0.3;
+                // Position highlight near the 'top' edge relative to the flat spin
+                const highlightOffsetY = -radiusY * 0.4;
+                ctx.fillStyle = 'rgba(255, 255, 220, 0.7)'; // Light yellow, semi-transparent
+                ctx.beginPath();
+                // Draw highlight ellipse - rotation is handled by the main context rotation
+                ctx.ellipse(0, highlightOffsetY, highlightRadiusX, highlightRadiusY, 0, 0, Math.PI * 2);
+                ctx.fill();
 
 
-                ctx.restore();
+                ctx.restore(); // Restore context state for the next particle
+            });
 
-                lastX = x; lastY = y; lastAngle = segmentAngle;
-            }
-            ctx.restore();
-
-
-            // Sacred Fire Bowl (Appears later)
-            const fireStartProgress = 0.4;
-            if (celebrationProgress > fireStartProgress) {
-                const fireProgress = easeOutQuad((celebrationProgress - fireStartProgress) / (1.0 - fireStartProgress));
-                const fireX = centerX;
-                const fireBaseY = canvas.height * 0.9; // Position it lower
-                const bowlHeight = 60 * fireProgress;
-                const bowlWidth = 150 * fireProgress;
-                const fireY = fireBaseY - bowlHeight * 0.3; // Top edge of bowl
-
-                // Stone Bowl
-                ctx.fillStyle = config.stoneDetailColor;
-                ctx.beginPath(); ctx.ellipse(fireX, fireY, bowlWidth / 2, bowlHeight / 2, 0, 0, Math.PI * 2); ctx.fill();
-                // Bowl Rim Highlight
-                ctx.fillStyle = config.stoneColor2;
-                ctx.beginPath(); ctx.ellipse(fireX, fireY, bowlWidth / 2, bowlHeight * 0.15, 0, 0, Math.PI * 2); ctx.fill();
-
-
-                // Animated Flames (More dynamic)
-                const flameBaseHeight = 120 * fireProgress;
-                for (let i = 0; i < 30; i++) { // More particles for denser fire
-                    const particleSeed = i / 30 + elapsedTime / 5000; // Use time for movement seed
-                    const pX = fireX + (Math.sin(particleSeed * 15 + i) * 0.5) * bowlWidth * 0.6; // Horizontal sway
-                    const pMaxHeight = flameBaseHeight * (0.5 + Math.abs(Math.sin(particleSeed * 5 + i))); // Pulsing height
-                    const pCurrentY = fireY - Math.pow(Math.random(), 1.5) * pMaxHeight; // Current Y pos, concentrate near base
-                    const pLife = Math.abs(Math.sin(particleSeed * 7 + i)); // 0 -> 1 -> 0 cycle for alpha/size
-                    const pSize = (2 + Math.random() * 6) * fireProgress * pLife;
-                    const alpha = pLife * (1 - (fireY - pCurrentY) / pMaxHeight) * 0.9; // Fade with height and life
-
-                    if (alpha < 0.05 || pSize < 1) continue;
-
-                    // Flame Color Gradient based on height/life
-                    let color1, color2;
-                    const heat = (fireY - pCurrentY) / pMaxHeight; // 0 near base, 1 at top
-                    if (heat < 0.3) { // Base - Yellow/White hot
-                        color1 = `rgba(255, 255, 200, ${alpha})`; color2 = `rgba(255, 215, 0, ${alpha * 0.8})`;
-                    } else if (heat < 0.7) { // Middle - Orange
-                        color1 = `rgba(255, 180, 0, ${alpha})`; color2 = `rgba(255, 100, 0, ${alpha * 0.7})`;
-                    } else { // Top - Red/Fading
-                        color1 = `rgba(255, 80, 0, ${alpha})`; color2 = `rgba(200, 0, 0, ${alpha * 0.5})`;
-                    }
-
-                    const pGrad = ctx.createRadialGradient(pX, pCurrentY, 0, pX, pCurrentY, pSize);
-                    pGrad.addColorStop(0, color1); pGrad.addColorStop(1, color2);
-                    ctx.fillStyle = pGrad;
-                    ctx.beginPath(); ctx.arc(pX, pCurrentY, pSize, 0, Math.PI * 2); ctx.fill();
-                }
-            }
+            ctx.restore(); // Restore original context state
         }
 
+        ctx.restore(); // Restore context state from the beginning
 
-        // --- Phase 4: Text Display (Starts ~50%, fades fully in by ~75%, stays) ---
-        const textAppearStart = 0.5;
-        const textAppearEnd = 0.75;
-        if (progress > textAppearStart) {
-            const textProgress = easeInOutQuad(Math.min(1, (progress - textAppearStart) / (textAppearEnd - textAppearStart)));
-
-            ctx.save();
-            ctx.globalAlpha = textProgress;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const mainText = "AZTEC GOLD";
-            const maxFontSize = canvas.width / 9; // Adjust as needed
-            const currentFontSize = maxFontSize * textProgress; // Scale up effect
-            const textY = maxFontSize + 100; // Repositioned lower, below jackpot text
-
-            // Use a more thematic, potentially bolder font
-            ctx.font = `bold ${currentFontSize}px "Trajan Pro", "Palatino Linotype", serif`; // Example thematic font
-
-
-            // 4. Gold Inlay / Highlight
-            const goldGrad = ctx.createLinearGradient(0, textY - currentFontSize / 2, 0, textY + currentFontSize / 2);
-            goldGrad.addColorStop(0, config.gold1);
-            goldGrad.addColorStop(0.5, config.gold2);
-            goldGrad.addColorStop(1, config.gold3);
-            ctx.fillStyle = goldGrad;
-            // Create a clipping path for the text to apply the gold only inside
-            ctx.save();
-            ctx.beginPath();
-            // Note: fillText doesn't directly support clipping paths like this easily.
-            // A workaround is to draw the text path and clip, or use stroke with thick line.
-            // Simpler alternative: Draw gold text slightly smaller on top.
-            const goldFontSize = currentFontSize * 0.9;
-            ctx.font = `bold ${goldFontSize}px "Trajan Pro", "Palatino Linotype", serif`;
-            ctx.fillText(mainText, centerX - currentFontSize * 0.01, textY - currentFontSize * 0.01);
-            ctx.restore(); // Restore original font size for outline
-
-
-
-            // Optional: Add "JACKPOT!" text above or below
-            const subText = "JACKPOT!";
-            const subFontSize = maxFontSize * 0.5;
-            ctx.font = `bold ${subFontSize}px "Impact", sans-serif`;
-            const subTextY = 50; // Place above main text
-
-            // Simple gold style for subtext
-            ctx.fillStyle = config.shadowColor;
-            ctx.fillText(subText, centerX + 2, subTextY + 2);
-            ctx.fillStyle = config.gold2;
-            ctx.fillText(subText, centerX, subTextY);
-            ctx.strokeStyle = config.textOutline;
-            ctx.lineWidth = 1;
-            ctx.strokeText(subText, centerX, subTextY);
-
-
-            ctx.restore(); // Restore globalAlpha
-        }
+        // Return true if animation is ongoing, false if finished
+        return progress < 1.0;
     }
 };

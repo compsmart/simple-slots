@@ -104,7 +104,7 @@ let addCreditButton;
 let themeSwitcherElement; // <-- Theme switcher element
 
 // --- Game State Variable ---
-let currentThemeName = "Gemstones"; // Default theme
+let currentThemeName = "Aztec"; // Default theme
 let symbols = []; // Holds the currently loaded symbol objects for the active theme
 
 // --- REMOVED OLD SYMBOLS and REEL_SETS ---
@@ -274,7 +274,7 @@ async function loadThemeVisuals(themeName) {
 
     if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) { // Check for exactly 5 symbols
         console.error(`Theme visuals for "${themeName}" not found, invalid, or doesn't have exactly 5 symbols. Falling back to Classic.`);
-        themeName = "Gemstones"; // Default fallback theme name
+        themeName = "Aztec"; // Default fallback theme name
         themeVisuals = THEMES[themeName];
         if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) {
             console.error("CRITICAL: Fallback theme 'Classic' visuals also invalid or missing 5 symbols!");
@@ -2524,7 +2524,7 @@ async function loadThemeSymbols(themeName) {
 
     if (!themeData || !themeData.symbols) {
         console.error(`Theme "${themeName}" not found or is invalid! Falling back to Classic.`);
-        themeName = "Gemstones"; // Default fallback theme
+        themeName = "Aztec"; // Default fallback theme
         themeData = THEMES[themeName];
         if (!themeData || !themeData.symbols) {
             console.error("CRITICAL: Fallback theme 'Classic' also not found or invalid!");
