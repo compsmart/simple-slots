@@ -104,7 +104,7 @@ let addCreditButton;
 let themeSwitcherElement; // <-- Theme switcher element
 
 // --- Game State Variable ---
-let currentThemeName = "FantasyForest"; // Default theme
+let currentThemeName = "Gemstones"; // Default theme
 let symbols = []; // Holds the currently loaded symbol objects for the active theme
 
 // --- REMOVED OLD SYMBOLS and REEL_SETS ---
@@ -274,7 +274,7 @@ async function loadThemeVisuals(themeName) {
 
     if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) { // Check for exactly 5 symbols
         console.error(`Theme visuals for "${themeName}" not found, invalid, or doesn't have exactly 5 symbols. Falling back to Classic.`);
-        themeName = "FantasyForest"; // Default fallback theme name
+        themeName = "Gemstones"; // Default fallback theme name
         themeVisuals = THEMES[themeName];
         if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) {
             console.error("CRITICAL: Fallback theme 'Classic' visuals also invalid or missing 5 symbols!");
@@ -1524,7 +1524,7 @@ function checkWinAndFinalize() {
         // Add to history display (use info from winInfo or winningLines)
         // Pass the number of winning paylines instead of symbol count
         addToHistory(true, winInfo.bestMatch.symbolName, winInfo.allLines.length, winInfo.totalAmount);        // Check if this is a 5-of-a-kind win and trigger epic animation
-        if (winInfo.allLines.some(line => line.count >= 5)) {
+        if (winInfo.allLines.some(line => line.count >= 7)) {
             triggerEpicWinAnimation(winInfo.totalAmount);
         }
         // Trigger win celebration if significant win
@@ -2207,10 +2207,9 @@ function drawWinLines(timestamp) {
     // Define line colors - cycle through them for multiple winning lines
     const lineColors = ['#ff3366', '#ffcc00', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#00bcd4', '#e91e63'];    // --- Iterate through EACH winning line found ---
     winningLines.forEach((lineData, lineIndex) => {
-        if (!lineData || !lineData.positions || lineData.positions.length < MIN_WIN_LENGTH) return; // Safety check
+        if (!lineData || !lineData.positions || lineData.positions.length < MIN_WIN_LENGTH) return;
 
-        const color = lineColors[lineIndex % lineColors.length]; // Cycle colors per line
-
+        const color = lineColors[lineIndex % lineColors.length]; // Cycle through colors for each line
         // --- Draw the specific line segment connecting winning positions ---
         ctx.strokeStyle = flash ? color : '#ffffff'; // Use assigned color with flash
         ctx.lineWidth = 5;
@@ -2229,7 +2228,7 @@ function drawWinLines(timestamp) {
             }
         }
         ctx.stroke(); // Draw the complete line segment for this winning line
-        ctx.globalAlpha = 1.0; // Reset alpha        // --- Highlight Symbols ON THIS LINE ---
+        ctx.globalAlpha = 1.0; // Reset alpha  
         lineData.positions.forEach(pos => {
             const symbolData = symbols[lineData.symbolIndex]; // Get visual data
             if (!symbolData) return;            // Fix: Use 'reel' and 'row' properties consistent with line drawing
@@ -2256,6 +2255,7 @@ function drawWinLines(timestamp) {
 
             ctx.strokeStyle = highlightColor;
             ctx.lineWidth = highlightLineWidth;
+            //draws the border around winning symbols
             drawRoundedRect(x + highlightInset, y + highlightInset, SYMBOL_SIZE - 2 * highlightInset, SYMBOL_SIZE - 2 * highlightInset, 5, null, highlightColor, highlightLineWidth);
         });
 
@@ -2524,7 +2524,7 @@ async function loadThemeSymbols(themeName) {
 
     if (!themeData || !themeData.symbols) {
         console.error(`Theme "${themeName}" not found or is invalid! Falling back to Classic.`);
-        themeName = "FantasyForest"; // Default fallback theme
+        themeName = "Gemstones"; // Default fallback theme
         themeData = THEMES[themeName];
         if (!themeData || !themeData.symbols) {
             console.error("CRITICAL: Fallback theme 'Classic' also not found or invalid!");
@@ -3251,6 +3251,127 @@ function applyWinEffects(ctx, winningLine, timestamp) {
     // Center the entire reel area
     const startX = (canvas.width - (totalReelWidth + actualSpacing * (REEL_COUNT - 1))) / 2;
     const startY = 100;
+
+    if (effects.rotateEffect?.enabled) {
+        // Initialize timestamp on the line data if it's the first time
+        if (!winningLine.rotateAnimationStartTime) {
+            winningLine.rotateAnimationStartTime = timestamp;
+        }
+
+        const elapsedTime = timestamp - (winningLine.rotateAnimationStartTime || timestamp); // Ensure startTime exists
+        const duration = effects.rotateEffect.duration || 1500;
+        const progress = Math.min(elapsedTime / duration, 1.0); // Ensure progress doesn't exceed 1
+
+        if (elapsedTime <= duration) {
+            const rotations = effects.rotateEffect.rotations || 2;
+            let easedProgress = progress; // Default to linear
+
+            // --- Easing Functions (keep as is) ---
+            if (effects.rotateEffect.easing === 'easeOutElastic') {
+                const c4 = (2 * Math.PI) / 3;
+                easedProgress = progress === 0 ? 0 : progress === 1 ? 1 :
+                    Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * c4) + 1;
+            } else if (effects.rotateEffect.easing === 'easeOutBounce') {
+                const n1 = 7.5625; const d1 = 2.75;
+                if (progress < 1 / d1) { easedProgress = n1 * progress * progress; }
+                else if (progress < 2 / d1) { easedProgress = n1 * (progress -= 1.5 / d1) * progress + 0.75; }
+                else if (progress < 2.5 / d1) { easedProgress = n1 * (progress -= 2.25 / d1) * progress + 0.9375; }
+                else { easedProgress = n1 * (progress -= 2.625 / d1) * progress + 0.984375; }
+            } else if (effects.rotateEffect.easing === 'easeOutQuad') {
+                easedProgress = 1 - (1 - progress) * (1 - progress);
+            } else if (effects.rotateEffect.easing === 'easeOutCubic') {
+                easedProgress = 1 - Math.pow(1 - progress, 3);
+            }
+            // --- End Easing ---
+
+            const directionFactor = effects.rotateEffect.direction === 'counterclockwise' ? -1 : 1;
+            const angle = Math.PI * 2 * rotations * easedProgress * directionFactor;
+
+            positions.forEach(pos => {
+                const symbolX = startX + pos.reel * (reelWidth + actualSpacing);
+                const symbolY = startY + pos.row * SYMBOL_SIZE;
+                const centerX = symbolX + SYMBOL_SIZE / 2;
+                const centerY = symbolY + SYMBOL_SIZE / 2;
+
+                const symbolData = symbols[winningLine.symbolIndex];
+                if (!symbolData) return;
+
+
+                // 2. Apply Rotation and Draw ONLY the Symbol Content (Rotated)
+                ctx.save();
+                ctx.translate(centerX, centerY); // Move origin to symbol center
+                ctx.rotate(angle);              // Rotate
+                ctx.translate(-centerX, -centerY); // Move origin back
+
+                // Draw the symbol content (sprite or image) WITHOUT background fill
+                let drawnFromSprite = false;
+                if (svgLoaded && svgSymbolSheet && symbolData.name && SYMBOL_MAPS[currentThemeName.toLowerCase().replace(/\s+/g, '')]?.[symbolData.name.toLowerCase()]) {
+                    // Use drawSymbol function which draws ONLY the sprite portion
+                    drawnFromSprite = drawSymbol(symbolData.name, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                    if (!drawnFromSprite) {
+                        console.warn(`rotateEffect: drawSymbol failed for ${symbolData.name}`);
+                    }
+                }
+
+                // Fallback if not drawn from sprite (e.g., PNG image)
+                if (!drawnFromSprite) {
+                    if (symbolData.image && symbolData.image.complete && symbolData.image.naturalHeight !== 0) {
+                        // Draw the image directly. Assumes image has transparency if needed.
+                        ctx.drawImage(symbolData.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                    } else {
+                        // Last resort fallback: Draw a character representation (optional)
+                        // This will rotate the character within the static background square
+                        ctx.fillStyle = '#000'; // Contrasting color
+                        ctx.font = 'bold 24px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', centerX, centerY); // Draw at center
+                    }
+                }
+
+                // Optional: Add a highlight effect that also rotates (applied within the rotated context)
+                const highlightProgress = Math.sin(progress * Math.PI); // Example pulse
+                const highlightIntensity = 0.5 + 0.5 * highlightProgress;
+                ctx.strokeStyle = `rgba(255, 255, 180, ${highlightIntensity * 0.8})`; // Yellowish glow
+                ctx.lineWidth = 2 + highlightProgress * 2; // Pulsing width
+                ctx.restore(); // Restore from rotation transformation
+
+            });
+        } else if (progress >= 1.0) { // Check if animation just finished
+            // Reset animation start time once it completes fully
+            // This ensures the symbol snaps back to non-rotated state if drawWinLines stops being called
+            delete winningLine.rotateAnimationStartTime;
+
+            // Explicitly redraw the symbol in its non-rotated state ONE last time
+            // This prevents it getting stuck mid-rotation if win lines disappear
+            positions.forEach(pos => {
+                const symbolX = startX + pos.reel * (reelWidth + actualSpacing);
+                const symbolY = startY + pos.row * SYMBOL_SIZE;
+                const symbolData = symbols[winningLine.symbolIndex];
+                if (!symbolData) return;
+
+                // Draw background
+                ctx.fillStyle = symbolData.backgroundColor || symbolData.color || '#cccccc';
+                ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+
+                // Draw content (non-rotated)
+                let drawnFromSprite = false;
+                if (svgLoaded && svgSymbolSheet && symbolData.name && SYMBOL_MAPS[currentThemeName.toLowerCase().replace(/\s+/g, '')]?.[symbolData.name.toLowerCase()]) {
+                    drawnFromSprite = drawSymbol(symbolData.name, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                }
+                if (!drawnFromSprite) {
+                    if (symbolData.image && symbolData.image.complete && symbolData.image.naturalHeight !== 0) {
+                        ctx.drawImage(symbolData.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                    } else {
+                        ctx.fillStyle = '#000';
+                        ctx.font = 'bold 24px Arial';
+                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', symbolX + SYMBOL_SIZE / 2, symbolY + SYMBOL_SIZE / 2);
+                    }
+                }
+            });
+        }
+    }
 
     // Apply flashing effect to winning symbols
     if (effects.flashingSymbols) {

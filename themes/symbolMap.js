@@ -30,6 +30,14 @@ export const SYMBOL_MAPS = {
         // Define positions for space adventure symbols
     },
 
+    'gemstones': {
+        'diamond': { sx: 600, sy: 260, sw: 220, sh: 220 },
+        'ruby': { sx: 320, sy: 30, sw: 220, sh: 220 },
+        'emerald': { sx: 595, sy: 20, sw: 220, sh: 220 },
+        'sapphire': { sx: 870, sy: 260, sw: 230, sh: 230 },
+        'amethyst': { sx: 1150, sy: 20, sw: 230, sh: 230 },
+    },
+
     'fantasyforest': {
         'dragon head': { sx: 230, sy: 30, sw: 170, sh: 170 },
         'magic potion': { sx: 30, sy: 360, sw: 190, sh: 190 },
