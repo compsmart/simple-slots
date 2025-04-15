@@ -2733,6 +2733,7 @@ function setupThemeSwitcher() {
 
     // Add options for each theme from the imported THEMES object
     Object.keys(THEMES).forEach(themeKey => { // Iterate over keys ("Classic", "AncientEgypt", etc.)
+        console.log(THEMES)
         const theme = THEMES[themeKey];
         const option = document.createElement('option');
         option.value = theme.name; // The value should be the theme name

@@ -46,9 +46,13 @@ export const FantasyForestTheme = {
             size: 12,
             pulseSpeed: 1500,
             intensity: 0.75
-        },
-        backgroundEffects: {
+        }, backgroundEffects: {
             enabled: true,
+            backgroundImage: {
+                enabled: true,
+                path: 'images/fantasyforest/background.jpg',
+                opacity: 1.0
+            },
             particles: {
                 enabled: false,
                 count: 70,
@@ -76,7 +80,7 @@ export const FantasyForestTheme = {
         },
         themeSpecific: {
             floatingLeaves: {
-                enabled: true,
+                enabled: false,
                 count: 15,
                 rotationSpeed: 2,
                 fallSpeed: { min: 1, max: 3 },
@@ -84,7 +88,7 @@ export const FantasyForestTheme = {
             },
             fireflies: {
                 enabled: true,
-                count: 20,
+                count: 25,
                 color: '#ffeb3b',
                 blinkRate: { min: 500, max: 2000 },
                 speed: { min: 0.2, max: 1 }
@@ -139,9 +143,66 @@ export const FantasyForestTheme = {
             multiplier: 1,
             winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 }
         }
-    ],
-    // Renderer for Fantasy Forest theme-specific effects (including triggering epic win)
+    ],    // Renderer for Fantasy Forest theme-specific effects (including triggering epic win)
     renderThemeEffects: (ctx, canvas, timestamp, specific) => {
+        // Draw background image if configured
+        const bgEffects = FantasyForestTheme.visualEffects.backgroundEffects;
+        if (bgEffects?.enabled && bgEffects?.backgroundImage?.enabled) {
+            // Check if we need to load the background image
+            if (!FantasyForestTheme.bgImage) {
+                FantasyForestTheme.bgImage = new Image();
+                FantasyForestTheme.bgImage.src = bgEffects.backgroundImage.path;
+                FantasyForestTheme.bgImageLoaded = false;
+                FantasyForestTheme.bgImage.onload = () => {
+                    FantasyForestTheme.bgImageLoaded = true;
+                };
+            }
+            // Draw the background image if it's loaded
+            if (FantasyForestTheme.bgImageLoaded) {
+                const opacity = bgEffects.backgroundImage.opacity || 1.0;
+
+                // Ensure the image covers the entire canvas while maintaining aspect ratio
+                const imgWidth = FantasyForestTheme.bgImage.width;
+                const imgHeight = FantasyForestTheme.bgImage.height;
+                const canvasRatio = canvas.width / canvas.height;
+                const imgRatio = imgWidth / imgHeight;
+
+                let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+
+                // Calculate dimensions to cover the entire canvas
+                if (canvasRatio > imgRatio) {
+                    // Canvas is wider than image aspect ratio
+                    drawWidth = canvas.width;
+                    drawHeight = canvas.width / imgRatio;
+                    offsetY = (canvas.height - drawHeight) / 2;
+                } else {
+                    // Canvas is taller than image aspect ratio
+                    drawHeight = canvas.height;
+                    drawWidth = canvas.height * imgRatio;
+                    offsetX = (canvas.width - drawWidth) / 2;
+                }
+
+                if (opacity < 1.0) {
+                    // If opacity is less than 1, need to use globalAlpha
+                    ctx.save();
+                    ctx.globalAlpha = opacity;
+                    ctx.drawImage(FantasyForestTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
+                    ctx.restore();
+                } else {
+                    // Full opacity, just draw directly
+                    ctx.drawImage(FantasyForestTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
+                }
+            } else {
+                // Fallback if image isn't loaded yet
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#1a472a'); // Dark forest green
+                gradient.addColorStop(0.5, '#2e7d32'); // Mid forest green
+                gradient.addColorStop(1, '#1b5e20'); // Lighter forest green
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
         // Call the epic win animation renderer if it's supposed to be playing
         // Note: The logic to *start* the epic win animation (setting isPlayingEpicWinAnimation = true,
         // epicWinStartTime = timestamp, and providing the winAmount) should happen elsewhere,
@@ -287,23 +348,23 @@ export const FantasyForestTheme = {
         }
 
         // Add a magical forest glow effect (copied from your original code)
-        const sunbeamEffect = timestamp => { /* ... sunbeam logic ... */
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            for (let i = 0; i < 3; i++) {
-                const x = (canvas.width / 4) * (i + 1);
-                const gradient = ctx.createLinearGradient(x, 0, x, canvas.height);
-                const intensity = Math.sin(timestamp / 5000 + i * Math.PI / 3) * 0.3 + 0.7;
-                const alpha = 0.15 * intensity;
-                gradient.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
-                gradient.addColorStop(0.7, `rgba(255, 255, 150, ${alpha / 2})`);
-                gradient.addColorStop(1, 'rgba(255, 255, 100, 0)');
-                ctx.fillStyle = gradient;
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x - 100 * intensity, canvas.height); ctx.lineTo(x + 100 * intensity, canvas.height); ctx.closePath(); ctx.fill();
-            }
-            ctx.restore();
-        };
-        sunbeamEffect(timestamp);
+        // const sunbeamEffect = timestamp => { /* ... sunbeam logic ... */
+        //     ctx.save();
+        //     ctx.globalCompositeOperation = 'lighter';
+        //     for (let i = 0; i < 3; i++) {
+        //         const x = (canvas.width / 4) * (i + 1);
+        //         const gradient = ctx.createLinearGradient(x, 0, x, canvas.height);
+        //         const intensity = Math.sin(timestamp / 5000 + i * Math.PI / 3) * 0.3 + 0.7;
+        //         const alpha = 0.15 * intensity;
+        //         gradient.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
+        //         gradient.addColorStop(0.7, `rgba(255, 255, 150, ${alpha / 2})`);
+        //         gradient.addColorStop(1, 'rgba(255, 255, 100, 0)');
+        //         ctx.fillStyle = gradient;
+        //         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x - 100 * intensity, canvas.height); ctx.lineTo(x + 100 * intensity, canvas.height); ctx.closePath(); ctx.fill();
+        //     }
+        //     ctx.restore();
+        // };
+        // sunbeamEffect(timestamp);
     },
 
     /**
@@ -337,11 +398,31 @@ export const FantasyForestTheme = {
             });
         }
 
-        ctx.save();
-
-        // Draw background image if loaded, otherwise draw fallback
+        ctx.save();        // Draw background image if loaded, otherwise draw fallback
         if (config._backgroundImage) {
-            ctx.drawImage(config._backgroundImage, 0, 0, canvas.width, canvas.height);
+            // Ensure the image covers the entire canvas while maintaining aspect ratio
+            const imgWidth = config._backgroundImage.width;
+            const imgHeight = config._backgroundImage.height;
+            const canvasRatio = canvas.width / canvas.height;
+            const imgRatio = imgWidth / imgHeight;
+
+            let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+
+            // Calculate dimensions to cover the entire canvas
+            if (canvasRatio > imgRatio) {
+                // Canvas is wider than image aspect ratio
+                drawWidth = canvas.width;
+                drawHeight = canvas.width / imgRatio;
+                offsetY = (canvas.height - drawHeight) / 2;
+            } else {
+                // Canvas is taller than image aspect ratio
+                drawHeight = canvas.height;
+                drawWidth = canvas.height * imgRatio;
+                offsetX = (canvas.width - drawWidth) / 2;
+            }
+
+            // Draw the image to cover the entire canvas
+            ctx.drawImage(config._backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
         } else {
             // Fallback gradient background
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -418,32 +499,28 @@ export const FantasyForestTheme = {
             });
             ctx.shadowColor = 'transparent'; // Reset shadow
             ctx.shadowBlur = 0;
-        }
-
-
-        // --- Title Text ---
+        }        // --- Title Text ---
         const titleText = config.name || "EPIC WIN";
-        const titleBaseSize = Math.min(canvas.width / 10, 70); // Responsive base size
-        const titlePulse = Math.sin(elapsedTime / 300) * (titleBaseSize * 0.08); // Pulsing size
+        const titleBaseSize = Math.min(canvas.width / 7, 100); // Increased base size (was /10, 70)
+        const titlePulse = Math.sin(elapsedTime / 300) * (titleBaseSize * 0.1); // Increased pulse effect
         const titleSize = titleBaseSize + titlePulse;
         const titleY = canvas.height * 0.35;
 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `bold ${titleSize}px 'Papyrus', fantasy, cursive`; // Fantasy font
+        ctx.font = `900 ${titleSize}px 'Papyrus', fantasy, cursive`; // Bolder font weight (900 instead of bold)
 
-        // Glowing effect
-        ctx.shadowColor = '#ffcc00'; // Bright yellow-gold glow
-        ctx.shadowBlur = 20 + Math.sin(elapsedTime / 250) * 10; // Pulsating glow intensity
-
-        // Text gradient fill
+        // Enhanced glowing effect
+        ctx.shadowColor = '#ffdd33'; // Brighter yellow-gold glow
+        ctx.shadowBlur = 30 + Math.sin(elapsedTime / 250) * 15; // Increased glow intensity & variation        // Bright yellow text gradient fill
         const titleGradient = ctx.createLinearGradient(
             canvas.width / 2 - 200, titleY,
             canvas.width / 2 + 200, titleY
         );
-        titleGradient.addColorStop(0, '#ffffcc'); // Pale yellow
-        titleGradient.addColorStop(0.5, '#ffd700'); // Gold
-        titleGradient.addColorStop(1, '#ffec8b'); // Light goldenrod
+        titleGradient.addColorStop(0, '#ffff00'); // Bright yellow
+        titleGradient.addColorStop(0.3, '#ffff33'); // Slightly lighter yellow
+        titleGradient.addColorStop(0.7, '#ffff00'); // Bright yellow again
+        titleGradient.addColorStop(1, '#ffff66'); // Light yellow with a slight hint of gold
         ctx.fillStyle = titleGradient;
 
         // Optional: Gentle rocking motion
@@ -453,7 +530,7 @@ export const FantasyForestTheme = {
         ctx.rotate(titleRock);
         ctx.fillText(titleText, 0, 0);
         // Optional outline for better contrast
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
         ctx.lineWidth = 2;
         ctx.strokeText(titleText, 0, 0);
         ctx.restore(); // Restore rotation/translation
