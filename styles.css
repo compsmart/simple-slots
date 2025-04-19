@@ -1,24 +1,54 @@
+/* Reset basic styles */
 * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
     font-family: 'Arial', sans-serif;
 }
 
-body {
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
     color: white;
-    min-height: 100vh;
-    padding: 20px;
 }
 
+/* Full-screen overlay for portrait mode */
+#rotateOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    font-size: 1.5rem;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+#rotateOverlay.visible {
+    display: flex;
+}
+
+/* Game container takes full viewport */
 .game-container {
-    max-width: 1000px;
-    margin: 0 auto;
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    /* Position from right */
+    align-items: flex-start;
+    /* Position from top */
+    height: 100vh;
+    width: 100vw;
+    margin: 0;
+    padding: 0;
 }
 
 .game-title {
@@ -30,6 +60,10 @@ body {
 }
 
 .theme-switcher-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
     text-align: center;
     margin-bottom: 20px;
 }
@@ -58,31 +92,58 @@ body {
 }
 
 .game-area {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    position: relative;
+    width: 800px;
+    height: 600px;
+    max-width: 100%;
+    max-height: 100vh;
 }
 
 .canvas-container {
     width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
+    height: 100%;
+    position: relative;
 }
 
 #gameCanvas {
-    border: 3px solid #ffcc00;
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
     background-color: #2a2a3a;
-    max-width: 100%;
+}
+
+#uiCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    /* Higher z-index to be on top */
 }
 
 .game-controls {
-    width: 100%;
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
     display: flex;
     justify-content: space-between;
-    margin: 20px 0;
+    align-items: center;
+    z-index: 10;
 }
 
 .balance-section,
@@ -217,6 +278,11 @@ h2 {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .game-container {
+        justify-content: flex-start;
+        /* Full width on mobile */
+    }
+
     .game-info {
         flex-direction: column;
     }
@@ -224,57 +290,81 @@ h2 {
     .game-controls {
         flex-direction: column;
         gap: 15px;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 10px;
+    }
+
+    .balance-section {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+    }
+
+    #spinButton {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+    }
+
+    .game-area {
+        width: 100%;
+        height: 100vh;
+    }
+
+    #gameCanvas {
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    #uiCanvas {
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
     }
 }
 
 /* Styles for the Paytable Information Section */
 .paytable-info {
     padding: 15px 20px;
-    /* Add some spacing around the text */
     margin-bottom: 15px;
-    /* Space between info and table grid */
-    /* background-color: rgba(0, 0, 0, 0.3); */
-    /* Optional subtle background */
-    /* border: 1px solid #ffcc00; */
-    /* Optional border matching UI */
     border-radius: 8px;
-    /* Optional rounded corners */
     color: #eee;
-    /* Light text color for dark backgrounds */
     font-size: 0.95em;
     line-height: 1.5;
 }
 
 .paytable-title {
     color: #ffdd44;
-    /* Brighter gold for the title */
     text-align: center;
     margin-bottom: 15px;
     font-size: 1.4em;
     text-transform: uppercase;
     letter-spacing: 1px;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-    /* Subtle shadow */
 }
 
 .paytable-explanation {
     margin-bottom: 10px;
-    /* Space between paragraphs */
     text-align: left;
-    /* Or 'center' if you prefer */
 }
 
 .paytable-explanation strong {
     color: #ffcc00;
-    /* Highlight key terms in gold */
     font-weight: 600;
-    /* Slightly bolder */
 }
 
 .paytable-note {
     font-size: 0.85em;
     color: #aaa;
-    /* Subdued color for the note */
     text-align: center;
     margin-top: 15px;
 }
@@ -282,16 +372,13 @@ h2 {
 .paytable-separator {
     border: none;
     border-top: 1px solid #ffcc00;
-    /* Gold line separator */
     opacity: 0.6;
     margin: 20px auto 10px auto;
-    /* Center and space */
     width: 80%;
 }
 
 /* Existing Paytable Grid Styles (Ensure they work well with the above) */
 .paytable-header {
-    /* Your existing styles */
     font-weight: bold;
     color: #ffcc00;
     padding-bottom: 8px;
@@ -300,11 +387,8 @@ h2 {
 }
 
 .paytable-row {
-    /* Your existing styles */
     display: grid;
-    /* Consider using grid for alignment */
     grid-template-columns: 2fr 1fr 1fr 1fr;
-    /* Adjust column ratios */
     align-items: center;
     padding: 5px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -316,19 +400,16 @@ h2 {
 
 .paytable-row span {
     text-align: center;
-    /* Center text in grid cells */
 }
 
 .paytable-symbol-cell {
     text-align: left !important;
-    /* Align symbol name left */
     display: flex;
     align-items: center;
 }
 
 .paytable-symbol-img {
     width: 30px;
-    /* Adjust size as needed */
     height: 30px;
     margin-right: 10px;
     vertical-align: middle;
@@ -345,58 +426,40 @@ h2 {
 
 .paytable-grid {
     width: 100%;
-    /* Make table take full width of its container */
     border-collapse: collapse;
-    /* Merge borders */
     margin-top: 15px;
-    /* Space below the info text */
     color: #eee;
-    /* Default text color */
     font-size: 0.9em;
-    /* Adjust base font size */
 }
 
 .paytable-grid th,
 .paytable-grid td {
     border: 1px solid rgba(255, 204, 0, 0.3);
-    /* Subtle gold border */
     padding: 8px 10px;
-    /* Padding inside cells */
     text-align: center;
-    /* Center-align text by default */
     vertical-align: middle;
-    /* Vertically align content */
 }
 
 .paytable-grid th {
     background-color: rgba(255, 204, 0, 0.15);
-    /* Slightly tinted background for header */
     color: #ffdd44;
-    /* Brighter gold for header text */
     font-weight: bold;
     text-transform: uppercase;
-    /* Optional: Uppercase headers */
     font-size: 0.95em;
 }
 
 /* Style specific columns if needed */
 .paytable-grid th:first-child,
-/* Symbol Header */
 .paytable-grid td.paytable-symbol-cell {
-    /* Symbol Data Cell */
     text-align: left;
-    /* Align symbol name left */
     width: 40%;
-    /* Give symbol column more width */
 }
 
 .paytable-grid td.paytable-multiplier-cell {
     font-weight: 600;
-    /* Make multiplier numbers slightly bolder */
     font-size: 1.05em;
 }
 
-/* Keep Symbol image/fallback styles */
 .paytable-symbol-cell {
     display: flex;
     align-items: center;
@@ -407,31 +470,22 @@ h2 {
     height: 30px;
     margin-right: 10px;
     vertical-align: middle;
-    /* Ensure image aligns nicely */
 }
 
 .paytable-fallback-color {
     display: inline-block;
     width: 25px;
-    /* Slightly bigger */
     height: 25px;
     margin-right: 10px;
     border: 1px solid #555;
     vertical-align: middle;
     flex-shrink: 0;
-    /* Prevent shrinking */
 }
 
-
-/* Keep Paytable Info Section Styles */
 .paytable-info {
     padding: 15px 20px;
     margin-bottom: 0;
-    /* Remove bottom margin as table handles spacing */
-    /* background-color: rgba(0, 0, 0, 0.3); */
-    /* border: 1px solid #ffcc00; */
     border-radius: 8px 8px 0 0;
-    /* Round only top corners if desired */
     color: #eee;
     font-size: 0.95em;
     line-height: 1.5;
@@ -463,8 +517,3 @@ h2 {
     text-align: center;
     margin-top: 15px;
 }
-
-/* No separator needed */
-/*
-.paytable-separator { ... }
-*/

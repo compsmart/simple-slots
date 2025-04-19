@@ -42,8 +42,7 @@ const VISIBLE_ROWS = 3; // Should always be 3 for this layout
 const SYMBOLS_ON_STRIP = 30; // How many symbols on the virtual reel strip
 
 // Game state
-let canvas;
-let ctx;
+
 let balance = DEFAULT_BALANCE;
 let betAmount = DEFAULT_BET;
 let spinning = false;
@@ -106,6 +105,12 @@ let increaseBetButton;
 let addCreditButton;
 let themeSwitcherElement; // <-- Theme switcher element
 
+// Canvas elements
+let canvas; // Main game canvas for reels
+let ctx;
+let uiCanvas; // UI canvas for controls
+let uiCtx; // UI canvas context
+
 // --- Game State Variable ---
 let currentThemeName = "Aztec"; // Default theme
 let symbols = []; // Holds the currently loaded symbol objects for the active theme
@@ -134,6 +139,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function getThemeFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('theme');
+}
+
 function initGame() {
     console.log("[DEBUG] initGame - START"); // <-- Log Start
 
@@ -148,7 +158,25 @@ function initGame() {
     if (!ctx) {
         console.error("CRITICAL: Failed to get 2D context from canvas!");
         return; // Stop if no context
-    } console.log("[DEBUG] initGame - Canvas and Context obtained."); balanceElement = document.getElementById('balance');
+    }
+
+    // Initialize UI canvas
+    uiCanvas = document.getElementById('uiCanvas');
+    if (!uiCanvas) {
+        console.error("CRITICAL: UI Canvas element with ID 'uiCanvas' not found!");
+        return; // Stop if no UI canvas
+    }
+    uiCtx = uiCanvas.getContext('2d');
+    if (!uiCtx) {
+        console.error("CRITICAL: Failed to get 2D context from UI canvas!");
+        return; // Stop if no context
+    }
+
+    // Make UI canvas same size as game canvas
+    uiCanvas.width = canvas.width;
+    uiCanvas.height = canvas.height;
+
+    console.log("[DEBUG] initGame - Canvas and Context obtained."); balanceElement = document.getElementById('balance');
     betAmountElement = document.getElementById('betAmount');
     spinButton = document.getElementById('spinButton');
     decreaseBetButton = document.getElementById('decreaseBet');
@@ -157,19 +185,33 @@ function initGame() {
     themeSwitcherElement = document.getElementById('themeSwitcher');
     console.log("[DEBUG] initGame - DOM elements retrieved.");
 
+    // Parse theme from URL
+    const urlTheme = getThemeFromUrl();
+    if (urlTheme && THEMES[urlTheme]) {
+        console.log(`[DEBUG] initGame - Theme parameter found in URL: ${urlTheme}`);
+        currentThemeName = urlTheme; // Set the theme from the URL
+    } else if (urlTheme) {
+        console.warn(`[DEBUG] initGame - Invalid theme parameter in URL: ${urlTheme}. Falling back to default theme.`);
+    }
+
     // Load sound effects
     console.log("[DEBUG] initGame - Loading sounds...");
-    loadSounds(); // Assuming this doesn't block indefinitely
-
-    // Set up event listeners
+    loadSounds(); // Assuming this doesn't block indefinitely    // Set up event listeners
     console.log("[DEBUG] initGame - Setting up event listeners...");
     if (spinButton) spinButton.addEventListener('click', () => { if (!spinning) spinReels(); });
     if (decreaseBetButton) decreaseBetButton.addEventListener('click', decreaseBet);
     if (increaseBetButton) increaseBetButton.addEventListener('click', increaseBet);
     if (addCreditButton) addCreditButton.addEventListener('click', addCredit);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mouseup', handleMouseUp);
+
+    // Game canvas event listeners (for game area interactions)
+    canvas.addEventListener('mousemove', handleGameCanvasMouseMove);
+    canvas.addEventListener('mousedown', handleGameCanvasMouseDown);
+    canvas.addEventListener('mouseup', handleGameCanvasMouseUp);
+
+    // UI canvas event listeners (for UI element interactions)
+    uiCanvas.addEventListener('mousemove', handleUIMouseMove);
+    uiCanvas.addEventListener('mousedown', handleUIMouseDown);
+    uiCanvas.addEventListener('mouseup', handleUIMouseUp);
 
     // Set up the theme switcher UI
     console.log("[DEBUG] initGame - Setting up theme switcher...");
@@ -653,23 +695,21 @@ function initReels() {
 // --- Main Game Loop ---
 // Update drawGame to include epic win animation rendering
 function drawGame(timestamp) {
-    if (!ctx) return; // Ensure context is available
+    if (!ctx || !uiCtx) return; // Ensure both contexts are available
 
     // Calculate delta time for smooth animations
     if (!lastTime) lastTime = timestamp;
     const deltaTime = (timestamp - lastTime) / 1000.0; // Delta time in seconds
     lastTime = timestamp;
 
-    // Throttle updates if delta time is too large (e.g., tabbed out)
-    // const maxDeltaTime = 0.1; // 100ms max step
-    // const clampedDeltaTime = Math.min(deltaTime, maxDeltaTime);
-    // Use clampedDeltaTime for physics/animation updates if needed
+    // Clear both canvases
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height); drawBackground(timestamp); // Draw static or animated background
+    // Draw game elements on the main canvas
+    drawBackground(timestamp); // Draw static or animated background
     drawReels(deltaTime, timestamp); // Update and draw reels, passing timestamp for effects
     drawReelMask(); // Draw mask/overlay over reels if needed
-
-    drawUIElements(); // Draw balance, bet, buttons
 
     if (!spinning && winningLines.length > 0) {
         drawWinLines(timestamp); // Draw winning line highlights
@@ -683,11 +723,17 @@ function drawGame(timestamp) {
         drawWinCelebration(deltaTime); // Draw confetti etc.
     }
 
+    // Draw UI elements on the separate UI canvas
+    drawUIElements(); // Draw balance, bet, buttons
+
+    // Draw modals and sidebar on UI canvas
     drawPaytableModal(); // Draw Pay Table modal if active
     drawHistoryModal(); // Draw History modal if active
+    drawSidebar(); // Ensure the sidebar is drawn last so it appears on top of other UI elements
 
     // Draw epic win animation if active - now at the very end to ensure it's on top of everything
     if (isPlayingEpicWinAnimation) {
+        // Draw on both canvases for full effect
         drawEpicWinAnimation(timestamp - epicWinStartTime, deltaTime);
     }
 
@@ -1712,150 +1758,185 @@ function checkWin() {
 
 
 // --- UI Drawing and Interaction ---
-// ... (drawUIElements, drawText, drawRoundedRect functions remain the same) ...
-// ... (handleMouseMove, handleMouseDown, handleMouseUp, getMousePos, isMouseOver functions remain the same) ...
-function drawUIElements() {
-    const padding = 15; // Padding inside the boxes
+// Add a new burger menu button and sidebar to the canvas
+let showSidebar = false; // Track sidebar visibility
 
-    // Draw Balance Display
-    const balanceX = 50;
-    const balanceY = canvas.height - 80;
-    const balanceWidth = 200;
-    const balanceHeight = 50;
-
-    drawRoundedRect(balanceX, balanceY, balanceWidth, balanceHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2);
-    // Label aligned left
-    drawText('BALANCE:', balanceX + padding, balanceY + balanceHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle');
-    // Amount aligned right
-    drawText(balance.toLocaleString(), balanceX + balanceWidth - padding, balanceY + balanceHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle');
-
-    // Draw Theme Test Button
-    drawThemeTestButton();
-
-    // Draw Buttons for Paylines, Pay Table, and History
-    const btnHeight = 40;
-    const btnSpacing = 10;
-    const btnY = 20;
-
-    // Paylines Button
-    const paylinesBtnWidth = 130;
-    const paylinesBtnX = canvas.width - paylinesBtnWidth - 10;
-    const paylinesBtnColor = showPaylines ? '#ff9900' : '#ffcc00';
-
-    drawRoundedRect(paylinesBtnX, btnY, paylinesBtnWidth, btnHeight, 8, 'rgba(0, 0, 0, 0.6)', paylinesBtnColor, 2);
-    drawText('SHOW PAYLINES', paylinesBtnX + paylinesBtnWidth / 2, btnY + btnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
-
-    // Pay Table Button
-    const paytableBtnWidth = 110;
-    const paytableBtnX = paylinesBtnX - paytableBtnWidth - btnSpacing;
-    const paytableBtnColor = showPaytable ? '#ff9900' : '#ffcc00';
-
-    drawRoundedRect(paytableBtnX, btnY, paytableBtnWidth, btnHeight, 8, 'rgba(0, 0, 0, 0.6)', paytableBtnColor, 2);
-    drawText('PAY TABLE', paytableBtnX + paytableBtnWidth / 2, btnY + btnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
-
-    // History Button
-    const historyBtnWidth = 90;
-    const historyBtnX = paytableBtnX - historyBtnWidth - btnSpacing;
-    const historyBtnColor = showHistory ? '#ff9900' : '#ffcc00';
-
-    drawRoundedRect(historyBtnX, btnY, historyBtnWidth, btnHeight, 8, 'rgba(0, 0, 0, 0.6)', historyBtnColor, 2);
-    drawText('HISTORY', historyBtnX + historyBtnWidth / 2, btnY + btnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
-
-    // Draw Mute Button
+function drawBurgerMenu() {
+    // Use the exact same dimensions and positioning as the mute button for consistency
     const muteBtnSize = 40;
     const muteBtnX = 20;
     const muteBtnY = 20;
-    const muteBtnColor = muteState ? '#ff3366' : '#ffcc00';
-    const muteBtnStroke = '#ffffff';
 
-    drawRoundedRect(muteBtnX, muteBtnY, muteBtnSize, muteBtnSize, 8, 'rgba(0, 0, 0, 0.6)', muteBtnColor, 2);
+    // Position burger button at the same distance from top and side, but on the right
+    const burgerBtnSize = muteBtnSize;  // Same size as mute button
+    const burgerBtnX = uiCanvas.width - burgerBtnSize - 20;  // Same 20px distance from edge
+    const burgerBtnY = muteBtnY;  // Same distance from top
 
-    // Draw sound icon or muted icon based on state
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
+    // Draw the burger menu button
+    drawRoundedRect(burgerBtnX, burgerBtnY, burgerBtnSize, burgerBtnSize, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2, uiCtx);
 
-    if (muteState) {
-        // Draw muted speaker icon
-        // Speaker base
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(muteBtnX + 10, muteBtnY + 17, 6, 6);
-        // Speaker cone outline
-        ctx.moveTo(muteBtnX + 16, muteBtnY + 17);
-        ctx.lineTo(muteBtnX + 22, muteBtnY + 12);
-        ctx.lineTo(muteBtnX + 22, muteBtnY + 28);
-        ctx.lineTo(muteBtnX + 16, muteBtnY + 23);
-        ctx.closePath();
-        ctx.fill();
-
-        // X over the speaker
-        ctx.beginPath();
-        ctx.moveTo(muteBtnX + 26, muteBtnY + 14);
-        ctx.lineTo(muteBtnX + 32, muteBtnY + 26);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(muteBtnX + 26, muteBtnY + 26);
-        ctx.lineTo(muteBtnX + 32, muteBtnY + 14);
-        ctx.stroke();
-    } else {
-        // Draw unmuted speaker icon
-        // Speaker base
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(muteBtnX + 10, muteBtnY + 17, 6, 6);
-        // Speaker cone outline
-        ctx.moveTo(muteBtnX + 16, muteBtnY + 17);
-        ctx.lineTo(muteBtnX + 22, muteBtnY + 12);
-        ctx.lineTo(muteBtnX + 22, muteBtnY + 28);
-        ctx.lineTo(muteBtnX + 16, muteBtnY + 23);
-        ctx.closePath();
-        ctx.fill();
-
-        // Sound waves
-        ctx.beginPath();
-        ctx.arc(muteBtnX + 22, muteBtnY + 20, 5, -Math.PI / 3, Math.PI / 3);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(muteBtnX + 22, muteBtnY + 20, 9, -Math.PI / 3, Math.PI / 3);
-        ctx.stroke();
+    // Draw burger icon (three horizontal lines)
+    uiCtx.fillStyle = '#ffffff';
+    const lineHeight = 4;
+    const lineSpacing = 4;
+    for (let i = 0; i < 3; i++) {
+        const lineY = burgerBtnY + 10 + i * (lineHeight + lineSpacing);
+        uiCtx.fillRect(burgerBtnX + 10, lineY, 20, lineHeight);
     }
+}
 
-    // Draw Bet Display and Buttons
-    const betWidth = 150;
-    const betHeight = 50;
-    const betX = canvas.width / 2 - betWidth / 2;
-    const betY = canvas.height - 80;
-    const adjustBtnSize = 40;
-    const decreaseBtnX = betX - adjustBtnSize - 10;
-    const increaseBtnX = betX + betWidth + 10;
-    const adjustBtnY = betY + (betHeight - adjustBtnSize) / 2;
+function drawSidebar() {
+    if (!showSidebar) return;
 
-    // Bet Amount Box
-    drawRoundedRect(betX, betY, betWidth, betHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2);
-    drawText('BET:', betX + padding, betY + betHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle');
-    drawText(betAmount.toString(), betX + betWidth - padding, betY + betHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle');
+    const sidebarWidth = 300;
+    const sidebarX = uiCanvas.width - sidebarWidth;
+    const sidebarY = 0;
+    const sidebarHeight = uiCanvas.height;
 
-    // Decrease Bet Button (-) - Only draw if not spinning
+    // Draw sidebar background
+    drawRoundedRect(sidebarX, sidebarY, sidebarWidth, sidebarHeight, 0, 'rgba(0, 0, 0, 0.9)', '#ffcc00', 2, uiCtx);
+
+    // Draw sidebar title
+    drawText('MENU', sidebarX + sidebarWidth / 2, 30, 'bold 24px Arial', '#ffcc00', 'center', 'middle', uiCtx);
+
+    // Draw divider line
+    uiCtx.strokeStyle = '#ffcc00';
+    uiCtx.lineWidth = 2;
+    uiCtx.beginPath();
+    uiCtx.moveTo(sidebarX + 20, 50);
+    uiCtx.lineTo(sidebarX + sidebarWidth - 20, 50);
+    uiCtx.stroke();// Define menu items without spin and bet controls
+    const menuItems = [
+        // Game information controls
+        { text: 'HISTORY', action: () => { showHistory = true; showPaytable = false; } },
+        { text: 'PAY TABLE', action: () => { showPaytable = true; showHistory = false; } },
+        { text: 'SHOW PAYLINES', action: () => { showPaylines = !showPaylines; }, toggle: true, getState: () => showPaylines },
+
+        // Settings
+        { text: 'ADD CREDIT', action: addCredit },
+        { text: 'RTP CHECK', action: () => { window.open('test.html', '_blank'); } },
+        { text: 'GAME MENU', action: () => { window.open('themes.html'); } },
+        { text: 'TEST EPIC', action: () => { triggerEpicWinAnimation(winAmount) } },
+    ];
+
+    const itemHeight = 50;
+    const itemSpacing = 10;
+    const startY = 70; // Start lower to account for the title
+
+    // Draw current bet and balance at the top of sidebar
+    const balanceY = startY;
+    drawText('BALANCE:', sidebarX + 20, balanceY, 'bold 16px Arial', '#ffcc00', 'left', 'middle', uiCtx);
+    drawText(balance.toLocaleString(), sidebarX + sidebarWidth - 20, balanceY, 'bold 18px Arial', '#ffffff', 'right', 'middle', uiCtx);
+
+    const betY = balanceY + 30;
+    drawText('BET:', sidebarX + 20, betY, 'bold 16px Arial', '#ffcc00', 'left', 'middle', uiCtx);
+    drawText(betAmount.toLocaleString(), sidebarX + sidebarWidth - 20, betY, 'bold 18px Arial', '#ffffff', 'right', 'middle', uiCtx);    // Draw divider line
+    uiCtx.strokeStyle = '#ffcc00';
+    uiCtx.lineWidth = 1;
+    uiCtx.beginPath();
+    uiCtx.moveTo(sidebarX + 20, betY + 25);
+    uiCtx.lineTo(sidebarX + sidebarWidth - 20, betY + 25);
+    uiCtx.stroke();
+
+    const menuStartY = betY + 50; // Start menu items after balance and bet display
+
+    menuItems.forEach((item, index) => {
+        const itemY = menuStartY + index * (itemHeight + itemSpacing);
+
+        // Skip if beyond canvas height
+        if (itemY + itemHeight > uiCanvas.height - 20) return;
+
+        // Set button colors based on state
+        let itemColor = 'rgba(255, 255, 255, 0.1)';
+        let textColor = '#ffffff';
+
+        if (item.disabled) {
+            // Disabled state
+            itemColor = 'rgba(100, 100, 100, 0.2)';
+            textColor = '#888888';
+        } else if (item.highlight) {
+            // Highlight for important actions like SPIN
+            itemColor = 'rgba(255, 51, 102, 0.7)';
+            textColor = '#ffffff';
+        } else if (item.toggle && item.getState()) {
+            // Toggle state
+            itemColor = 'rgba(255, 204, 0, 0.3)';
+            textColor = '#ffcc00';
+        }
+
+        // Draw menu item background
+        drawRoundedRect(sidebarX + 10, itemY, sidebarWidth - 20, itemHeight, 8, itemColor, '#ffcc00', 2, uiCtx);
+
+        // Draw menu item text
+        drawText(item.text, sidebarX + sidebarWidth / 2, itemY + itemHeight / 2, 'bold 18px Arial', textColor, 'center', 'middle', uiCtx);
+    });
+}
+
+function drawUIElements() {
+    // Draw all UI elements on the UI canvas instead of main canvas
+
+    // First draw the burger menu button (always visible)
+    drawBurgerMenu();
+
+    // Only draw essential game UI elements since history, paytable, and paylines are now in the sidebar
+    const padding = 15; // Padding inside the boxes    // Define common UI dimensions
+    const uiWidth = 200; // Common width for both balance and bet displays
+    const uiHeight = 50;
+    const uiX = 50;
+    const balanceY = uiCanvas.height - 80;
+    const betY = balanceY - uiHeight - 10; // Position bet above balance with 10px margin
+
+    // Draw Balance Display - Draw on uiCtx
+    drawRoundedRect(uiX, balanceY, uiWidth, uiHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2, uiCtx);
+    drawText('BALANCE:', uiX + padding, balanceY + uiHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle', uiCtx);
+    // IMPORTANT: Get balance from the global variable, not a potentially outdated DOM element textContent
+    drawText(balance.toLocaleString(), uiX + uiWidth - padding, balanceY + uiHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle', uiCtx);
+
+    // Draw Bet Display with internal buttons - Draw on uiCtx
+    const betWidth = uiWidth;
+    const betHeight = uiHeight;
+    const betX = uiX; // Same X position as balance
+    // betY is already defined above
+
+    // Calculate button sizes to fit inside the container
+    const adjustBtnSize = 25; // Smaller buttons
+    const textWidth = 80; // Space for "BET:" text and the bet amount
+
+    // Draw Bet Container
+    drawRoundedRect(betX, betY, betWidth, betHeight, 8, 'rgba(0, 0, 0, 0.6)', '#ffcc00', 2, uiCtx);
+    // Draw "BET:" text at left
+    drawText('BET:', betX + padding, betY + betHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle', uiCtx);
+    // IMPORTANT: Get bet amount from the global variable
+    drawText(betAmount.toString(), betX + betWidth - padding, betY + betHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle', uiCtx);
+
+    // Position decrease button in the middle
+    const decreaseBtnX = betX + textWidth;
+    const adjustBtnY = betY + (uiHeight - adjustBtnSize) / 2;
+
+    // Position increase button next to decrease button
+    const increaseBtnX = decreaseBtnX + adjustBtnSize + 5;
+
+    // Decrease Bet Button (-) - Only draw clickable if not spinning
     const decColor = buttonEffects.bet.decreaseActive ? '#cc9900' : '#ffcc00';
     const decFill = spinning ? '#555555' : decColor; // Grey out if spinning
     const decStroke = spinning ? '#888888' : '#ffffff';
-    drawRoundedRect(decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, decFill, decStroke, 2);
-    drawText('-', decreaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 30px Arial', spinning ? '#aaaaaa' : '#1a1a2e', 'center', 'middle');
+    drawRoundedRect(decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, decFill, decStroke, 2, uiCtx);
+    drawText('-', decreaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 20px Arial', spinning ? '#aaaaaa' : '#1a1a2e', 'center', 'middle', uiCtx);
 
-    // Increase Bet Button (+) - Only draw if not spinning
+    // Increase Bet Button (+) - Only draw clickable if not spinning
     const incColor = buttonEffects.bet.increaseActive ? '#cc9900' : '#ffcc00';
     const incFill = spinning ? '#555555' : incColor; // Grey out if spinning
     const incStroke = spinning ? '#888888' : '#ffffff';
-    drawRoundedRect(increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, incFill, incStroke, 2);
-    drawText('+', increaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 30px Arial', spinning ? '#aaaaaa' : '#1a1a2e', 'center', 'middle');
+    drawRoundedRect(increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, incFill, incStroke, 2, uiCtx);
+    drawText('+', increaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 20px Arial', spinning ? '#aaaaaa' : '#1a1a2e', 'center', 'middle', uiCtx);
 
-
-    // Draw Spin Button
+    // Draw Spin Button - Draw on uiCtx
     const spinBtnWidth = 120;
     const spinBtnHeight = 50;
-    const spinBtnX = canvas.width - spinBtnWidth - 50; // Positioned from right edge
-    const spinBtnY = canvas.height - 80;
+    const spinBtnX = uiCanvas.width - spinBtnWidth - 50; // Positioned from right edge
+    const spinBtnY = uiCanvas.height - 80;
 
-    // Apply scale effect (subtle hover)
+    // Apply scale effect (subtle hover) - Ensure this targets uiCtx
     const targetScale = buttonEffects.spin.active && !spinning ? 1.05 : 1.0; // Only hover if not spinning
     buttonEffects.spin.scale += (targetScale - buttonEffects.spin.scale) * 0.2; // Smooth transition
 
@@ -1873,33 +1954,83 @@ function drawUIElements() {
     } else if (buttonEffects.spin.active) {
         // Hover look (slightly brighter/different)
         btnGradientColors = ['#ff5588', '#ff2255'];
-    }
-    else {
+    } else {
         // Default look
         btnGradientColors = ['#ff3366', '#ff0033'];
     }
 
-    const btnGradient = ctx.createLinearGradient(0, spinBtnY, 0, spinBtnY + spinBtnHeight);
+    // Create gradient on uiCtx
+    const btnGradient = uiCtx.createLinearGradient(0, spinBtnY, 0, spinBtnY + spinBtnHeight);
     btnGradient.addColorStop(0, btnGradientColors[0]);
     btnGradient.addColorStop(1, btnGradientColors[1]);
 
-    ctx.save();
-    // Translate for scaling and pressing, centered on the button
-    ctx.translate(spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2);
-    ctx.scale(buttonEffects.spin.scale, buttonEffects.spin.scale);
-    ctx.translate(-(spinBtnX + spinBtnWidth / 2), -(spinBtnY + spinBtnHeight / 2 + buttonShiftY)); // Apply shift *after* scaling rotation point
+    // Save/restore state on uiCtx for transformations
+    uiCtx.save();
+    uiCtx.translate(spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2);
+    uiCtx.scale(buttonEffects.spin.scale, buttonEffects.spin.scale);
+    uiCtx.translate(-(spinBtnX + spinBtnWidth / 2), -(spinBtnY + spinBtnHeight / 2 + buttonShiftY));
 
-    // Draw the button shape
     const spinStrokeColor = spinning ? '#888888' : '#ffffff';
-    drawRoundedRect(spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight, 10, btnGradient, spinStrokeColor, 2);
+    drawRoundedRect(spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight, 10, btnGradient, spinStrokeColor, 2, uiCtx);
 
-    // Draw text (adjust position slightly because of translation if needed, though center align helps)
     const spinTextColor = spinning ? '#aaaaaa' : '#ffffff';
-    drawText('SPIN', spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2 + 1, 'bold 24px Arial', spinTextColor, 'center', 'middle');
+    drawText('SPIN', spinBtnX + spinBtnWidth / 2, spinBtnY + spinBtnHeight / 2 + 1, 'bold 24px Arial', spinTextColor, 'center', 'middle', uiCtx);
 
-    ctx.restore();
+    uiCtx.restore();
+
+    // Draw Mute Button - Draw on uiCtx
+    const muteBtnSize = 40;
+    const muteBtnX = 20;
+    const muteBtnY = 20;
+    const muteBtnColor = muteState ? '#ff3366' : '#ffcc00';
+    const muteBtnStroke = '#ffffff';
+
+    drawRoundedRect(muteBtnX, muteBtnY, muteBtnSize, muteBtnSize, 8, 'rgba(0, 0, 0, 0.6)', muteBtnColor, 2, uiCtx);
+
+    // Draw sound icon or muted icon based on state on uiCtx
+    uiCtx.strokeStyle = '#ffffff';
+    uiCtx.lineWidth = 2;
+    uiCtx.beginPath();
+
+    if (muteState) {
+        // Draw muted speaker icon on uiCtx
+        uiCtx.fillStyle = '#ffffff';
+        uiCtx.fillRect(muteBtnX + 10, muteBtnY + 17, 6, 6);
+        uiCtx.moveTo(muteBtnX + 16, muteBtnY + 17);
+        uiCtx.lineTo(muteBtnX + 22, muteBtnY + 12);
+        uiCtx.lineTo(muteBtnX + 22, muteBtnY + 28);
+        uiCtx.lineTo(muteBtnX + 16, muteBtnY + 23);
+        uiCtx.closePath();
+        uiCtx.fill();
+        uiCtx.beginPath();
+        uiCtx.moveTo(muteBtnX + 26, muteBtnY + 14);
+        uiCtx.lineTo(muteBtnX + 32, muteBtnY + 26);
+        uiCtx.stroke();
+        uiCtx.beginPath();
+        uiCtx.moveTo(muteBtnX + 26, muteBtnY + 26);
+        uiCtx.lineTo(muteBtnX + 32, muteBtnY + 14);
+        uiCtx.stroke();
+    } else {
+        // Draw unmuted speaker icon on uiCtx
+        uiCtx.fillStyle = '#ffffff';
+        uiCtx.fillRect(muteBtnX + 10, muteBtnY + 17, 6, 6);
+        uiCtx.moveTo(muteBtnX + 16, muteBtnY + 17);
+        uiCtx.lineTo(muteBtnX + 22, muteBtnY + 12);
+        uiCtx.lineTo(muteBtnX + 22, muteBtnY + 28);
+        uiCtx.lineTo(muteBtnX + 16, muteBtnY + 23);
+        uiCtx.closePath();
+        uiCtx.fill();
+        uiCtx.beginPath();
+        uiCtx.arc(muteBtnX + 22, muteBtnY + 20, 5, -Math.PI / 3, Math.PI / 3);
+        uiCtx.stroke();
+        uiCtx.beginPath();
+        uiCtx.arc(muteBtnX + 22, muteBtnY + 20, 9, -Math.PI / 3, Math.PI / 3);
+        uiCtx.stroke();
+    }
+
+    // Draw the sidebar LAST so it appears on top of all other UI elements
+    drawSidebar();
 }
-
 // Draw the theme test button
 function drawThemeTestButton() {
     // Get mute button position for reference
@@ -1914,60 +2045,88 @@ function drawThemeTestButton() {
     const testBtnY = muteBtnY; // Same Y position as mute button
 
     // Draw the button
-    drawRoundedRect(testBtnX, testBtnY, testBtnWidth, testBtnHeight, 8, 'rgba(255, 51, 102, 0.8)', '#ffffff', 2);
-    drawText('TEST EPIC WIN', testBtnX + testBtnWidth / 2, testBtnY + testBtnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
+    //drawRoundedRect(testBtnX, testBtnY, testBtnWidth, testBtnHeight, 8, 'rgba(255, 51, 102, 0.8)', '#ffffff', 2);
+    //drawText('TEST EPIC WIN', testBtnX + testBtnWidth / 2, testBtnY + testBtnHeight / 2, 'bold 14px Arial', '#FFFFFF', 'center', 'middle');
 }
 
-function drawText(text, x, y, font, color, align = 'left', baseline = 'top') {
-    ctx.fillStyle = color;
-    ctx.font = font;
-    ctx.textAlign = align;
-    ctx.textBaseline = baseline;
-    ctx.fillText(text, x, y);
+function drawText(text, x, y, font, color, align = 'left', baseline = 'top', context = ctx) {
+    context.fillStyle = color;
+    context.font = font;
+    context.textAlign = align;
+    context.textBaseline = baseline;
+    context.fillText(text, x, y);
 }
 
-function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle, lineWidth) {
-    ctx.beginPath();
+function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle, lineWidth, context = ctx) {
+    context.beginPath();
     // Ensure radius is not too large for the rectangle dimensions
     const maxRadius = Math.min(width / 2, height / 2);
     const actualRadius = Math.min(radius, maxRadius);
 
-    if (ctx.roundRect) {
+    if (context.roundRect) {
         // Use native roundRect if available
-        ctx.roundRect(x, y, width, height, actualRadius);
+        context.roundRect(x, y, width, height, actualRadius);
     } else {
         // Fallback for older browsers
-        ctx.moveTo(x + actualRadius, y);
-        ctx.lineTo(x + width - actualRadius, y);
-        ctx.quadraticCurveTo(x + width, y, x + width, y + actualRadius);
-        ctx.lineTo(x + width, y + height - actualRadius);
-        ctx.quadraticCurveTo(x + width, y + height, x + width - actualRadius, y + height);
-        ctx.lineTo(x + actualRadius, y + height);
-        ctx.quadraticCurveTo(x, y + height, x, y + height - actualRadius);
-        ctx.lineTo(x, y + actualRadius);
-        ctx.quadraticCurveTo(x, y, x + actualRadius, y);
+        context.moveTo(x + actualRadius, y);
+        context.lineTo(x + width - actualRadius, y);
+        context.quadraticCurveTo(x + width, y, x + width, y + actualRadius);
+        context.lineTo(x + width, y + height - actualRadius);
+        context.quadraticCurveTo(x + width, y + height, x + width - actualRadius, y + height);
+        context.lineTo(x + actualRadius, y + height);
+        context.quadraticCurveTo(x, y + height, x, y + height - actualRadius);
+        context.lineTo(x, y + actualRadius);
+        context.quadraticCurveTo(x, y, x + actualRadius, y);
     }
-    ctx.closePath();
+    context.closePath();
 
     if (fillStyle) {
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
+        context.fillStyle = fillStyle;
+        context.fill();
     }
     if (strokeStyle && lineWidth > 0) {
-        ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = lineWidth;
-        ctx.stroke();
+        context.strokeStyle = strokeStyle;
+        context.lineWidth = lineWidth;
+        context.stroke();
     }
 }
 
-function handleMouseMove(e) {
-    if (spinning) { // Don't update hover effects while spinning
+// Separate mouse event handlers for Game Canvas and UI Canvas
+function handleGameCanvasMouseMove(e) {
+    // Only handle game-specific hover effects (not UI)
+    const { mouseX, mouseY } = getMousePos(e, canvas);
+
+    // Add any game-specific hover interactions here
+    // For now this function is mostly empty since most interactions were UI-related
+}
+
+function handleGameCanvasMouseDown(e) {
+    const { mouseX, mouseY } = getMousePos(e, canvas);
+
+    // Handle game-specific interactions
+    // For example, if clicking on a reel symbol or game area feature
+
+    // IMPORTANT: Check for modal interactions on the main canvas
+    if (showPaytable || showHistory) {
+        handleModalInteractions(mouseX, mouseY);
+        return;
+    }
+}
+
+function handleGameCanvasMouseUp(e) {
+    // Game-specific mouse up handling
+}
+
+function handleUIMouseMove(e) {
+    if (spinning) {
+        // Don't update hover effects while spinning
         buttonEffects.spin.active = false;
         buttonEffects.bet.decreaseActive = false;
         buttonEffects.bet.increaseActive = false;
         return;
     }
-    const { mouseX, mouseY } = getMousePos(e);
+
+    const { mouseX, mouseY } = getMousePos(e, uiCanvas);
 
     // Check Mute Button
     const muteBtnSize = 40;
@@ -1978,195 +2137,246 @@ function handleMouseMove(e) {
     // Check Spin Button
     const spinBtnWidth = 120;
     const spinBtnHeight = 50;
-    const spinBtnX = canvas.width - spinBtnWidth - 50;
-    const spinBtnY = canvas.height - 80;
+    const spinBtnX = uiCanvas.width - spinBtnWidth - 50;
+    const spinBtnY = uiCanvas.height - 80;
     buttonEffects.spin.active = isMouseOver(mouseX, mouseY, spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight);
 
     // Check Bet Buttons
-    const betWidth = 150;
-    const betX = canvas.width / 2 - betWidth / 2;
-    const betY = canvas.height - 80;
-    const adjustBtnSize = 40;
-    const betHeight = 50;
-    const decreaseBtnX = betX - adjustBtnSize - 10;
-    const increaseBtnX = betX + betWidth + 10;
-    const adjustBtnY = betY + (betHeight - adjustBtnSize) / 2;
+    const uiWidth = 200;
+    const uiHeight = 50;
+    const uiX = 50;
+    const balanceY = uiCanvas.height - 80;
+    const betY = balanceY - uiHeight - 10;
+    const betX = uiX;
+    const betWidth = uiWidth;
+    const adjustBtnSize = 25;
+    const textWidth = 80;
+
+    // New positions for decrease/increase buttons
+    const decreaseBtnX = betX + textWidth;
+    const adjustBtnY = betY + (uiHeight - adjustBtnSize) / 2;
+    const increaseBtnX = decreaseBtnX + adjustBtnSize + 5;
+
     buttonEffects.bet.decreaseActive = isMouseOver(mouseX, mouseY, decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize);
     buttonEffects.bet.increaseActive = isMouseOver(mouseX, mouseY, increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize);
 }
+function handleUIMouseDown(e) {
+    // Get mouse position relative to the UI canvas
+    const { mouseX, mouseY } = getMousePos(e, uiCanvas);
 
-// Handle all interactions when a modal is displayed
-function handleModalInteractions(mouseX, mouseY) {
-    // Modal dimensions
-    const modalWidth = 800;
-    const modalHeight = 600; // Updated height
-    const modalX = canvas.width / 2 - modalWidth / 2;
-    const modalY = canvas.height / 2 - modalHeight / 2;
+    // Define dimensions for interactive elements - USING EXACT SAME VALUES AS drawUIElements
 
-    // Modal close button dimensions
-    const closeBtnSize = 40;
-    const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
-    const closeBtnY = modalY + 10;
+    // UI Element dimensions (must match drawUIElements exactly)
+    const padding = 15;
+    const uiWidth = 200;
+    const uiHeight = 50;
+    const uiX = 50;
+    const balanceY = uiCanvas.height - 80;
+    const betY = balanceY - uiHeight - 10;
+    const betX = uiX;
+    const betWidth = uiWidth;
 
-    // Check if close button was clicked
-    if (isMouseOver(mouseX, mouseY, closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)) {
-        playSound('click');
-        showPaytable = false;
-        showHistory = false;
-        return;
-    }
+    // Button dimensions
+    const adjustBtnSize = 25;
+    const textWidth = 80;
+    const decreaseBtnX = betX + textWidth;
+    const adjustBtnY = betY + (uiHeight - adjustBtnSize) / 2;
+    const increaseBtnX = decreaseBtnX + adjustBtnSize + 5;
 
-    // Handle history pagination if history modal is shown
-    if (showHistory) {
-        // Pagination button dimensions
-        const pageBtnWidth = 80;
-        const pageBtnHeight = 40;
-        const pageBtnY = canvas.height - 80;
-        const prevBtnX = canvas.width / 2 - pageBtnWidth - 20;
-        const nextBtnX = canvas.width / 2 + 20;
+    // Spin button dimensions
+    const spinBtnWidth = 120;
+    const spinBtnHeight = 50;
+    const spinBtnX = uiCanvas.width - spinBtnWidth - 50;
+    const spinBtnY = uiCanvas.height - 80;
 
-        // Calculate total pages
-        const totalPages = Math.ceil(spinHistory.length / RESULTS_PER_PAGE);
-
-        // Check Previous button click
-        if (historyCurrentPage > 0 && isMouseOver(mouseX, mouseY, prevBtnX, pageBtnY, pageBtnWidth, pageBtnHeight)) {
-            playSound('click');
-            historyCurrentPage--;
-            return;
-        }
-
-        // Check Next button click
-        if (historyCurrentPage < totalPages - 1 && isMouseOver(mouseX, mouseY, nextBtnX, pageBtnY, pageBtnWidth, pageBtnHeight)) {
-            playSound('click');
-            historyCurrentPage++;
-            return;
-        }
-    }
-}
-
-function handleMouseDown(e) {
-    const { mouseX, mouseY } = getMousePos(e);
-
-    // If a modal is open, only handle modal-specific interactions
-    if (showPaytable || showHistory) {
-        handleModalInteractions(mouseX, mouseY);
-        return;
-    }
-
-    // Check Mute Button Click
+    // Mute button dimensions
     const muteBtnSize = 40;
     const muteBtnX = 20;
     const muteBtnY = 20;
+
+    // Burger menu dimensions
+    const burgerBtnSize = muteBtnSize;
+    const burgerBtnX = uiCanvas.width - burgerBtnSize - 20;
+    const burgerBtnY = muteBtnY;
+
+    // Modal dimensions (for sidebar, payTable, history, etc)
+    const modalWidth = 800;
+    const modalHeight = 600;
+    const modalX = canvas.width / 2 - modalWidth / 2;
+    const modalY = canvas.height / 2 - modalHeight / 2;
+    const closeBtnSize = 40;
+    const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
+    const closeBtnY = modalY + 10;
+    const sidebarWidth = 300;
+    const sidebarX = uiCanvas.width - sidebarWidth;
+    const sidebarY = 0;
+
+    // --- 1. Check for clicks on Modals first (drawn on top) ---
+    if (showPaytable || showHistory) {
+        // Check modal close button
+        if (isMouseOver(mouseX, mouseY, closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)) {
+            playSound('click'); // Play click sound for close button
+            showPaytable = false;
+            showHistory = false;
+            return; // Handled click, stop processing
+        }
+
+        // Check if click is anywhere inside the modal background
+        if (isMouseOver(mouseX, mouseY, modalX, modalY, modalWidth, modalHeight)) {
+            // Handle history pagination buttons if history modal is showing
+            if (showHistory) {
+                const historyModalContentX = modalX + 30;
+                const historyModalCurrentY = modalY + modalHeight - 100; // Pagination Y position
+                const pageBtnWidth = 80;
+                const pageBtnHeight = 30;
+                const prevBtnX = historyModalContentX + 250;
+                const nextBtnX = historyModalContentX + 450;
+                const pageBtnY = historyModalCurrentY - 5; // Y pos adjusted from text baseline
+
+                const totalEntries = gameHistory.length;
+                const entriesPerPage = 10;
+                const totalPages = Math.ceil(totalEntries / entriesPerPage);
+
+                // Check Previous button
+                if (historyCurrentPage > 0 && isMouseOver(mouseX, mouseY, prevBtnX, pageBtnY, pageBtnWidth, pageBtnHeight)) {
+                    playSound('click');
+                    historyCurrentPage--;
+                    return; // Handled
+                }
+                // Check Next button
+                if (historyCurrentPage < totalPages - 1 && isMouseOver(mouseX, mouseY, nextBtnX, pageBtnY, pageBtnWidth, pageBtnHeight)) {
+                    playSound('click');
+                    historyCurrentPage++;
+                    return; // Handled
+                }
+            }
+            return; // Prevents clicking elements behind the modal
+        }
+    }
+
+    // --- 2. Check for clicks on the Burger Menu button ---
+    if (isMouseOver(mouseX, mouseY, burgerBtnX, burgerBtnY, burgerBtnSize, burgerBtnSize)) {
+        playSound('click');
+        showSidebar = !showSidebar; // Toggle sidebar visibility
+        return;
+    }
+
+    // --- 3. Check for clicks on Sidebar (if shown) ---
+    if (showSidebar) {
+        // Check sidebar menu items
+        const itemHeight = 50;
+        const itemSpacing = 10;
+        const balanceY = 70; // Start position in sidebar
+        const betY = balanceY + 30;
+        const menuStartY = betY + 50; // Start menu items after balance and bet display
+
+        const menuItems = [
+            { text: 'HISTORY', action: () => { showHistory = true; showPaytable = false; showSidebar = false; } },
+            { text: 'PAY TABLE', action: () => { showPaytable = true; showHistory = false; showSidebar = false; } },
+            { text: 'SHOW PAYLINES', action: () => { showPaylines = !showPaylines; } },
+            { text: 'ADD CREDIT', action: addCredit },
+            { text: 'RTP CHECK', action: () => { window.open('test.html', '_blank'); } },
+            { text: 'GAME MENU', action: () => { window.open('themes.html'); } },
+            { text: 'TEST EPIC', action: () => { triggerEpicWinAnimation(winAmount) } },
+        ];
+
+        for (let i = 0; i < menuItems.length; i++) {
+            const itemY = menuStartY + i * (itemHeight + itemSpacing);
+            if (itemY + itemHeight > uiCanvas.height - 20) continue; // Skip if beyond canvas height
+
+            if (isMouseOver(mouseX, mouseY, sidebarX + 10, itemY, sidebarWidth - 20, itemHeight)) {
+                playSound('click');
+                menuItems[i].action();
+                return;
+            }
+        }
+
+        // Check if click is anywhere inside the sidebar background (if not on an item)
+        if (isMouseOver(mouseX, mouseY, sidebarX, sidebarY, sidebarWidth, uiCanvas.height)) {
+            return; // Handled click (kept sidebar open), stop processing
+        }
+
+        // If clicked outside the sidebar area WHILE it is open, close it
+        showSidebar = false;
+        playSound('click');
+        return;
+    }
+
+    // --- 4. Check for clicks on Main UI Buttons ---
+
+    // Check Mute Button Click
     if (isMouseOver(mouseX, mouseY, muteBtnX, muteBtnY, muteBtnSize, muteBtnSize)) {
         playSound('click');
         toggleMute();
         return;
     }
 
-    // Button measurements for all top buttons
-    const btnHeight = 40;
-    const btnY = 20;
-    const btnSpacing = 10;
-
-    // Check Paylines Button Click
-    const paylinesBtnWidth = 130;
-    const paylinesBtnX = canvas.width - paylinesBtnWidth - 10;
-    if (isMouseOver(mouseX, mouseY, paylinesBtnX, btnY, paylinesBtnWidth, btnHeight)) {
-        playSound('click');
-        showPaylines = !showPaylines; // Toggle paylines visibility
-        return;
-    }
-
-    // Check Pay Table Button Click
-    const paytableBtnWidth = 110;
-    const paytableBtnX = paylinesBtnX - paytableBtnWidth - btnSpacing;
-    if (isMouseOver(mouseX, mouseY, paytableBtnX, btnY, paytableBtnWidth, btnHeight)) {
-        playSound('click');
-        showPaytable = true;
-        showHistory = false; // Close other modal if open
-        return;
-    }
-
-    // Check History Button Click
-    const historyBtnWidth = 90;
-    const historyBtnX = paytableBtnX - historyBtnWidth - btnSpacing;
-    if (isMouseOver(mouseX, mouseY, historyBtnX, btnY, historyBtnWidth, btnHeight)) {
-        playSound('click');
-        showHistory = true;
-        showPaytable = false; // Close other modal if open
-        return;
-    }
-
     // Check Spin Button Click
+    if (isMouseOver(mouseX, mouseY, spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight)) {
+        if (!spinning && balance >= betAmount) {
+            buttonEffects.spin.pressed = true;
+            playSound('click');
+            setTimeout(() => {
+                if (!spinning) spinReels();
+            }, 100);
+        }
+        return;
+    }
+
+    // Check Bet Buttons
+    if (!spinning) {
+        // Decrease Bet Button
+        if (isMouseOver(mouseX, mouseY, decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize)) {
+            playSound('click');
+            decreaseBet();
+            return;
+        }
+
+        // Increase Bet Button
+        if (isMouseOver(mouseX, mouseY, increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize)) {
+            playSound('click');
+            increaseBet();
+            return;
+        }
+    }
+}
+
+function handleUIMouseUp(e) {
+    // Reset pressed state for the spin button when mouse is released, *if* not spinning
+    // Check if the mouse is *still* over the button when releasing, to keep hover active.
+    const { mouseX, mouseY } = getMousePos(e, uiCanvas);
     const spinBtnWidth = 120;
     const spinBtnHeight = 50;
-    const spinBtnX = canvas.width - spinBtnWidth - 50;
-    const spinBtnY = canvas.height - 80;
-    if (isMouseOver(mouseX, mouseY, spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight)) {
-        buttonEffects.spin.pressed = true;
-        playSound('click');
-        // Trigger spin slightly delayed to show press, then reset press state visually
-        setTimeout(() => {
-            spinReels();
-            // No need to reset pressed here, spinReels start handles it
-        }, 100); // Short delay to see the press
-    }
+    const spinBtnX = uiCanvas.width - spinBtnWidth - 50;
+    const spinBtnY = uiCanvas.height - 80;
 
-    // Check Bet Buttons Click
-    const betWidth = 150;
-    const betX = canvas.width / 2 - betWidth / 2;
-    const betY = canvas.height - 80;
-    const adjustBtnSize = 40;
-    const betHeight = 50;
-    const decreaseBtnX = betX - adjustBtnSize - 10;
-    const increaseBtnX = betX + betWidth + 10;
-    const adjustBtnY = betY + (betHeight - adjustBtnSize) / 2;
-
-    if (isMouseOver(mouseX, mouseY, decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize)) {
-        playSound('click');
-        decreaseBet();
-        // Visual feedback is handled by hover state change + maybe draw state change if needed
-    } else if (isMouseOver(mouseX, mouseY, increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize)) {
-        playSound('click');
-        increaseBet();
-        // Visual feedback handled by hover state
-    }    // Check Theme Test Button Click
-    const testBtnWidth = 120;
-    const testBtnHeight = 40;
-
-    // Position test button to the right of the mute button with same spacing
-    const testBtnX = muteBtnX + muteBtnSize + 10; // 10px spacing between buttons
-    const testBtnY = muteBtnY; // Same Y position as mute button
-
-    if (isMouseOver(mouseX, mouseY, testBtnX, testBtnY, testBtnWidth, testBtnHeight)) {
-        playSound('click');
-        triggerEpicWinAnimation(winAmount);
-    }
-}
-
-function handleMouseUp(e) {
-    // Reset pressed state for the spin button when mouse is released, *if* not spinning
     if (buttonEffects.spin.pressed && !spinning) {
-        buttonEffects.spin.pressed = false;
-        // Check if the mouse is still over the button to maintain active state
-        handleMouseMove(e);
+        buttonEffects.spin.pressed = false; // Always release the pressed state
+        // If mouse is still over, trigger mousemove logic to re-activate hover
+        if (isMouseOver(mouseX, mouseY, spinBtnX, spinBtnY, spinBtnWidth, spinBtnHeight)) {
+            buttonEffects.spin.active = true;
+        } else {
+            buttonEffects.spin.active = false;
+        }
     }
-}
-
-function getMousePos(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    return {
-        mouseX: (e.clientX - rect.left) * scaleX,
-        mouseY: (e.clientY - rect.top) * scaleY
-    };
+    // Bet buttons don't have a persistent pressed state managed like spin
 }
 
 function isMouseOver(mouseX, mouseY, x, y, width, height) {
     return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
 }
 
+// Helper function to get mouse position relative to a specific canvas
+function getMousePos(e, targetCanvas) {
+    const rect = targetCanvas.getBoundingClientRect();
+    // Calculate scaling if the canvas CSS size is different from its drawing buffer size (width/height attributes)
+    const scaleX = targetCanvas.width / rect.width;
+    const scaleY = targetCanvas.height / rect.height;
+    return {
+        mouseX: (e.clientX - rect.left) * scaleX,
+        mouseY: (e.clientY - rect.top) * scaleY
+    };
+}
 
 // --- Win Line Drawing ---
 function drawWinLines(timestamp) {
@@ -2610,127 +2820,274 @@ function populatePaytable() {
 function drawPaytableModal() {
     if (!showPaytable) return;
 
-    // Draw semi-transparent overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw semi-transparent overlay on uiCtx
+    uiCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    uiCtx.fillRect(0, 0, uiCanvas.width, uiCanvas.height); // Use uiCanvas dimensions
 
-    // Draw modal content container
+    // Draw modal content container on uiCtx
     const modalWidth = 800;
     const modalHeight = 600;
-    const modalX = canvas.width / 2 - modalWidth / 2;
-    const modalY = canvas.height / 2 - modalHeight / 2;
+    const modalX = uiCanvas.width / 2 - modalWidth / 2; // Use uiCanvas width
+    const modalY = uiCanvas.height / 2 - modalHeight / 2; // Use uiCanvas height
 
-    // Draw modal background
+    // Draw modal background on uiCtx
     drawRoundedRect(modalX, modalY, modalWidth, modalHeight, 15,
-        'rgba(40, 40, 60, 0.95)', '#ffcc00', 3);
+        'rgba(40, 40, 60, 0.95)', '#ffcc00', 3, uiCtx); // Pass uiCtx
 
-    // Draw title
-    drawText('PAY TABLE', canvas.width / 2, modalY + 40, 'bold 28px Arial', '#ffffff', 'center', 'middle');
+    // Draw title on uiCtx
+    drawText('PAY TABLE', uiCanvas.width / 2, modalY + 40, 'bold 28px Arial', '#ffffff', 'center', 'middle', uiCtx); // Pass uiCtx
 
-    // Draw close button
+    // Draw close button on uiCtx
     const closeBtnSize = 40;
     const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
     const closeBtnY = modalY + 10;
-    drawRoundedRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize, 8, '#ff3366', '#ffffff', 2);
+    drawRoundedRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize, 8, '#ff3366', '#ffffff', 2, uiCtx); // Pass uiCtx
 
-    // Draw X
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(closeBtnX + 12, closeBtnY + 12);
-    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + closeBtnSize - 12);
-    ctx.moveTo(closeBtnX + 12, closeBtnY + closeBtnSize - 12);
-    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + 12);
-    ctx.stroke();
+    // Draw X on uiCtx
+    uiCtx.strokeStyle = '#ffffff';
+    uiCtx.lineWidth = 3;
+    uiCtx.beginPath();
+    uiCtx.moveTo(closeBtnX + 12, closeBtnY + 12);
+    uiCtx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + closeBtnSize - 12);
+    uiCtx.moveTo(closeBtnX + 12, closeBtnY + closeBtnSize - 12);
+    uiCtx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + 12);
+    uiCtx.stroke();
 
-    // Draw pay table content
+    // Draw pay table content on uiCtx
     const contentX = modalX + 50;
     const contentY = modalY + 80;
     const symbolWidth = 60;
     const rowHeight = 70;
-    const colWidth = 200;    // Use the loaded symbols array from the global scope instead of trying to read from THEMES
-    // The global 'symbols' array already contains the loaded images and other properties
+    const colWidth = 200;
 
-    // Draw columns headers
-    drawText('Symbol', contentX + symbolWidth / 2, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');
-    drawText('3 of a kind', contentX + colWidth, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');
-    drawText('4 of a kind', contentX + colWidth * 2, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');
-    drawText('5 of a kind', contentX + colWidth * 3, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle');    // Draw divider line
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(contentX, contentY + 20);
-    ctx.lineTo(contentX + colWidth * 3.5, contentY + 20);
-    ctx.stroke();
+    // Draw columns headers on uiCtx
+    drawText('Symbol', contentX + symbolWidth / 2, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle', uiCtx); // Pass uiCtx
+    drawText('3 of a kind', contentX + colWidth, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle', uiCtx); // Pass uiCtx
+    drawText('4 of a kind', contentX + colWidth * 2, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle', uiCtx); // Pass uiCtx
+    drawText('5 of a kind', contentX + colWidth * 3, contentY, 'bold 18px Arial', '#ffcc00', 'center', 'middle', uiCtx); // Pass uiCtx
 
-    // Draw symbols and payouts - increase vertical offset from header for better spacing
-    let currentY = contentY + 60; // Increased from 40 to 60 to add more space after header
-    // First draw info about paylines
-    drawText('Active Paylines: ' + PAYLINES.length, contentX, modalY + modalHeight - 60, 'bold 18px Arial', '#ffffff', 'left', 'middle');
-    // Calculate bet per line (total bet divided by number of paylines)
+    // Draw divider line on uiCtx
+    uiCtx.strokeStyle = '#ffcc00';
+    uiCtx.lineWidth = 2;
+    uiCtx.beginPath();
+    uiCtx.moveTo(contentX, contentY + 20);
+    uiCtx.lineTo(contentX + colWidth * 3.5, contentY + 20);
+    uiCtx.stroke();
+
+    // Draw symbols and payouts on uiCtx
+    let currentY = contentY + 60;
+    // Draw info about paylines on uiCtx
+    drawText('Active Paylines: ' + PAYLINES.length, contentX, modalY + modalHeight - 60, 'bold 18px Arial', '#ffffff', 'left', 'middle', uiCtx); // Pass uiCtx
     const betPerLine = PAYLINES.length > 0 ? (betAmount / PAYLINES.length).toFixed(2) : betAmount;
-    drawText('Bet per Line: ' + betPerLine, contentX, modalY + modalHeight - 30, 'bold 18px Arial', '#ffffff', 'left', 'middle');
+    drawText('Bet per Line: ' + betPerLine, contentX, modalY + modalHeight - 30, 'bold 18px Arial', '#ffffff', 'left', 'middle', uiCtx); // Pass uiCtx
 
-    // Draw payline illustrations in a grid at the bottom
-    const paylineGridX = contentX + colWidth * 2;
-    const paylineGridY = modalY + modalHeight - 100;
-    drawText('Paylines:', paylineGridX, paylineGridY, 'bold 18px Arial', '#ffffff', 'left', 'middle');
 
-    // Draw each symbol and its payouts
     if (symbols.length > 0) {
         for (let i = 0; i < symbols.length; i++) {
             const symbol = symbols[i];
-            if (i >= 8) break; // Maximum 8 symbols to display            // Draw symbol - first try sprite sheet, then fallback to individual image
+            if (i >= 8) break;
+
+            // Draw symbol - ensure drawSymbol uses the correct context (uiCtx here)
             let symbolDrawn = false;
 
             // First try to draw from sprite sheet if loaded
             if (svgLoaded && symbol.name) {
-                // Draw background for transparent symbols
-                ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
-                ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                // Draw background for transparent symbols on uiCtx
+                uiCtx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                uiCtx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
 
-                // Try to draw from SVG sprite map
-                symbolDrawn = drawSymbol(symbol.name, ctx, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                // Try to draw from SVG sprite map using uiCtx
+                symbolDrawn = drawSymbol(symbol.name, uiCtx, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
             }
 
             // If sprite drawing failed, fall back to individual image
             if (!symbolDrawn) {
+                // Check if image is loaded and valid
                 if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) {
-                    // If using separate PNG with transparency, first draw background
+                    // If using separate PNG with transparency, first draw background on uiCtx
                     if (symbol.imagePath) {
-                        ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
-                        ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                        uiCtx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                        uiCtx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
                     }
-                    ctx.drawImage(symbol.image, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                    // Draw the image on uiCtx
+                    uiCtx.drawImage(symbol.image, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
                 } else {
-                    // Placeholder if no image available
-                    ctx.fillStyle = symbol.backgroundColor || symbol.color || '#888888';
-                    ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '16px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', contentX, currentY);
+                    // Placeholder if no image available on uiCtx
+                    uiCtx.fillStyle = symbol.backgroundColor || symbol.color || '#888888';
+                    uiCtx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                    uiCtx.fillStyle = '#ffffff';
+                    uiCtx.font = '16px Arial';
+                    uiCtx.textAlign = 'center';
+                    uiCtx.textBaseline = 'middle';
+                    uiCtx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', contentX, currentY);
                 }
             }
-            // Draw payouts (3, 4, 5 of a kind) - Fixed to use symbolNumberMultipliers and PAYOUT_RULES
-            // Find the symbol index in the current theme
-            const symbolIndex = i; // Symbol index matches the loop counter
-            const baseMultiplier = symbolNumberMultipliers[symbolIndex] || 0;
 
-            // Calculate final multipliers for 3, 4, and 5 matches
+            // Draw payouts on uiCtx (3, 4, 5 of a kind)
+            const symbolIndex = i;
+            const baseMultiplier = symbolNumberMultipliers[symbolIndex] || 0;
             const multiplier3 = baseMultiplier * (PAYOUT_RULES[3] || 0);
             const multiplier4 = baseMultiplier * (PAYOUT_RULES[4] || 0);
             const multiplier5 = baseMultiplier * (PAYOUT_RULES[5] || 0);
 
-            // Display the calculated multiplier values
-            drawText(multiplier3 + 'x', contentX + colWidth, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle');
-            drawText(multiplier4 + 'x', contentX + colWidth * 2, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle');
-            drawText(multiplier5 + 'x', contentX + colWidth * 3, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle');
+            drawText(multiplier3 + 'x', contentX + colWidth, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle', uiCtx); // Pass uiCtx
+            drawText(multiplier4 + 'x', contentX + colWidth * 2, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle', uiCtx); // Pass uiCtx
+            drawText(multiplier5 + 'x', contentX + colWidth * 3, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle', uiCtx); // Pass uiCtx
 
             currentY += rowHeight;
         }
     }
+}
+
+// --- History Modal Drawing (Ensure these draw on uiCtx) ---
+function drawHistoryModal() {
+    if (!showHistory) return;
+
+    // Draw semi-transparent overlay on uiCtx
+    uiCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    uiCtx.fillRect(0, 0, uiCanvas.width, uiCanvas.height);
+
+    // Draw modal content container on uiCtx
+    const modalWidth = 800;
+    const modalHeight = 600;
+    const modalX = uiCanvas.width / 2 - modalWidth / 2;
+    const modalY = uiCanvas.height / 2 - modalHeight / 2;
+
+    // Draw modal background on uiCtx
+    drawRoundedRect(modalX, modalY, modalWidth, modalHeight, 15,
+        'rgba(40, 40, 60, 0.95)', '#ffcc00', 3, uiCtx); // Pass uiCtx
+
+    // Draw title on uiCtx
+    drawText('GAME HISTORY', uiCanvas.width / 2, modalY + 40, 'bold 28px Arial', '#ffffff', 'center', 'middle', uiCtx); // Pass uiCtx
+
+    // Draw close button on uiCtx
+    const closeBtnSize = 40;
+    const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
+    const closeBtnY = modalY + 10;
+    drawRoundedRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize, 8, '#ff3366', '#ffffff', 2, uiCtx); // Pass uiCtx
+
+    // Draw X on uiCtx
+    uiCtx.strokeStyle = '#ffffff';
+    uiCtx.lineWidth = 3;
+    uiCtx.beginPath();
+    uiCtx.moveTo(closeBtnX + 12, closeBtnY + 12);
+    uiCtx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + closeBtnSize - 12);
+    uiCtx.moveTo(closeBtnX + 12, closeBtnY + closeBtnSize - 12);
+    uiCtx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + 12);
+    uiCtx.stroke();
+
+    // Draw history table header on uiCtx
+    const contentX = modalX + 30;
+    const contentY = modalY + 80;
+    const rowHeight = 40;
+
+    uiCtx.font = 'bold 16px Arial';
+    uiCtx.fillStyle = '#ffcc00';
+    uiCtx.textAlign = 'left';
+    uiCtx.fillText('Time', contentX, contentY);
+    uiCtx.fillText('Bet', contentX + 150, contentY);
+    uiCtx.fillText('Win', contentX + 250, contentY);
+    uiCtx.fillText('Paylines Hit', contentX + 350, contentY);
+    uiCtx.fillText('Return %', contentX + 500, contentY);
+
+    // Draw divider line on uiCtx
+    uiCtx.strokeStyle = '#ffcc00';
+    uiCtx.lineWidth = 2;
+    uiCtx.beginPath();
+    uiCtx.moveTo(contentX, contentY + 10);
+    uiCtx.lineTo(contentX + 700, contentY + 10);
+    uiCtx.stroke();
+
+    // Draw history entries on uiCtx
+    let currentY = contentY + 40;
+
+    if (gameHistory.length === 0) {
+        drawText('No game history available', contentX + modalWidth / 2 - 100, currentY + 50, '20px Arial', '#ffffff', 'left', 'middle', uiCtx);
+    } else {
+        const entriesPerPage = 10;
+        const startIndex = historyCurrentPage * entriesPerPage;
+        const endIndex = Math.min(startIndex + entriesPerPage, gameHistory.length);
+        const totalPages = Math.ceil(gameHistory.length / entriesPerPage);
+
+        for (let i = startIndex; i < endIndex; i++) {
+            const entry = gameHistory[i];
+            const winPercentage = entry.totalBet > 0 ? Math.round((entry.winAmount / entry.totalBet) * 100) : 0;
+            const color = entry.winAmount > 0 ? '#4caf50' : '#ffffff';
+
+            uiCtx.font = '16px Arial';
+            uiCtx.fillStyle = '#ffffff';
+            uiCtx.textAlign = 'left';
+
+            // Convert stored timestamp to readable date
+            // Assuming entry.timestamp is already a formatted string like "HH:MM:SS"
+            uiCtx.fillText(entry.timestamp, contentX, currentY);
+            uiCtx.fillText(entry.totalBet, contentX + 150, currentY);
+
+            // Use green text for wins
+            uiCtx.fillStyle = color;
+            uiCtx.fillText(Math.round(entry.winAmount), contentX + 250, currentY);
+            uiCtx.fillText(entry.winningLines || 0, contentX + 350, currentY); // Use winningLines count
+            uiCtx.fillText(winPercentage + '%', contentX + 500, currentY);
+
+            currentY += rowHeight;
+        }
+
+        // Draw pagination controls on uiCtx
+        currentY = modalY + modalHeight - 100;
+
+        // Page indicator on uiCtx
+        uiCtx.font = '16px Arial';
+        uiCtx.fillStyle = '#ffffff';
+        uiCtx.textAlign = 'center';
+        uiCtx.fillText(`Page ${historyCurrentPage + 1} of ${totalPages}`, contentX + 350, currentY);
+
+        // Previous page button on uiCtx
+        const prevBtnX = contentX + 250;
+        const nextBtnX = contentX + 450;
+        const pageBtnY = currentY - 5; // Adjust Y slightly to align with text
+
+        // Only draw Previous button if not on first page
+        if (historyCurrentPage > 0) {
+            uiCtx.fillStyle = '#444444';
+            uiCtx.fillRect(prevBtnX, pageBtnY, 80, 30); // Use explicit width/height
+            uiCtx.strokeStyle = '#888888';
+            uiCtx.lineWidth = 2;
+            uiCtx.strokeRect(prevBtnX, pageBtnY, 80, 30);
+
+            uiCtx.fillStyle = '#ffffff';
+            uiCtx.textAlign = 'center';
+            drawText('< Prev', prevBtnX + 80 / 2, pageBtnY + 30 / 2 + 6, '16px Arial', '#ffffff', 'center', 'middle', uiCtx); // Use drawText
+        }
+
+        // Only draw Next button if not on last page
+        if (historyCurrentPage < totalPages - 1) {
+            uiCtx.fillStyle = '#444444';
+            uiCtx.fillRect(nextBtnX, pageBtnY, 80, 30);
+            uiCtx.strokeStyle = '#888888';
+            uiCtx.lineWidth = 2;
+            uiCtx.strokeRect(nextBtnX, pageBtnY, 80, 30);
+
+            uiCtx.fillStyle = '#ffffff';
+            uiCtx.textAlign = 'center';
+            drawText('Next >', nextBtnX + 80 / 2, pageBtnY + 30 / 2 + 6, '16px Arial', '#ffffff', 'center', 'middle', uiCtx); // Use drawText
+        }
+    }
+
+    // Draw stats at the bottom on uiCtx
+    let totalBet = 0;
+    let totalWin = 0;
+    gameHistory.forEach(entry => {
+        totalBet += entry.totalBet;
+        totalWin += entry.winAmount;
+    });
+
+    const overallReturn = totalBet > 0 ? (totalWin / totalBet) * 100 : 0;
+
+    uiCtx.font = 'bold 18px Arial';
+    uiCtx.fillStyle = '#ffffff';
+    uiCtx.textAlign = 'left';
+    uiCtx.fillText(`Session Summary: Spins: ${gameHistory.length}`, contentX, modalY + modalHeight - 60);
+    uiCtx.fillText(`Total Bet: ${totalBet}  Total Win: ${totalWin}  Return: ${overallReturn.toFixed(2)}%`, contentX, modalY + modalHeight - 30);
 }
 
 // Define a simple data structure to store game history
@@ -2755,153 +3112,6 @@ function addSpinToHistory(result) {
     if (gameHistory.length > MAX_HISTORY_ENTRIES) {
         gameHistory.pop();
     }
-}
-
-// Draw the History modal
-function drawHistoryModal() {
-    if (!showHistory) return;
-
-    // Draw semi-transparent overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw modal content container
-    const modalWidth = 800;
-    const modalHeight = 600;
-    const modalX = canvas.width / 2 - modalWidth / 2;
-    const modalY = canvas.height / 2 - modalHeight / 2;
-
-    // Draw modal background
-    drawRoundedRect(modalX, modalY, modalWidth, modalHeight, 15,
-        'rgba(40, 40, 60, 0.95)', '#ffcc00', 3);
-
-    // Draw title
-    drawText('GAME HISTORY', canvas.width / 2, modalY + 40, 'bold 28px Arial', '#ffffff', 'center', 'middle');
-
-    // Draw close button
-    const closeBtnSize = 40;
-    const closeBtnX = modalX + modalWidth - closeBtnSize - 10;
-    const closeBtnY = modalY + 10;
-    drawRoundedRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize, 8, '#ff3366', '#ffffff', 2);
-
-    // Draw X
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(closeBtnX + 12, closeBtnY + 12);
-    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + closeBtnSize - 12);
-    ctx.moveTo(closeBtnX + 12, closeBtnY + closeBtnSize - 12);
-    ctx.lineTo(closeBtnX + closeBtnSize - 12, closeBtnY + 12);
-    ctx.stroke();
-
-    // Draw history table header
-    const contentX = modalX + 30;
-    const contentY = modalY + 80;
-    const rowHeight = 40;
-
-    ctx.font = 'bold 16px Arial';
-    ctx.fillStyle = '#ffcc00';
-    ctx.textAlign = 'left';
-    ctx.fillText('Time', contentX, contentY);
-    ctx.fillText('Bet', contentX + 150, contentY);
-    ctx.fillText('Win', contentX + 250, contentY);
-    ctx.fillText('Paylines Hit', contentX + 350, contentY);
-    ctx.fillText('Return %', contentX + 500, contentY);
-
-    // Draw divider line
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(contentX, contentY + 10);
-    ctx.lineTo(contentX + 700, contentY + 10);
-    ctx.stroke();    // Draw history entries
-    let currentY = contentY + 40;
-
-    if (gameHistory.length === 0) {
-        drawText('No game history available', contentX + modalWidth / 2 - 100, currentY + 50, '20px Arial', '#ffffff', 'left', 'middle');
-    } else {
-        const entriesPerPage = 10;
-        const startIndex = historyCurrentPage * entriesPerPage;
-        const endIndex = Math.min(startIndex + entriesPerPage, gameHistory.length);
-        const totalPages = Math.ceil(gameHistory.length / entriesPerPage);
-
-        for (let i = startIndex; i < endIndex; i++) {
-            const entry = gameHistory[i];
-            const winPercentage = entry.totalBet > 0 ? Math.round((entry.winAmount / entry.totalBet) * 100) : 0;
-            const color = entry.winAmount > 0 ? '#4caf50' : '#ffffff';
-
-            ctx.font = '16px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'left';            // Convert stored timestamp to readable date - fixing the invalid date issue
-            const date = new Date(parseInt(entry.time));
-            ctx.fillText(entry.timestamp || date.toLocaleTimeString(), contentX, currentY);
-            ctx.fillText(entry.totalBet, contentX + 150, currentY);            // Use green text for wins
-            ctx.fillStyle = color;
-            ctx.fillText(Math.round(entry.winAmount), contentX + 250, currentY);
-            ctx.fillText(entry.count || 0, contentX + 350, currentY);
-            ctx.fillText(winPercentage + '%', contentX + 500, currentY);
-
-            currentY += rowHeight;
-        }
-
-        // Draw pagination controls
-        currentY = modalY + modalHeight - 100;
-
-        // Page indicator
-        ctx.font = '16px Arial';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText(`Page ${historyCurrentPage + 1} of ${totalPages}`, contentX + 350, currentY);
-
-        // Previous page button
-        const prevBtnX = contentX + 250;
-        const nextBtnX = contentX + 450;
-        const pageBtnY = currentY - 5;
-        const pageBtnWidth = 80;
-        const pageBtnHeight = 30;
-
-        // Only draw Previous button if not on first page
-        if (historyCurrentPage > 0) {
-            ctx.fillStyle = '#444444';
-            ctx.fillRect(prevBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
-            ctx.strokeStyle = '#888888';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(prevBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
-
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.fillText('< Prev', prevBtnX + pageBtnWidth / 2, pageBtnY + pageBtnHeight / 2 + 6);
-        }
-
-        // Only draw Next button if not on last page
-        if (historyCurrentPage < totalPages - 1) {
-            ctx.fillStyle = '#444444';
-            ctx.fillRect(nextBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
-            ctx.strokeStyle = '#888888';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(nextBtnX, pageBtnY, pageBtnWidth, pageBtnHeight);
-
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.fillText('Next >', nextBtnX + pageBtnWidth / 2, pageBtnY + pageBtnHeight / 2 + 6);
-        }
-    }
-
-    // Draw stats at the bottom
-    let totalBet = 0;
-    let totalWin = 0;
-    gameHistory.forEach(entry => {
-        totalBet += entry.totalBet;
-        totalWin += entry.winAmount;
-    });
-
-    const overallReturn = totalBet > 0 ? (totalWin / totalBet) * 100 : 0;
-
-    ctx.font = 'bold 18px Arial';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Session Summary: Spins: ${gameHistory.length}`, contentX, modalY + modalHeight - 60);
-    ctx.fillText(`Total Bet: ${totalBet}  Total Win: ${totalWin}  Return: ${overallReturn.toFixed(2)}%`, contentX, modalY + modalHeight - 30);
 }
 
 // Update theme change logic
@@ -2958,7 +3168,7 @@ function setupThemeSwitcher() {
     // Create a label
     const label = document.createElement('label');
     label.htmlFor = 'themeSelect';
-    label.textContent = 'Select Theme: ';
+    label.textContent = '';
     label.style.marginRight = '5px'; // Add some spacing
 
     // Create a dropdown (select element)

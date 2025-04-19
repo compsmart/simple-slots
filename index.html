@@ -6,31 +6,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lucky Spins Slot Machine</title>
     <link rel="stylesheet" href="styles.css">
+
 </head>
 
 <body>
     <div class="game-container">
-        <div class="theme-switcher-container">
 
-            <div id="themeSwitcher" class="theme-switcher">
-                <!-- Buttons will be added by JavaScript -->
-            </div>
-        </div>
         <div class="game-area">
             <div class="canvas-container">
                 <canvas id="gameCanvas" width="800" height="600"></canvas>
+                <canvas id="uiCanvas" width="800" height="600"></canvas>
             </div>
+            <div style="display:none" class="game-controls">
+                <div class="left-controls">
+                    <div class="bet-section">
+                        <div class="bet-label">Bet:</div>
+                        <div class="bet-controls">
+                            <button id="decreaseBet">-</button>
+                            <span id="betAmount">${DEFAULT_BET}</span>
+                            <button id="increaseBet">+</button>
+                        </div>
+                    </div>
+                    <div class="balance-section">
+                        <button id="addCreditBtn">Add Credit</button>
+                        <a href="test.html" target="_blank"><button>RTP Check</button></a>
+                    </div>
+                </div>
+                <button id="spinButton">Spin</button>
+            </div>
+            <div class="theme-switcher-container">
 
-            <div class="game-controls">
-                <div class="balance-section">
-                    <button id="addCreditBtn">Add Credit</button>
-                    <a href="test.html" target="_blank"><button>RTP Check</button></a>
+                <div style="display:none" id="themeSwitcher" class="theme-switcher">
+                    <!-- Buttons will be added by JavaScript -->
                 </div>
             </div>
         </div>
     </div>
 
+    <div id="rotateOverlay">
+        Please rotate your device to landscape mode for the best experience.
+    </div>
+
     <script type="module" src="game.js"></script>
+    <script>
+        const rotateOverlay = document.getElementById('rotateOverlay');
+
+        function checkOrientation() {
+            if (window.innerHeight > window.innerWidth) {
+                rotateOverlay.classList.add('visible');
+            } else {
+                rotateOverlay.classList.remove('visible');
+            }
+        }
+
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('load', checkOrientation);
+
+        function isMobileDevice() {
+            return window.matchMedia("(max-width: 768px)").matches;
+        }
+
+        function adjustLayout() {
+            if (isMobileDevice()) {
+                // Apply mobile-specific styles or logic here
+                console.log("Mobile device detected");
+            } else {
+                // Apply desktop-specific styles or logic here
+                console.log("Desktop device detected");
+            }
+        }
+
+        // Call adjustLayout on load and resize
+        window.addEventListener('load', adjustLayout);
+        window.addEventListener('resize', adjustLayout);
+    </script>
 
 </body>
 

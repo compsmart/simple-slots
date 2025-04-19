@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Themes Library</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .library-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .theme-card {
+            background: linear-gradient(135deg, #ffffff, #f9f9f9);
+            /* Add gradient background */
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 15px;
+            width: 300px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .theme-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .theme-card-content {
+            padding: 15px;
+        }
+
+        .theme-card-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0 0 10px;
+        }
+
+        .theme-card-description {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .theme-card-meta {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        .theme-card button {
+            background-color: #ffcc00;
+            border: none;
+            color: #000;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .theme-card button:hover {
+            background-color: #e6b800;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="text-align: center; margin-top: 20px;">Game Themes Library</h1>
+    <div class="library-container" id="themesContainer">
+        <!-- Themes will be dynamically loaded here -->
+    </div>
+
+    <script>
+        const themes = [
+            { name: "Ancient Egypt", id: "AncientEgypt", description: "Explore the mysteries of the pyramids.", image: "images/ancientegypt/title.jpg", dateCreated: "2023-01-15" },
+            { name: "Aztec", id: "Aztec", description: "Discover the treasures of the Aztec empire.", image: "images/aztec/title.jpg", dateCreated: "2023-02-10" },
+            { name: "Classic", id: "Classic", description: "A timeless slot machine experience.", image: "images/classic/background.jpg", dateCreated: "2022-12-01" },
+            { name: "Fantasy Forest", id: "FantasyForest", description: "Enter a magical forest full of wonders.", image: "images/fantasyforest/title.jpg", dateCreated: "2023-03-05" },
+            { name: "Gemstones", id: "Gemstones", description: "Shine bright with dazzling gems.", image: "images/gemstones/background.jpg", dateCreated: "2023-04-01" },
+            { name: "Pirate", id: "Pirate", description: "Sail the seas in search of hidden treasures.", image: "images/pirate/background.jpg", dateCreated: "2023-05-20" },
+            { name: "Space Adventure", id: "SpaceAdventure", description: "Blast off into an intergalactic journey.", image: "images/spaceadventure/background.png", dateCreated: "2023-06-15" },
+            { name: "Word Explorer", id: "WordExplorer", description: "Challenge your vocabulary in this exciting word game.", image: "https://words.compsmart.co.uk/images/scrabble/title.jpg", dateCreated: "2023-07-01", url: "https://words.compsmart.co.uk" }
+        ];
+
+        const themesContainer = document.getElementById('themesContainer');
+
+        themes.forEach(theme => {
+            const card = document.createElement('div');
+            card.className = 'theme-card';
+
+            const image = document.createElement('img');
+            image.src = theme.image;
+            image.alt = theme.name;
+
+            const content = document.createElement('div');
+            content.className = 'theme-card-content';
+
+            const title = document.createElement('h2');
+            title.className = 'theme-card-title';
+            title.textContent = theme.name;
+
+            const description = document.createElement('p');
+            description.className = 'theme-card-description';
+            description.textContent = theme.description;
+
+            const meta = document.createElement('p');
+            meta.className = 'theme-card-meta';
+            const randomRating = (Math.random() * 2 + 3).toFixed(1); // Random rating between 3.0 and 5.0
+            meta.textContent = `⭐ ${randomRating} | Created on: ${theme.dateCreated}`;
+
+            const button = document.createElement('button');
+            button.textContent = 'Start Game';
+            button.onclick = () => {
+                if (theme.url) {
+                    window.location.href = theme.url; // Redirect to external URL if provided      window.location.href = theme.url;
+                } else {
+                    window.location.href = `index.html?theme=${encodeURIComponent(theme.id)}`; // Default behaviorf = `index.html?theme=${encodeURIComponent(theme.id)}`;
+                }
+            };
+
+            content.appendChild(title);
+            content.appendChild(description);
+            content.appendChild(meta);
+            content.appendChild(button);
+
+            card.appendChild(image);
+            card.appendChild(content);
+
+            themesContainer.appendChild(card);
+        });
+    </script>
+
+    <footer
+        style="text-align: center; margin-top: 20px; padding: 10px; background-color: #f4f4f4; font-size: 14px; color: #555;">
+
+        <p>All games are for fun and demo purposes only.</p>
+
+        <p>Created by Brad Boster</p>
+
+
+
+
+
+</html>
+</body>
+</footer>
+</body>
+
+</html>
