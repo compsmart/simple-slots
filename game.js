@@ -13,6 +13,9 @@ const REEL_COUNT = 5;
 // const SYMBOL_COUNT = 5; // No longer needed directly, derived from theme
 const SYMBOL_SIZE = 100; // Pixel size of each symbol
 
+// Define the number of results per page for the history modal
+const RESULTS_PER_PAGE = 10;
+
 // Helper function to lighten a color by a percentage
 function lightenColor(color, percent) {
     // Convert hex to RGB

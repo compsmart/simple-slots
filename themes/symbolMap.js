@@ -13,11 +13,11 @@ export const SYMBOL_MAPS = {
     },
 
     'aztec': {
-        'sun god': { sx: 80, sy: 70, sw: 330, sh: 330 },
-        'golden mask': { sx: 230, sy: 380, sw: 290, sh: 0 },
-        'jade stone': { sx: 530, sy: 370, sw: 290, sh: 0 },
-        'snake': { sx: 230, sy: 680, sw: 290, sh: 0 },
-        'jaguar': { sx: 530, sy: 680, sw: 290, sh: 0 },
+        'sun god': { sx: 80, sy: 0, sw: 320, sh: 290 },
+        'golden mask': { sx: 450, sy: 275, sw: 250, sh: 230 },
+        'jade stone': { sx: 1110, sy: 40, sw: 220, sh: 220 },
+        'snake': { sx: 430, sy: 490, sw: 300, sh: 275 },
+        'jaguar': { sx: 1110, sy: 490, sw: 230, sh: 270 },
     },
 
     // Template for other themes
