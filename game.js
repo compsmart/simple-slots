@@ -782,12 +782,7 @@ function drawBackground(timestamp) {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    // Draw the base gradient background
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, topColor);
-    gradient.addColorStop(1, bottomColor);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);    // Draw particles if enabled
+    // Draw particles if enabled
     if (useParticles && bgEffects?.particles) {
         // Initialize particles if they don't exist or theme changed
         if (!backgroundParticles.length || backgroundParticles.themeId !== currentThemeName) {

@@ -30,7 +30,7 @@ export const AztecTheme = {
         }, backgroundEffects: {
             enabled: true,
             backgroundImage: {
-                enabled: true,
+                enabled: false,
                 path: 'images/aztec/background.jpg',
                 opacity: 1.0
             },
@@ -90,6 +90,7 @@ export const AztecTheme = {
         { name: "Jaguar", path: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23ffcc80'/%3E%3Cellipse cx='60' cy='60' rx='35' ry='30' fill='%23ef6c00'/%3E%3Ccircle cx='45' cy='50' r='5' fill='%23000000'/%3E%3Ccircle cx='75' cy='50' r='5' fill='%23000000'/%3E%3Cpath d='M50 70 Q 60 75 70 70' stroke='%23000000' stroke-width='3' fill='none'/%3E%3Cpath d='M30 40 L 40 30 M 80 30 L 90 40' stroke='%23000000' stroke-width='3'/%3E%3Cpath d='M40 65 Q 60 90 80 65' fill='%23ffcc80' stroke='none'/%3E%3Cpath d='M45 55 Q 50 60 55 55 M 65 55 Q 70 60 75 55' fill='none' stroke='%23000000' stroke-width='2'/%3E%3Ccircle cx='45' cy='50' r='2' fill='%23ffffff'/%3E%3Ccircle cx='75' cy='50' r='2' fill='%23ffffff'/%3E%3C/svg%3E", multiplier: 2, winAnimation: { frames: 8, currentFrame: 0, frameRate: 140 } }
     ],    // Renderer for Aztec theme-specific effects
     renderThemeEffects: (ctx, canvas, timestamp, specific) => {
+        return;
         // Draw background image if configured
         const bgEffects = AztecTheme.visualEffects.backgroundEffects;
         if (bgEffects?.enabled && bgEffects?.backgroundImage?.enabled) {

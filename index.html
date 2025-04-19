@@ -4,8 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Lucky Spins Slot Machine</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=1.0">
 
 </head>
 
@@ -13,7 +16,8 @@
     <div class="game-container">
 
         <div class="game-area">
-            <div class="canvas-container">
+            <div class="canvas-container" style="background: url('/images/aztec/background.jpg') no-repeat; 
+                    background-size: cover;">
                 <canvas id="gameCanvas" width="800" height="600"></canvas>
                 <canvas id="uiCanvas" width="800" height="600"></canvas>
             </div>
@@ -61,24 +65,6 @@
 
         window.addEventListener('resize', checkOrientation);
         window.addEventListener('load', checkOrientation);
-
-        function isMobileDevice() {
-            return window.matchMedia("(max-width: 768px)").matches;
-        }
-
-        function adjustLayout() {
-            if (isMobileDevice()) {
-                // Apply mobile-specific styles or logic here
-                console.log("Mobile device detected");
-            } else {
-                // Apply desktop-specific styles or logic here
-                console.log("Desktop device detected");
-            }
-        }
-
-        // Call adjustLayout on load and resize
-        window.addEventListener('load', adjustLayout);
-        window.addEventListener('resize', adjustLayout);
     </script>
 
 </body>
