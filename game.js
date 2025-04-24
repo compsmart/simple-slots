@@ -1,14 +1,6 @@
 // Import themes FIRST
-import { THEMES } from './themes/index.js'; // <-- Added Import
-import { EffectsHelper } from './themes/effects.js'; // <-- Import EffectsHelper
-import { SYMBOL_MAPS } from './themes/symbolMap.js'; // <-- Import Symbol Maps
-import {
-    reelStrips,
-    symbolNumberMultipliers,
-    PAYOUT_RULES,
-    PAYLINES,             // <-- Import PAYLINES
-    MIN_WIN_LENGTH        // <-- Import MIN_WIN_LENGTH
-} from './themes/config.js';// Game constants and variables
+import { THEMES } from './themes/index.js'; // <-- Import themes from refactored structure
+import { EffectsHelper } from './shared/effects.js'; // <-- Import EffectsHelper from shared// Game constants and variables
 const REEL_COUNT = 5;
 // const SYMBOL_COUNT = 5; // No longer needed directly, derived from theme
 const SYMBOL_SIZE = 100; // Pixel size of each symbol
@@ -82,6 +74,16 @@ let showPaylines = false; // Track if paylines should be visible
 let showHistory = false; // Track if history modal should be visible
 let showPaytable = false; // Track if paytable modal should be visible
 
+// Audio gain nodes for volume control
+let masterGainNode = null;
+let backgroundGainNode = null;
+let effectsGainNode = null;
+let themeVolumeSettings = {
+    master: 1.0,
+    background: 1.0,
+    effects: 1.0
+};
+
 // Create a variable to store the spin sound source
 let spinSoundSource = null;
 
@@ -117,6 +119,18 @@ let symbols = []; // Holds the currently loaded symbol objects for the active th
 // --- Initialize game when all content is loaded ---
 window.addEventListener('load', initGame);
 
+// Parse URL parameters to check for theme
+function getThemeFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const themeParam = urlParams.get('theme');
+
+    if (themeParam && THEMES[themeParam]) {
+        console.log(`Found valid theme parameter: ${themeParam}`);
+        return themeParam;
+    }
+    return null;
+}
+
 // Wait for the DOM to fully load before initializing window.betAmount
 window.addEventListener('DOMContentLoaded', () => {
     const betAmountElement = document.getElementById('betAmount');
@@ -131,6 +145,13 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
         console.warn('<span id="betAmount"> element not found. Defaulting to 10.');
         window.betAmount = 10; // Default value
+    }
+
+    // Check for theme URL parameter
+    const urlTheme = getThemeFromURL();
+    if (urlTheme) {
+        currentThemeName = urlTheme; // Set the theme name before initialization
+        console.log(`Setting initial theme from URL: ${urlTheme}`);
     }
 });
 
@@ -221,8 +242,22 @@ function initGame() {
 
 function validateConfiguration() {
     let isValid = true;
+    console.log("Checking theme", currentThemeName); // <-- Log current theme name
+    // Get current theme's configuration
+    const currentTheme = THEMES[currentThemeName];
+    if (!currentTheme) {
+        console.error(`Config Error: Invalid theme name: ${currentThemeName}`);
+        return false;
+    }    // Get theme-specific configuration from the imported config
+    const themeConfig = currentTheme.config || {};
+    // Access the named exports directly
+    const reelStrips = themeConfig.reelStrips;
+    const symbolNumberMultipliers = themeConfig.symbolNumberMultipliers;
+    console.log("Theme config loaded:", themeConfig);
+    console.log("Accessing reelStrips:", reelStrips);
+
     if (!reelStrips || reelStrips.length !== REEL_COUNT) {
-        console.error("Config Error: reelStrips is missing or doesn't have 5 reels.");
+        console.error("Config Error: Theme reelStrips is missing or doesn't have 5 reels.");
         isValid = false;
     } else {
         reelStrips.forEach((strip, i) => {
@@ -231,7 +266,7 @@ function validateConfiguration() {
                 isValid = false;
             } else {
                 // Check if all indices are valid numbers (0-4 in this case)
-                const validIndices = Object.keys(symbolNumberMultipliers).map(Number); // Get valid symbol numbers [0, 1, 2, 3, 4]
+                const validIndices = Object.keys(symbolNumberMultipliers || {}).map(Number); // Get valid symbol numbers [0, 1, 2, 3, 4]
                 if (strip.some(index => !validIndices.includes(index))) {
                     console.error(`Config Error: Reel strip ${i} contains invalid symbol numbers. Valid numbers are: ${validIndices.join(', ')}`, strip);
                     isValid = false;
@@ -242,9 +277,12 @@ function validateConfiguration() {
     if (!symbolNumberMultipliers || Object.keys(symbolNumberMultipliers).length !== 5) { // Assuming 5 unique symbols 0-4
         console.error("Config Error: symbolNumberMultipliers is missing or doesn't define multipliers for numbers 0-4.");
         isValid = false;
-    }
-    if (!PAYOUT_RULES || !PAYOUT_RULES[3] || !PAYOUT_RULES[4] || !PAYOUT_RULES[5]) {
+    } if (!themeConfig.PAYOUT_RULES) {
         console.error("Config Error: PAYOUT_RULES are missing or incomplete (need entries for 3, 4, 5).");
+        isValid = false;
+    }
+    if (!themeConfig.PAYLINES || themeConfig.PAYLINES.length === 0) {
+        console.error("Config Error: PAYLINES are missing or incomplete");
         isValid = false;
     }
 
@@ -272,50 +310,119 @@ function drawSymbol(symbolName, context, dx, dy, dw, dh) {
 
 async function loadThemeVisuals(themeName) {
     console.log(`Attempting to load visuals for theme: ${themeName}`);
-    const themeVisuals = THEMES[themeName];
+    // Get a fresh copy of the theme to avoid using a previously modified version
+    let themeVisuals = JSON.parse(JSON.stringify(THEMES[themeName])); // Make a deep copy
     svgLoaded = false; // Reset SVG loaded state
 
-    if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) { // Check for exactly 5 symbols
-        console.error(`Theme visuals for "${themeName}" not found, invalid, or doesn't have exactly 5 symbols. Falling back to Classic.`);
+    // First check if theme exists
+    if (!themeVisuals) {
+        console.error(`Theme "${themeName}" not found. Falling back to Aztec.`);
         themeName = "Aztec"; // Default fallback theme name
-        themeVisuals = THEMES[themeName];
-        if (!themeVisuals || !themeVisuals.symbols || themeVisuals.symbols.length !== 5) {
-            console.error("CRITICAL: Fallback theme 'Classic' visuals also invalid or missing 5 symbols!");
-            return Promise.reject(new Error("Failed to load any valid theme visuals."));
+        themeVisuals = JSON.parse(JSON.stringify(THEMES[themeName])); // Make a deep copy
+        if (!themeVisuals) {
+            console.error("CRITICAL: Fallback theme 'Aztec' not found!");
+            return Promise.reject(new Error("Failed to load any valid theme."));
         }
     }
 
-    // Load the theme's SVG sprite sheet if available
-    const themeKey = themeName.toLowerCase().replace(/\s+/g, '');
-    const svgPath = `images/${themeKey}/symbols.svg`;
+    // Create a standardized symbols array from theme data
+    let symbolsArray = [];
 
-    // Create a promise to load the SVG sprite sheet
-    const loadSvgPromise = new Promise((resolve) => {
-        svgSymbolSheet = new Image();
-        svgSymbolSheet.onload = () => {
-            console.log(`Loaded SVG sprite sheet for theme: ${themeName}`);
-            svgLoaded = true;
-            resolve();
-        };
-        svgSymbolSheet.onerror = () => {
-            console.warn(`Could not load SVG sprite sheet for theme: ${themeName}`);
-            svgLoaded = false;
-            resolve(); // Resolve anyway to continue with individual images
-        };
-        svgSymbolSheet.src = svgPath;
-    }); currentThemeName = themeName;
+    // Keep track of whether we should use sprite map
+    let useSprite = false;
+    let spriteMapPath = null;
+    let symbolMapData = null;    // Handle different theme symbol formats
+    if (themeVisuals.symbols) {
+        if (themeVisuals.symbols.attributes && Array.isArray(themeVisuals.symbols.attributes) && themeVisuals.symbols.attributes.length === 5) {
+            console.log(`Theme ${themeName} using new attributes array format`);
+
+            // Using the new attributes array directly
+            themeVisuals.symbols.attributes.forEach(symbolAttr => {
+                const symbolObj = {
+                    name: symbolAttr.name || `Symbol ${symbolAttr.id}`,
+                    id: symbolAttr.id !== undefined ? symbolAttr.id : symbolsArray.length,
+                    backgroundColor: symbolAttr.backgroundColor || "#ffffff",
+                    imagePath: symbolAttr.imagePath || null,
+                    animation: symbolAttr.animation || null
+                };
+
+                symbolsArray.push(symbolObj);
+            });
+
+            // Check if theme is configured to use sprite sheet
+            useSprite = themeVisuals.symbols.useSprite === true;
+
+            if (useSprite) {
+                spriteMapPath = themeVisuals.symbols.path || `./themes/${themeName.toLowerCase().replace(/\s+/g, '')}/images/symbols.svg`;
+                symbolMapData = themeVisuals.symbols.spriteMap;
+                console.log(`Theme ${themeName} using sprite map from ${spriteMapPath}`);
+
+                // Validate sprite map data
+                if (!symbolMapData) {
+                    console.warn(`Theme ${themeName} has useSprite=true but missing spriteMap data. Falling back to individual images.`);
+                    useSprite = false;
+                }
+            }
+
+            // Store in window for reference by other functions
+            window.SYMBOL_MAPS = window.SYMBOL_MAPS || {};
+            window.SYMBOL_MAPS[themeName.toLowerCase().replace(/\s+/g, '')] = symbolMapData;
+        } else {
+            console.error(`Theme "${themeName}" has invalid symbols structure.`);
+            return Promise.reject(new Error("Invalid theme symbols structure."));
+        }
+    } else {
+        console.error(`Theme "${themeName}" is missing symbols.`);
+        return Promise.reject(new Error("Theme missing symbols."));
+    }    // Store our standardized symbols array and update themeVisuals.symbols with it
+    themeVisuals.symbols = symbolsArray;
+
+    // Set current theme name and update body class for CSS styling
+    currentThemeName = themeName;
     document.body.className = `theme-${themeName.toLowerCase().replace(/\s+/g, '-')}`;
     console.log(`Loading symbol visuals for theme: ${currentThemeName}`);
     symbols = []; // Clear existing symbols
 
-    const themeSymbolsData = themeVisuals.symbols; // Get the 5 symbols
+    let loadSvgPromise;
+
+    // Only try to load SVG sprite sheet if useSprite is true
+    if (useSprite && spriteMapPath) {
+        console.log(`Loading SVG sprite sheet from: ${spriteMapPath}`);
+
+        // Create a promise to load the SVG sprite sheet
+        loadSvgPromise = new Promise((resolve) => {
+            svgSymbolSheet = new Image();
+            svgSymbolSheet.onload = () => {
+                console.log(`Successfully loaded SVG sprite sheet for theme: ${themeName}`);
+                svgLoaded = true;
+                resolve(true);
+            };
+            svgSymbolSheet.onerror = (err) => {
+                console.warn(`Failed to load SVG sprite sheet for theme: ${themeName}:`, err);
+                svgLoaded = false;
+                resolve(false); // Resolve with false to indicate failure
+            };
+            svgSymbolSheet.src = spriteMapPath;
+        });
+    } else {
+        // If not using sprite, create a resolved promise to maintain flow
+        loadSvgPromise = Promise.resolve(false);
+    }
 
     // Wait for the SVG sprite sheet to load (or fail) before continuing
-    await loadSvgPromise;
+    const spritesheetLoaded = await loadSvgPromise;
 
+    // If sprite sheet was supposed to load but failed, log a warning
+    if (useSprite && !spritesheetLoaded) {
+        console.warn(`Sprite sheet failed to load for theme ${themeName}. Will try individual images as fallback.`);
+    }
+
+    const themeSymbolsData = themeVisuals.symbols; // Get the 5 symbols
+
+    // Process symbol loading based on sprite sheet or individual images
     const symbolPromises = themeSymbolsData.map((symbolData, index) => {
         // Basic validation of visual data
-        if (!symbolData || (!symbolData.path && !symbolData.imagePath) || !symbolData.name) {
+        if (!symbolData || !symbolData.name) {
             console.warn(`Invalid symbol visual data at index ${index} for theme ${themeName}`, symbolData);
             // Create a placeholder visual if needed
             symbols[index] = { name: `Symbol ${index}`, path: null, image: null, color: getRandomColor(), id: index };
@@ -329,7 +436,16 @@ async function loadThemeVisuals(themeName) {
                 id: index // Store the index (0-4)
             };
 
-            // First try to load from imagePath if available
+            // Check if we're actually using the sprite sheet (configured AND loaded successfully)
+            if (useSprite && svgLoaded) {
+                console.log(`Using sprite sheet for ${symbolData.name} (symbol ${index})`);
+                loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                symbols[index] = loadedSymbol; // Place in correct index
+                resolve();
+                return;
+            }
+
+            // If we're not using sprite (or sprite failed to load), try individual images
             if (symbolData.imagePath) {
                 const img = new Image();
                 img.src = symbolData.imagePath;
@@ -389,6 +505,12 @@ async function loadThemeVisuals(themeName) {
                     symbols[index] = loadedSymbol;
                     resolve();
                 };
+            } else {
+                // Neither imagePath nor path is available - create a placeholder with color
+                console.warn(`No image source available for symbol ${symbolData.name}. Using color placeholder.`);
+                loadedSymbol.color = symbolData.backgroundColor || getRandomColor();
+                symbols[index] = loadedSymbol;
+                resolve();
             }
         });
     });
@@ -412,8 +534,22 @@ function loadSounds() {
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         audioContext = new AudioContext();
 
+        // Setup gain nodes for volume control
+        masterGainNode = audioContext.createGain();
+        masterGainNode.connect(audioContext.destination);
+
+        // Create separate gain nodes for background music and effects
+        backgroundGainNode = audioContext.createGain();
+        backgroundGainNode.connect(masterGainNode);
+
+        effectsGainNode = audioContext.createGain();
+        effectsGainNode.connect(masterGainNode);
+
+        // Get initial volume settings from the current theme
+        getAndApplyThemeVolumeSettings(currentThemeName);
+
         // Load generic button click sound
-        loadAudioBuffer('click', 'sounds/button-click.wav');
+        loadAudioBuffer('click', 'shared/sounds/button-click.mp3');
 
         // Load initial theme sounds
         loadThemeSounds(currentThemeName);
@@ -455,11 +591,14 @@ function loadThemeSounds(themeName) {    // Reset theme sound tracking
 
     console.log(`Loading sounds for theme: ${themeName}`);
 
+    // Get and apply volume settings from the new theme
+    getAndApplyThemeVolumeSettings(themeName);
+
     // Stop any currently playing background music
     stopBackgroundMusic();
 
     // Define theme-specific sound paths
-    const themePath = `sounds/themes/${themeName.toLowerCase().replace(/\s+/g, '-')}`;
+    const themePath = `themes/${themeName.toLowerCase().replace(/\s+/g, '-')}/sounds`;
 
     // Load background music
     loadAudioBuffer('background', `${themePath}/background.mp3`)
@@ -472,7 +611,7 @@ function loadThemeSounds(themeName) {    // Reset theme sound tracking
         }).catch(error => {
             console.warn(`Could not load theme background music: ${error}`);
             // Try to load default background music
-            loadAudioBuffer('background', 'sounds/themes/classic/background.mp3')
+            loadAudioBuffer('background', 'themes/classic/sounds/background.mp3')
                 .then(() => {
                     currentThemeSounds.backgroundLoaded = true;
                     if (hasUserInteraction) {
@@ -489,7 +628,7 @@ function loadThemeSounds(themeName) {    // Reset theme sound tracking
         .catch(error => {
             console.warn(`Could not load theme spin sound: ${error}`);
             // Try to load default spin sound
-            loadAudioBuffer('spin', 'sounds/spin.wav');
+            loadAudioBuffer('spin', 'sounds/spin.mp3');
         });    // Load win sound
     loadAudioBuffer('win', `${themePath}/win.mp3`)
         .then(() => {
@@ -498,7 +637,7 @@ function loadThemeSounds(themeName) {    // Reset theme sound tracking
         .catch(error => {
             console.warn(`Could not load theme win sound: ${error}`);
             // Try to load default win sound
-            loadAudioBuffer('win', 'sounds/win.wav');
+            loadAudioBuffer('win', 'sounds/win.mp3');
         });
 
     // Load jackpot sound for epic win animation
@@ -509,7 +648,7 @@ function loadThemeSounds(themeName) {    // Reset theme sound tracking
         .catch(error => {
             console.warn(`Could not load theme jackpot sound: ${error}`);
             // Try to load default jackpot sound from classic theme
-            loadAudioBuffer('jackpot', 'sounds/themes/classic/jackpot.mp3')
+            loadAudioBuffer('jackpot', 'themes/classic/sounds/jackpot.mp3')
                 .catch(fallbackError => {
                     console.warn(`Could not load fallback jackpot sound: ${fallbackError}`);
                 });
@@ -544,9 +683,15 @@ function startBackgroundMusicLoop() {
     backgroundMusicSource = audioContext.createBufferSource();
     backgroundMusicSource.buffer = audioBuffers['background'];
     backgroundMusicSource.loop = true;
-    backgroundMusicSource.connect(audioContext.destination);
+
+    // Connect to the background gain node for theme-specific volume control
+    backgroundMusicSource.connect(backgroundGainNode);
+
+    // Update background volume with current theme settings
+    backgroundGainNode.gain.value = muteState ? 0 : themeVolumeSettings.master * themeVolumeSettings.background;
+
     backgroundMusicSource.start(0);
-    console.log("Background music started");
+    console.log("Background music started with volume:", backgroundGainNode.gain.value);
 }
 
 function stopBackgroundMusic() {
@@ -599,7 +744,13 @@ function playSoundInternal(id) {
     try {
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffers[id];
-        source.connect(audioContext.destination);
+
+        // Connect to the effects gain node for theme-specific volume control
+        source.connect(effectsGainNode);
+
+        // Update effects volume with current theme settings
+        effectsGainNode.gain.value = muteState ? 0 : themeVolumeSettings.master * themeVolumeSettings.effects;
+
         source.start(0);
 
         // Store reference to spin sound so we can stop it later
@@ -628,14 +779,29 @@ function getRandomColor() {
 // ... (initReels, generateReelSymbols functions remain largely the same, but use the global 'symbols' array) ...
 function initReels() {
     reels = [];
-    // Config is validated at startup, assume reelStrips is valid here
-    // const configuredStrips = reelStrips; // Use imported global config
+
+    // Get the current theme's configuration for reel strips
+    const currentTheme = THEMES[currentThemeName];
+    if (!currentTheme || !currentTheme.config) {
+        console.error("CRITICAL: Cannot initialize reels - theme or theme config is missing");
+        return;
+    }    // Get the reel strips from the theme's config
+    const themeReelStrips = currentTheme.config.reelStrips;
+    // Create alias for backward compatibility with any code referencing reelStrips
+    window.reelStrips = themeReelStrips; // Make this a global variable
+
+    if (!themeReelStrips || themeReelStrips.length !== REEL_COUNT) {
+        console.error("CRITICAL: Invalid reel strips in theme configuration");
+        return;
+    }
+
+    console.log("Initializing reels with theme-specific reel strips:", themeReelStrips);
 
     for (let i = 0; i < REEL_COUNT; i++) {
         // Config validation moved to initGame
         reels.push({
-            position: Math.floor(Math.random() * reelStrips[i].length), // Start random
-            symbols: [...reelStrips[i]], // <-- LOAD the GLOBAL configured strip
+            position: Math.floor(Math.random() * themeReelStrips[i].length), // Start random
+            symbols: [...themeReelStrips[i]], // Use the theme's reel strips
             targetPosition: 0,
             spinning: false,
             startTime: 0,
@@ -645,7 +811,7 @@ function initReels() {
         });
     }
     currentReelResults = Array(REEL_COUNT).fill(null).map(() => Array(VISIBLE_ROWS).fill(0));
-    console.log("Reels initialized with GLOBAL configured strips.");
+    console.log("Reels initialized with theme-specific configured strips.");
 }
 
 
@@ -665,7 +831,8 @@ function drawGame(timestamp) {
     // const clampedDeltaTime = Math.min(deltaTime, maxDeltaTime);
     // Use clampedDeltaTime for physics/animation updates if needed
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height); drawBackground(timestamp); // Draw static or animated background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground(timestamp); // Draw static or animated background
     drawReels(deltaTime, timestamp); // Update and draw reels, passing timestamp for effects
     drawReelMask(); // Draw mask/overlay over reels if needed
 
@@ -734,14 +901,52 @@ function drawBackground(timestamp) {
 
         ctx.fillStyle = radialGradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    // Draw the base gradient background
+    }    // Draw the base gradient background
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, topColor);
     gradient.addColorStop(1, bottomColor);
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);    // Draw particles if enabled
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw theme background image if available
+    const currentTheme = THEMES[currentThemeName];
+    if (currentTheme && currentTheme.background && !currentTheme._backgroundImage) {
+        // Load the background image if not already loaded
+        currentTheme._backgroundImage = new Image();
+        currentTheme._backgroundImage.src = currentTheme.background;
+        console.log(`Loading background image: ${currentTheme.background}`);
+    }
+
+    // Draw the background image if it's loaded
+    if (currentTheme && currentTheme._backgroundImage && currentTheme._backgroundImage.complete) {
+        // Draw the image with proper sizing to cover the canvas while maintaining aspect ratio
+        const img = currentTheme._backgroundImage;
+        const canvasRatio = canvas.width / canvas.height;
+        const imgRatio = img.width / img.height;
+
+        let drawWidth, drawHeight, x, y;
+
+        if (canvasRatio > imgRatio) {
+            // Canvas is wider than image ratio
+            drawWidth = canvas.width;
+            drawHeight = canvas.width / imgRatio;
+            x = 0;
+            y = (canvas.height - drawHeight) / 2;
+        } else {
+            // Canvas is taller than image ratio
+            drawHeight = canvas.height;
+            drawWidth = canvas.height * imgRatio;
+            x = (canvas.width - drawWidth) / 2;
+            y = 0;
+        }
+
+        // Apply a slight opacity to allow effects to show through
+        ctx.globalAlpha = 0.8;
+        ctx.drawImage(img, x, y, drawWidth, drawHeight);
+        ctx.globalAlpha = 1.0;
+    }
+
+    // Draw particles if enabled
     if (useParticles && bgEffects?.particles) {
         // Initialize particles if they don't exist or theme changed
         if (!backgroundParticles.length || backgroundParticles.themeId !== currentThemeName) {
@@ -1552,8 +1757,7 @@ function checkWinAndFinalize() {
 
 
 // --- Win Checking (Uses Config Multipliers) ---
-function checkWin() {
-    // Basic validation
+function checkWin() {    // Basic validation
     if (!currentReelResults || currentReelResults.length !== REEL_COUNT || !currentReelResults[0]) {
         console.error("Win check called with invalid results grid.");
         return null;
@@ -1562,6 +1766,19 @@ function checkWin() {
         console.error("Win check called but theme visuals (symbols array) not correctly loaded.");
         return null;
     }
+
+    // Get the current theme's configuration
+    const currentTheme = THEMES[currentThemeName];
+    if (!currentTheme || !currentTheme.config) {
+        console.error("Win check called but theme or theme config is missing");
+        return null;
+    }    // Get all required configurations from the theme's config
+    const PAYLINES = currentTheme.config.PAYLINES;
+    // Get PAYOUT_RULES and symbolNumberMultipliers
+    const PAYOUT_RULES = currentTheme.config.PAYOUT_RULES;
+    const symbolNumberMultipliers = currentTheme.config.symbolNumberMultipliers;
+    const MIN_WIN_LENGTH = currentTheme.config.PAYOUT_RULES?.minWinLength || 3; // Default to 3 if not specified
+
     if (!PAYLINES || PAYLINES.length === 0) {
         console.error("Win check called but no PAYLINES are defined in config.");
         return null;
@@ -1578,26 +1795,25 @@ function checkWin() {
 
     winningLines = []; // Reset winning lines array for this spin
     let totalWinAmount = 0;
-    let bestMatchDetails = null; // Track the single highest multiplier win
-
-    // --- Iterate through each defined PAYLINE ---
+    let bestMatchDetails = null; // Track the single highest multiplier win    // --- Iterate through each defined PAYLINE ---
     PAYLINES.forEach((payline, paylineIndex) => {
         // --- DEBUG LOG: Checking specific payline ---
         console.log(`[DEBUG] checkWin - Checking Payline ${paylineIndex}`);
 
         // 1. Get the symbol on the first reel of this payline
-        const firstReelPos = payline[0];
+        const firstReelPos = 0; // First reel is always at index 0
+        const firstRowPos = payline[0]; // Row position from payline definition
+
         // Check if results grid has data for this position
-        if (!currentReelResults[firstReelPos.reel] || currentReelResults[firstReelPos.reel][firstReelPos.row] === undefined) {
-            console.warn(`[DEBUG] checkWin - Payline ${paylineIndex}: Missing result data at Reel ${firstReelPos.reel}, Row ${firstReelPos.row}`);
+        if (!currentReelResults[firstReelPos] || currentReelResults[firstReelPos][firstRowPos] === undefined) {
+            console.warn(`[DEBUG] checkWin - Payline ${paylineIndex}: Missing result data at Reel ${firstReelPos}, Row ${firstRowPos}`);
             return; // Skip this payline if data is missing
         }
-        const winningSymbolNumber = currentReelResults[firstReelPos.reel][firstReelPos.row];
-        const visualSymbol = symbols[winningSymbolNumber]; // Get visual data
+        const winningSymbolNumber = currentReelResults[firstReelPos][firstRowPos]; const visualSymbol = symbols[winningSymbolNumber]; // Get visual data
         const baseMultiplier = symbolNumberMultipliers[winningSymbolNumber];
 
         // --- DEBUG LOG: Payline starting symbol and multiplier ---
-        console.log(`[DEBUG] checkWin - Payline ${paylineIndex} starts with symbol#: ${winningSymbolNumber} (Name: ${visualSymbol?.name || 'N/A'}) at [${firstReelPos.reel},${firstReelPos.row}]. Base Multiplier: ${baseMultiplier}`);
+        console.log(`[DEBUG] checkWin - Payline ${paylineIndex} starts with symbol#: ${winningSymbolNumber} (Name: ${visualSymbol?.name || 'N/A'}) at [${firstReelPos},${firstRowPos}]. Base Multiplier: ${baseMultiplier}`);
 
 
         // Skip if the first symbol is invalid or doesn't have a multiplier
@@ -1605,53 +1821,51 @@ function checkWin() {
             // --- DEBUG LOG: Skipping invalid start symbol ---
             console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Symbol ${winningSymbolNumber} is not a valid winning start.`);
             return; // Not a paying symbol start
-        }
-
-        // 2. Count consecutive matching symbols along the payline from left-to-right
+        }        // 2. Count consecutive matching symbols along the payline from left-to-right
         let consecutiveCount = 1;
-        let winningPositionsOnThisLine = [firstReelPos]; // Start with the first position
+        let winningPositionsOnThisLine = [{ reel: 0, row: payline[0] }]; // Start with the first position
 
         for (let i = 1; i < payline.length; i++) { // Start checking from the second position on the line
-            const pos = payline[i];
+            const reelIndex = i; // Reel index matches the position in the loop
+            const rowIndex = payline[i]; // Row index from the payline definition
+
             // Check if reel index is within bounds
-            if (pos.reel >= currentReelResults.length) {
-                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Reel index ${pos.reel} out of bounds.`);
+            if (reelIndex >= currentReelResults.length) {
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Reel index ${reelIndex} out of bounds.`);
                 break;
             }
             // Check if result data exists
-            if (!currentReelResults[pos.reel] || currentReelResults[pos.reel][pos.row] === undefined) {
-                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Result data missing at [${pos.reel}, ${pos.row}].`);
+            if (!currentReelResults[reelIndex] || currentReelResults[reelIndex][rowIndex] === undefined) {
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Result data missing at [${reelIndex}, ${rowIndex}].`);
                 break; // Stop if data missing
-            }
-
-            const currentSymbolNumber = currentReelResults[pos.reel][pos.row];
+            } const currentSymbolNumber = currentReelResults[reelIndex][rowIndex];
 
             // --- DEBUG LOG: Checking next position on the line ---
-            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Checking pos [${pos.reel},${pos.row}]. Found Symbol#: ${currentSymbolNumber}. Need Symbol#: ${winningSymbolNumber}`);
+            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Checking pos [${reelIndex},${rowIndex}]. Found Symbol#: ${currentSymbolNumber}. Need Symbol#: ${winningSymbolNumber}`);
 
             // --- Check for Match ---
             if (currentSymbolNumber === winningSymbolNumber) {
                 consecutiveCount++;
-                winningPositionsOnThisLine.push(pos); // Add matching position
+                winningPositionsOnThisLine.push({ reel: reelIndex, row: rowIndex }); // Add matching position with correct structure
                 console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Match found! Count is now ${consecutiveCount}`);
             } else {
-                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Sequence broken at Reel ${pos.reel}.`);
+                console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Sequence broken at Reel ${reelIndex}.`);
                 break; // Sequence broken
             }
         }
 
         // --- DEBUG LOG: Final consecutive count for this line ---
-        console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Final Consecutive Count = ${consecutiveCount}`);
-
-        // 3. Check if the count meets the minimum length and has a payout rule
+        console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Final Consecutive Count = ${consecutiveCount}`);        // 3. Check if the count meets the minimum length and has a payout rule
         const minWin = MIN_WIN_LENGTH || 3; // Use configured minimum or default to 3
-        if (consecutiveCount >= minWin && PAYOUT_RULES[consecutiveCount]) {
-            const countMultiplier = PAYOUT_RULES[consecutiveCount];
-            const finalMultiplier = baseMultiplier * countMultiplier;
+
+        // Check if we have enough consecutive symbols and if there's a payout for this symbol count
+        if (consecutiveCount >= minWin && typeof baseMultiplier === 'object' && baseMultiplier[consecutiveCount]) {
+            // Use the new structure: baseMultiplier[consecutiveCount] gives us the direct multiplier for this number of symbols
+            const finalMultiplier = baseMultiplier[consecutiveCount];
             const winAmount = finalMultiplier * betAmount;
 
             // --- DEBUG LOG: Checking payout condition ---
-            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Count ${consecutiveCount} >= ${minWin}. Rule multiplier ${countMultiplier}. Final multiplier ${finalMultiplier}. Win amount ${winAmount}`);
+            console.log(`[DEBUG] checkWin - Payline ${paylineIndex}: Count ${consecutiveCount} >= ${minWin}. Symbol multiplier for ${consecutiveCount}: ${finalMultiplier}. Win amount ${winAmount}`);
 
             // Only add if win amount is greater than 0
             if (winAmount > 0) {
@@ -2208,9 +2422,13 @@ function drawWinLines(timestamp) {
     const flash = Math.floor(timestamp / 300) % 2 === 0; // Flash effect toggle
 
     // Define line colors - cycle through them for multiple winning lines
-    const lineColors = ['#ff3366', '#ffcc00', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#00bcd4', '#e91e63'];    // --- Iterate through EACH winning line found ---
+    const lineColors = ['#ff3366', '#ffcc00', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#00bcd4', '#e91e63'];    // Get the current theme's configuration for minimum win length
+    const currentTheme = THEMES[currentThemeName];
+    const minWinLength = currentTheme?.config?.PAYOUT_RULES?.minWinLength || 3; // Default to 3 if not specified
+
+    // --- Iterate through EACH winning line found ---
     winningLines.forEach((lineData, lineIndex) => {
-        if (!lineData || !lineData.positions || lineData.positions.length < MIN_WIN_LENGTH) return;
+        if (!lineData || !lineData.positions || lineData.positions.length < minWinLength) return;
 
         const color = lineColors[lineIndex % lineColors.length]; // Cycle through colors for each line
         // --- Draw the specific line segment connecting winning positions ---
@@ -2327,12 +2545,20 @@ function drawAllPaylines(timestamp) {
     const symbolCenterOffsetY = SYMBOL_SIZE / 2;
     const symbolCenterOffsetX = SYMBOL_SIZE / 2;
 
-    const flash = Math.floor(timestamp / 300) % 2 === 0; // Flash effect toggle
-
-    // Define line colors for different paylines
+    const flash = Math.floor(timestamp / 300) % 2 === 0; // Flash effect toggle    // Define line colors for different paylines
     const lineColors = ['#ff3366', '#ffcc00', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#00bcd4', '#e91e63'];
 
-    // Draw each payline with a unique color
+    // Get PAYLINES from the current theme's configuration
+    const currentTheme = THEMES[currentThemeName];
+    if (!currentTheme || !currentTheme.config) {
+        console.error("Cannot draw paylines: theme or theme config is missing");
+        return;
+    }
+    const PAYLINES = currentTheme.config.PAYLINES;
+    if (!PAYLINES || PAYLINES.length === 0) {
+        console.error("Cannot draw paylines: no paylines defined in theme config");
+        return;
+    }    // Draw each payline with a unique color
     PAYLINES.forEach((payline, lineIndex) => {
         const color = lineColors[lineIndex % lineColors.length]; // Cycle colors per line
 
@@ -2340,11 +2566,18 @@ function drawAllPaylines(timestamp) {
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.globalAlpha = 0.7; ctx.beginPath();
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+
+        // Convert the numerical payline format to positions with x,y coordinates
         for (let i = 0; i < payline.length; i++) {
-            const pos = payline[i];
-            const x = startX + pos.reel * (reelWidth + actualSpacing) + symbolCenterOffsetX;
-            const y = startY + pos.row * SYMBOL_SIZE + symbolCenterOffsetY;
+            // In the theme config, payline is an array of row indices
+            // We need to convert each to {reel: i, row: payline[i]} format
+            const rowIndex = payline[i];
+            const reelIndex = i;
+
+            const x = startX + reelIndex * (reelWidth + actualSpacing) + symbolCenterOffsetX;
+            const y = startY + rowIndex * SYMBOL_SIZE + symbolCenterOffsetY;
 
             if (i === 0) {
                 ctx.moveTo(x, y);
@@ -2352,10 +2585,12 @@ function drawAllPaylines(timestamp) {
                 ctx.lineTo(x, y);
             }
         }
-        ctx.stroke();        // Add line number indicator at the first position
-        const firstPos = payline[0];
-        const labelX = startX + firstPos.reel * (reelWidth + actualSpacing) + symbolCenterOffsetX - 15;
-        const labelY = startY + firstPos.row * SYMBOL_SIZE + symbolCenterOffsetY;
+        ctx.stroke();
+
+        // Add line number indicator at the first position
+        const firstRowIndex = payline[0];
+        const labelX = startX + 0 * (reelWidth + actualSpacing) + symbolCenterOffsetX - 15; // First reel (index 0)
+        const labelY = startY + firstRowIndex * SYMBOL_SIZE + symbolCenterOffsetY;
 
         // Draw small circle with line number
         ctx.fillStyle = color;
@@ -2661,10 +2896,21 @@ function drawPaytableModal() {
     ctx.beginPath();
     ctx.moveTo(contentX, contentY + 20);
     ctx.lineTo(contentX + colWidth * 3.5, contentY + 20);
-    ctx.stroke();
-
-    // Draw symbols and payouts - increase vertical offset from header for better spacing
+    ctx.stroke();    // Draw symbols and payouts - increase vertical offset from header for better spacing
     let currentY = contentY + 60; // Increased from 40 to 60 to add more space after header
+
+    // Get the current theme's configuration
+    const currentTheme = THEMES[currentThemeName];
+    if (!currentTheme || !currentTheme.config) {
+        console.error("Cannot display paytable: theme or theme config is missing");
+        return;
+    }
+
+    // Get PAYLINES from the theme's config
+    const PAYLINES = currentTheme.config.PAYLINES || [];
+    const PAYOUT_RULES = currentTheme.config.PAYOUT_RULES || {};
+    const symbolNumberMultipliers = currentTheme.config.symbolNumberMultipliers || {};
+
     // First draw info about paylines
     drawText('Active Paylines: ' + PAYLINES.length, contentX, modalY + modalHeight - 60, 'bold 18px Arial', '#ffffff', 'left', 'middle');
     // Calculate bet per line (total bet divided by number of paylines)
@@ -2712,16 +2958,15 @@ function drawPaytableModal() {
                     ctx.textBaseline = 'middle';
                     ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', contentX, currentY);
                 }
-            }
-            // Draw payouts (3, 4, 5 of a kind) - Fixed to use symbolNumberMultipliers and PAYOUT_RULES
+            }            // Draw payouts (3, 4, 5 of a kind) - Get multipliers from theme config
             // Find the symbol index in the current theme
             const symbolIndex = i; // Symbol index matches the loop counter
             const baseMultiplier = symbolNumberMultipliers[symbolIndex] || 0;
 
             // Calculate final multipliers for 3, 4, and 5 matches
-            const multiplier3 = baseMultiplier * (PAYOUT_RULES[3] || 0);
-            const multiplier4 = baseMultiplier * (PAYOUT_RULES[4] || 0);
-            const multiplier5 = baseMultiplier * (PAYOUT_RULES[5] || 0);
+            const multiplier3 = typeof baseMultiplier === 'object' ? (baseMultiplier[3] || 0) : (baseMultiplier * (PAYOUT_RULES[3] || 0));
+            const multiplier4 = typeof baseMultiplier === 'object' ? (baseMultiplier[4] || 0) : (baseMultiplier * (PAYOUT_RULES[4] || 0));
+            const multiplier5 = typeof baseMultiplier === 'object' ? (baseMultiplier[5] || 0) : (baseMultiplier * (PAYOUT_RULES[5] || 0));
 
             // Display the calculated multiplier values
             drawText(multiplier3 + 'x', contentX + colWidth, currentY, 'bold 18px Arial', '#ffffff', 'center', 'middle');
@@ -2968,7 +3213,6 @@ function setupThemeSwitcher() {
 
     // Add options for each theme from the imported THEMES object
     Object.keys(THEMES).forEach(themeKey => { // Iterate over keys ("Classic", "AncientEgypt", etc.)
-        console.log(THEMES)
         const theme = THEMES[themeKey];
         const option = document.createElement('option');
         option.value = theme.name; // The value should be the theme name
@@ -2983,7 +3227,13 @@ function setupThemeSwitcher() {
     // Add change event listener
     dropdown.addEventListener('change', (e) => {
         if (!spinning) { // Add extra check here
-            changeTheme(e.target.value);
+            const newTheme = e.target.value;
+            changeTheme(newTheme);
+
+            // Update URL with the new theme parameter without reloading page
+            const url = new URL(window.location);
+            url.searchParams.set('theme', newTheme);
+            window.history.replaceState({}, '', url);
         } else {
             console.log("Prevented theme change during spin.");
             // Revert selection visually
@@ -3576,5 +3826,59 @@ function applyWinEffects(ctx, winningLine, timestamp) {
                 winningLine.shockwavesActive = false;
             }
         }
+    }
+}
+
+// Function to get and apply volume settings from the current theme
+function getAndApplyThemeVolumeSettings(themeName) {
+    // Default volume settings if none are specified in the theme
+    const defaultSettings = {
+        master: 1.0,
+        background: 0.7,
+        effects: 1.0
+    };
+
+    let volumeSettings = defaultSettings;
+
+    // Try to get volume settings from the current theme
+    const currentTheme = THEMES[themeName];
+    if (currentTheme && currentTheme.audio && currentTheme.audio.volume) {
+        // Use theme-specific volume settings
+        volumeSettings = {
+            master: currentTheme.audio.volume.master !== undefined ? currentTheme.audio.volume.master : defaultSettings.master,
+            background: currentTheme.audio.volume.background !== undefined ? currentTheme.audio.volume.background : defaultSettings.background,
+            effects: currentTheme.audio.volume.effects !== undefined ? currentTheme.audio.volume.effects : defaultSettings.effects
+        };
+        console.log(`Applied volume settings from theme ${themeName}:`, volumeSettings);
+    } else {
+        console.log(`No volume settings found for theme ${themeName}, using defaults:`, defaultSettings);
+    }
+
+    // Store the current volume settings
+    themeVolumeSettings = volumeSettings;
+
+    // Update gain node values if they exist
+    updateVolumeGainNodes();
+
+    return volumeSettings;
+}
+
+// Function to update gain nodes with current volume settings
+function updateVolumeGainNodes() {
+    if (!audioContext) return;
+
+    // Apply master volume
+    if (masterGainNode) {
+        masterGainNode.gain.value = muteState ? 0 : themeVolumeSettings.master;
+    }
+
+    // Apply background music volume
+    if (backgroundGainNode) {
+        backgroundGainNode.gain.value = muteState ? 0 : themeVolumeSettings.master * themeVolumeSettings.background;
+    }
+
+    // Apply sound effects volume
+    if (effectsGainNode) {
+        effectsGainNode.gain.value = muteState ? 0 : themeVolumeSettings.master * themeVolumeSettings.effects;
     }
 }
