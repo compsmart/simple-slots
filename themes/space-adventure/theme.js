@@ -13,7 +13,7 @@ export const SpaceAdventureTheme = {
         reelSpacing: 8,
         reelsContainer: {
             backgroundColor: "#0B0B2B", // Deep space blue
-            opacity: 0.95
+            opacity: 0.8
         },
         themeColor: "#651FFF" // Vibrant purple
     },
@@ -23,25 +23,64 @@ export const SpaceAdventureTheme = {
         reelEffects: {
             enabled: true,
             blurAmount: 7,
-            lightTrails: true,
+            lightTrails: false,
             spinningGlow: true,
             spinColor: '#00B0FF' // Bright blue
         },
         winEffects: {
-            enabled: true,
+            enabled: false,
             explosions: true,
             shockwave: true,
             flashingSymbols: true,
             spinEffect3d: {
-                enabled: true
+                enabled: false,
+                duration: 1000, // 1 second
+                rotations: 2, // Number of rotations
+                easing: 'easeInOutCubic', // Smooth easing
+            },
+            rotateEffect: {
+                enabled: false,
+                roations: 3, // Number of rotations
+                direction: 'clockwise', // Rotate clockwise for pirate theme
+                duration: 1000, // 1 second
+                easing: 'easeInOutCubic', // Smooth easing
             },
             pulsingSymbols: true,
-            winFrame: {
+        },
+        reelMask: {
+            enabled: true,
+            borderWidth: 3,
+            separatorWidth: 3,
+            glowEffect: {
                 enabled: true,
-                color: "#18FFFF", // Bright cyan
-                thickness: 3,
-                glowing: true
+                color: '#fff', // Gold for pirate treasure
+                intensity: 0.2,
+                size: 1
+            },
+            pulseEffect: {
+                enabled: false,
+                speed: 2000,
+                minOpacity: 0.6,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
+                enabled: true,
+                colors: ['#333'], // Gold, Orange-red, Deep blue, Emerald, Gold
+                speed: 6000,
+                mode: 'gradient'
             }
+        },
+        themeSpecific: {
+            spaceWarp: {
+                enabled: true,
+                speed: 1.5,
+                starCount: 200,
+                colorShift: true
+            },
+            planetGlow: {
+                enabled: true,
+                colors: ['#ff5500', '#00aaff', '#44ff44']
+            },
         }
     },
     // Audio configuration
@@ -66,32 +105,32 @@ export const SpaceAdventureTheme = {
             {
                 id: 0,
                 name: 'Spaceship',
-                imagePath: './themes/space-adventure/images/spaceship.jpg',
-                backgroundColor: "#FFD700", // Gold for Spaceship
+                imagePath: './themes/space-adventure/images/spaceship.png',
+                backgroundColor: null, // Gold for Spaceship
             },
             {
                 id: 1,
                 name: 'Alien',
-                imagePath: './themes/space-adventure/images/alien.jpg',
-                backgroundColor: "#FF0000", // Red for Alien
+                imagePath: './themes/space-adventure/images/alien.png',
+                backgroundColor: null, // Red for Alien
             },
             {
                 id: 2,
                 name: 'Planet',
-                imagePath: './themes/space-adventure/images/planet.jpg',
-                backgroundColor: "#FFA500", // Orange for Planet
+                imagePath: './themes/space-adventure/images/planet.png',
+                backgroundColor: null, // Orange for Planet
             },
             {
                 id: 3,
                 name: 'Meteor',
-                imagePath: './themes/space-adventure/images/meteor.jpg',
-                backgroundColor: "#FF69B4", // Pink for Meteor
+                imagePath: './themes/space-adventure/images/meteor.png',
+                backgroundColor: null, // Pink for Meteor
             },
             {
                 id: 4,
                 name: 'Astronaut',
-                imagePath: './themes/space-adventure/images/astronaut.jpg',
-                backgroundColor: "#FFFF00", // Yellow for Astronaut
+                imagePath: './themes/space-adventure/images/astronaut.png',
+                backgroundColor: null, // Yellow for Astronaut
             }
         ]
     },

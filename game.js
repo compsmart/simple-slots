@@ -341,7 +341,7 @@ async function loadThemeVisuals(themeName) {
                 const symbolObj = {
                     name: symbolAttr.name || `Symbol ${symbolAttr.id}`,
                     id: symbolAttr.id !== undefined ? symbolAttr.id : symbolsArray.length,
-                    backgroundColor: symbolAttr.backgroundColor || "#ffffff",
+                    backgroundColor: symbolAttr.backgroundColor === undefined ? "#ffffff" : symbolAttr.backgroundColor,
                     imagePath: symbolAttr.imagePath || null,
                     animation: symbolAttr.animation || null
                 };
@@ -1184,24 +1184,32 @@ function drawReels(deltaTime, timestamp) {
                 if (symbolTopY + SYMBOL_SIZE >= startY && symbolTopY <= startY + reelViewportHeight) {
                     if (symbol) {
                         // --- Draw Symbol Logic (SVG/Image/Fallback) ---
-                        // (Your existing symbol drawing logic goes here - unchanged)
-                        // ...
-                        // Example placeholder:
-                        let drawnFromSprite = false;
+                        let drawnFromSprite = false; // Initialize the variable
                         if (svgLoaded && symbol.name) {
-                            ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
-                            ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                            // Only draw background if backgroundColor is specified
+                            if (symbol.backgroundColor) {
+                                ctx.fillStyle = symbol.backgroundColor;
+                                ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
+                            }
                             drawnFromSprite = drawSymbol(symbol.name, ctx, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
                         }
                         if (!drawnFromSprite) {
                             if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) {
-                                if (symbol.imagePath) { // Draw background for transparent PNGs
-                                    ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                                // Only draw background for transparent PNGs if backgroundColor is specified
+                                if (symbol.imagePath && symbol.backgroundColor) {
+                                    ctx.fillStyle = symbol.backgroundColor;
                                     ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
                                 }
                                 ctx.drawImage(symbol.image, reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
                             } else {
-                                ctx.fillStyle = symbol.color || '#cccccc';
+                                // For placeholder/fallback, we still need a background
+                                if (symbol.backgroundColor) {
+                                    ctx.fillStyle = symbol.backgroundColor;
+                                } else if (symbol.color) {
+                                    ctx.fillStyle = symbol.color;
+                                } else {
+                                    ctx.fillStyle = '#cccccc';
+                                }
                                 ctx.fillRect(reelX, symbolTopY, SYMBOL_SIZE, SYMBOL_SIZE);
                                 ctx.fillStyle = '#000000'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                                 ctx.fillText(symbol.name ? symbol.name.substring(0, 1) : '?', reelX + SYMBOL_SIZE / 2, symbolTopY + SYMBOL_SIZE / 2);
@@ -2931,9 +2939,11 @@ function drawPaytableModal() {
 
             // First try to draw from sprite sheet if loaded
             if (svgLoaded && symbol.name) {
-                // Draw background for transparent symbols
-                ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
-                ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                // Draw background for transparent symbols only if backgroundColor is defined
+                if (symbol.backgroundColor) {
+                    ctx.fillStyle = symbol.backgroundColor;
+                    ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
+                }
 
                 // Try to draw from SVG sprite map
                 symbolDrawn = drawSymbol(symbol.name, ctx, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
@@ -2942,15 +2952,21 @@ function drawPaytableModal() {
             // If sprite drawing failed, fall back to individual image
             if (!symbolDrawn) {
                 if (symbol.image && symbol.image.complete && symbol.image.naturalHeight !== 0) {
-                    // If using separate PNG with transparency, first draw background
-                    if (symbol.imagePath) {
-                        ctx.fillStyle = symbol.backgroundColor || symbol.color || '#cccccc';
+                    // If using separate PNG with transparency, first draw background only if backgroundColor is defined
+                    if (symbol.imagePath && symbol.backgroundColor) {
+                        ctx.fillStyle = symbol.backgroundColor;
                         ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
                     }
                     ctx.drawImage(symbol.image, contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
                 } else {
-                    // Placeholder if no image available
-                    ctx.fillStyle = symbol.backgroundColor || symbol.color || '#888888';
+                    // Placeholder if no image available - use backgroundColor if available, otherwise fallback to color or default
+                    if (symbol.backgroundColor) {
+                        ctx.fillStyle = symbol.backgroundColor;
+                    } else if (symbol.color) {
+                        ctx.fillStyle = symbol.color;
+                    } else {
+                        ctx.fillStyle = '#888888';
+                    }
                     ctx.fillRect(contentX - symbolWidth / 2, currentY - symbolWidth / 2, symbolWidth, symbolWidth);
                     ctx.fillStyle = '#ffffff';
                     ctx.font = '16px Arial';

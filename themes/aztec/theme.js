@@ -36,12 +36,6 @@ export const AztecTheme = {
                 enabled: true
             },
             pulsingSymbols: true,
-            winFrame: {
-                enabled: true,
-                color: "#C49C1A",
-                thickness: 3,
-                glowing: true
-            }
         },
         themeSpecific: {
             templeGlow: {

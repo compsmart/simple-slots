@@ -10,10 +10,10 @@ export const PirateTheme = {
     config: themeConfig,
     // Layout and appearance settings
     layout: {
-        reelSpacing: 9,
+        reelSpacing: 0,
         reelsContainer: {
-            backgroundColor: "#0D47A1", // Deep sea blue
-            opacity: 0.9
+            backgroundColor: "#333", // Deep sea blue
+            opacity: 0.5
         },
         themeColor: "#FF5722" // Pirate orange-red
     },
@@ -23,7 +23,7 @@ export const PirateTheme = {
         reelEffects: {
             enabled: true,
             blurAmount: 5,
-            lightTrails: true,
+            lightTrails: false,
             spinningGlow: true,
             spinColor: '#FFD54F' // Gold coins
         },
@@ -33,16 +33,44 @@ export const PirateTheme = {
             shockwave: true,
             flashingSymbols: true,
             spinEffect3d: {
-                enabled: true
+                enabled: false,
+                duration: 1000, // 1 second
+                rotations: 2, // Number of rotations
+                easing: 'easeInOutCubic', // Smooth easing
+            },
+            rotateEffect: {
+                enabled: false,
+                roations: 3, // Number of rotations
+                direction: 'clockwise', // Rotate clockwise for pirate theme
+                duration: 1000, // 1 second
+                easing: 'easeInOutCubic', // Smooth easing
             },
             pulsingSymbols: true,
-            winFrame: {
+        },
+        reelMask: {
+            enabled: true,
+            borderWidth: 3,
+            separatorWidth: 3,
+            glowEffect: {
+                enabled: false,
+                color: '#431d08', // Gold for pirate treasure
+                intensity: 0.8,
+                size: 12
+            },
+            pulseEffect: {
+                enabled: false,
+                speed: 2000,
+                minOpacity: 0.6,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
                 enabled: true,
-                color: "#FFD700", // Gold
-                thickness: 4,
-                glowing: true
+                colors: ['#431d08'], // Gold, Orange-red, Deep blue, Emerald, Gold
+                speed: 6000,
+                mode: 'gradient'
             }
-        }
+        },
+
     },
     // Audio configuration
     audio: {
@@ -51,9 +79,9 @@ export const PirateTheme = {
         win: './themes/pirate/sounds/win.mp3',
         jackpot: './themes/pirate/sounds/jackpot.mp3',
         volume: {
-            master: 0.8,
-            background: 0.6,
-            effects: 0.9
+            master: 0.1,
+            background: 0.1,
+            effects: 0.1
         }
     },
     // Symbols and visuals
@@ -66,32 +94,32 @@ export const PirateTheme = {
             {
                 id: 0,
                 name: 'Treasure Chest',
-                imagePath: './themes/pirate/images/treasure.png',
-                backgroundColor: "#FFD700", // Gold for Treasure Chest
+                imagePath: './themes/pirate/images/chest.png',
+                backgroundColor: null, // Gold for Treasure Chest
             },
             {
                 id: 1,
                 name: 'Ship',
                 imagePath: './themes/pirate/images/ship.png',
-                backgroundColor: "#FF0000", // Red for Ship
+                backgroundColor: null, // Red for Ship
             },
             {
                 id: 2,
                 name: 'Skull',
                 imagePath: './themes/pirate/images/skull.png',
-                backgroundColor: "#FFA500", // Orange for Skull
+                backgroundColor: null, // Orange for Skull
             },
             {
                 id: 3,
                 name: 'Map',
                 imagePath: './themes/pirate/images/map.png',
-                backgroundColor: "#FF69B4", // Pink for Map
+                backgroundColor: null, // Pink for Map
             },
             {
                 id: 4,
-                name: 'Parrot',
-                imagePath: './themes/pirate/images/parrot.png',
-                backgroundColor: "#FFFF00", // Yellow for Parrot
+                name: 'Pirate',
+                imagePath: './themes/pirate/images/pirate.png',
+                backgroundColor: null, // Yellow for Parrot
             }
         ]
     },

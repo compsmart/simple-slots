@@ -36,12 +36,6 @@ export const ClassicTheme = {
                 enabled: false
             },
             pulsingSymbols: true,
-            winFrame: {
-                enabled: true,
-                color: "#ffd700", // Gold frames around winning symbols
-                thickness: 3,
-                glowing: true
-            }
         }
     },
     // Audio configuration

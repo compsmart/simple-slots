@@ -2,27 +2,29 @@
 import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
 import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import * as themeConfig from './config.js'; // Import theme configuration
 
 export const AncientEgyptTheme = {
     name: "Ancient Egypt",
+    config: themeConfig,
     // Layout and appearance settings
     layout: {
         reelSpacing: 8,
         reelsContainer: {
-            backgroundColor: "#8B4513", // Sandstone brown
-            opacity: 0.95
+            backgroundColor: "#431d08", // Sandstone brown
+            opacity: 0.5
         },
         themeColor: "#FFD700" // Gold color for Egyptian theme
     },
     visualEffects: {
-        ...EffectPresets.desert,
+        ...EffectPresets.ocean,
         intensity: 0.9,
         reelEffects: {
             enabled: true,
             blurAmount: 5,
-            lightTrails: true,
+            lightTrails: false,
             spinningGlow: true,
-            spinColor: '#FFDF00' // Gold color for spin glow
+            spinColor: '#FFD54F' // Gold coins
         },
         winEffects: {
             enabled: true,
@@ -30,32 +32,53 @@ export const AncientEgyptTheme = {
             shockwave: true,
             flashingSymbols: true,
             spinEffect3d: {
-                enabled: true
+                enabled: false,
+                duration: 1000, // 1 second
+                rotations: 2, // Number of rotations
+                easing: 'easeInOutCubic', // Smooth easing
+            },
+            rotateEffect: {
+                enabled: false,
+                roations: 3, // Number of rotations
+                direction: 'clockwise', // Rotate clockwise for pirate theme
+                duration: 1000, // 1 second
+                easing: 'easeInOutCubic', // Smooth easing
             },
             pulsingSymbols: true,
-            winFrame: {
+        },
+        reelMask: {
+            enabled: true,
+            borderWidth: 3,
+            separatorWidth: 3,
+            glowEffect: {
+                enabled: false,
+                color: '#FFD700', // Gold for pirate treasure
+                intensity: 0.8,
+                size: 12
+            },
+            pulseEffect: {
+                enabled: false,
+                speed: 2000,
+                minOpacity: 0.6,
+                maxOpacity: 1.0
+            },
+            colorTransition: {
                 enabled: true,
-                color: "#FFD700", // Gold frames around winning symbols
-                thickness: 4,
-                glowing: true
+                colors: ['#FFD700'], // Gold, Orange-red, Deep blue, Emerald, Gold
+                speed: 6000,
+                mode: 'gradient'
             }
         },
         themeSpecific: {
             sandStorm: {
-                enabled: true,
-                intensity: 2,
+                enabled: false,
+                intensity: 1,
                 color: '#d4b683'
             },
             hieroglyphGlow: {
                 enabled: true,
                 color: '#ffcc00'
             },
-            epicWinAnimation: {
-                enabled: true,
-                name: "Pharaoh's Treasure",
-                duration: 8000, // 8 seconds
-                goldParticles: true
-            }
         }
     },
     // Audio configuration
@@ -73,43 +96,43 @@ export const AncientEgyptTheme = {
     // Symbols and visuals
     symbols: {
         // Sprite sheet configuration
-        useSprite: true, // Set to true to use sprite map, false to use individual images
+        useSprite: false, // Set to true to use sprite map, false to use individual images
         path: './themes/ancient-egypt/images/symbols.svg',
         spriteMap: symbolMap, // Import from symbolMap.js
         attributes: [
             {
                 id: 0,
-                name: 'Sun God',
-                imagePath: './themes/aztec/images/sungod.png',
-                backgroundColor: "#FFD700", // Gold for Sun God
+                name: 'pharaoh',
+                imagePath: './themes/ancient-egypt/images/pharaoh.png',
+                backgroundColor: null, // Gold for Sun God
             },
             {
                 id: 1,
-                name: 'Mask',
-                imagePath: './themes/aztec/images/mask.png',
-                backgroundColor: "#FF0000", // Red for Mask
+                name: 'ankh',
+                imagePath: './themes/ancient-egypt/images/ankh.png',
+                backgroundColor: null, // Red for Mask
             },
             {
                 id: 2,
-                name: 'Temple',
-                imagePath: './themes/aztec/images/temple.png',
-                backgroundColor: "#FFA500", // Orange for Temple
+                name: 'scarab',
+                imagePath: './themes/ancient-egypt/images/scarab.png',
+                backgroundColor: null, // Orange for Temple
             },
             {
                 id: 3,
-                name: 'Jaguar',
-                imagePath: './themes/aztec/images/jaguar.png',
-                backgroundColor: "#FF69B4", // Pink for Jaguar
+                name: 'eye',
+                imagePath: './themes/ancient-egypt/images/eye.png',
+                backgroundColor: null, // Pink for Jaguar
             },
             {
                 id: 4,
-                name: 'Calendar',
-                imagePath: './themes/aztec/images/calendar.png',
-                backgroundColor: "#FFFF00", // Yellow for Calendar
+                name: 'pyramid',
+                imagePath: './themes/ancient-egypt/images/pyramid.png',
+                backgroundColor: null, // Yellow for Calendar
             }
         ]
     },
-    background: './themes/ancient-egypt/images/background.jpg',
+    background: './themes/ancient-egypt/images/background2.jpg',
 
     // Add rendering functions imported from effects.js
     renderThemeEffects,

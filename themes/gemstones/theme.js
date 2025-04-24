@@ -36,12 +36,6 @@ export const GemstonesTheme = {
                 enabled: true
             },
             pulsingSymbols: true,
-            winFrame: {
-                enabled: true,
-                color: "#18FFFF", // Bright cyan
-                thickness: 3,
-                glowing: true
-            }
         },
         neonGlow: {
             enabled: true,

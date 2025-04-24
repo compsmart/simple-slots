@@ -166,25 +166,126 @@ export const ThemeEffectsHelper = {
 };
 
 export function renderThemeEffects(ctx, canvas, timestamp, specific) {
-    // Use the specific parameter which contains theme-specific effect settings
+    if (specific?.spaceWarp?.enabled) {
+        const warpSettings = specific.spaceWarp;
+        const intensity = warpSettings?.intensity || 0.7;
+        const starCount = warpSettings?.starCount || 100;
+        const baseSpeed = warpSettings?.baseSpeed || 200;
+        const warpColor = warpSettings?.color || '#ffffff';
 
-    // Space-specific ambient effects
-    if (specific?.cosmicBackground?.enabled) {
-        // Apply starfield as background
-        ThemeEffectsHelper.applyStarfield(
-            ctx,
-            specific.cosmicBackground.starCount || 200,
-            specific.cosmicBackground.warpSpeed || 0.8
+        // Initialize warp stars if they don't exist
+        if (!ctx.warpStars || ctx.warpStars.length === 0) {
+            ctx.warpStars = [];
+            for (let i = 0; i < starCount; i++) {
+                // Create stars with random positions, more concentrated toward center
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 0.5 + 0.5; // 0.5 to 1.0 (more toward edges)
+
+                // Calculate x,y as distance from center
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const maxRadius = Math.min(centerX, centerY);
+
+                ctx.warpStars.push({
+                    x: centerX + Math.cos(angle) * distance * maxRadius,
+                    y: centerY + Math.sin(angle) * distance * maxRadius,
+                    size: Math.random() * 2 + 1,
+                    speed: Math.random() * baseSpeed + 50,
+                    angle: angle,
+                    distance: distance * maxRadius,
+                    color: Math.random() > 0.8 ?
+                        `hsl(${Math.floor(Math.random() * 60) + 200}, 100%, 70%)` : // Blue/purple stars
+                        warpColor // White stars
+                });
+            }
+        }
+
+        // Get the current pulsing effect for warp intensity
+        const pulseSpeed = warpSettings?.pulseSpeed || 5000;
+        const warpIntensity = (Math.sin(timestamp / pulseSpeed) * 0.3 + 0.7) * intensity; // 0.4 to 1.0 * intensity
+
+        // Update and draw all stars
+        ctx.warpStars.forEach(star => {
+            // Increase the distance from center based on speed and intensity
+            star.distance += star.speed * warpIntensity * 0.01;
+
+            // Reset stars that go off screen
+            const maxDistance = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height) / 2;
+            if (star.distance > maxDistance) {
+                // Reset the star position near center
+                star.distance = Math.random() * 20 + 5;
+                star.angle = Math.random() * Math.PI * 2;
+                star.size = Math.random() * 2 + 1;
+            }
+
+            // Calculate new position based on angle and distance
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const x = centerX + Math.cos(star.angle) * star.distance;
+            const y = centerY + Math.sin(star.angle) * star.distance;
+
+            // Calculate the streak length based on distance and speed
+            const streakLength = Math.min(20, star.distance * 0.1 * warpIntensity);
+
+            // Draw the star with streak
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(
+                x - Math.cos(star.angle) * streakLength,
+                y - Math.sin(star.angle) * streakLength
+            );
+
+            // Make stars fade in near center
+            const opacity = Math.min(1, star.distance / 50);
+            ctx.strokeStyle = star.color.includes('hsl') ?
+                star.color.replace(')', `, ${opacity})`) :
+                star.color.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
+            ctx.lineWidth = star.size;
+            ctx.stroke();
+        });
+    }
+
+    // Add Nebula glow behind the reels
+    if (specific?.nebula?.enabled) {
+        const nebulaSettings = specific.nebula;
+        const intensity = nebulaSettings?.intensity || 0.5;
+
+        // Calculate the reel area dimensions
+        const SYMBOL_SIZE = 100;
+        const REEL_COUNT = 5;
+        const VISIBLE_ROWS = 3;
+
+        const reelWidth = SYMBOL_SIZE;
+        const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
+        const startX = reelSpacing;
+        const startY = 100;
+        const reelViewportHeight = SYMBOL_SIZE * VISIBLE_ROWS;
+
+        // Create colored nebula gradient behind reels
+        ctx.save();
+
+        // Pulse the nebula color based on timestamp
+        const pulseSpeed = nebulaSettings?.pulseSpeed || 8000;
+        const pulseValue = Math.sin(timestamp / pulseSpeed);
+
+        // Create a gradient with shifting colors
+        const gradient = ctx.createRadialGradient(
+            canvas.width / 2, startY + reelViewportHeight / 2, 10,
+            canvas.width / 2, startY + reelViewportHeight / 2, reelViewportHeight
         );
 
-        // Apply nebula effect
-        if (specific.cosmicBackground.nebula?.enabled) {
-            ThemeEffectsHelper.applyNebulaEffect(
-                ctx,
-                specific.cosmicBackground.nebula.colors,
-                specific.cosmicBackground.nebula.intensity
-            );
-        }
+        // Dynamic colors based on time
+        const hue1 = (pulseValue * 30 + 240) % 360; // Blue/purple range
+        const hue2 = (pulseValue * 30 + 280) % 360; // Purple/pink range
+
+        gradient.addColorStop(0, `hsla(${hue1}, 100%, 50%, ${intensity * 0.3})`);
+        gradient.addColorStop(0.4, `hsla(${hue2}, 100%, 40%, ${intensity * 0.2})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 20, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.restore();
     }
 }
 

@@ -1,5 +1,6 @@
 // Ancient Egypt theme specific effects
 import { EffectPresets as BaseEffectPresets, EffectsHelper } from '../../shared/effects.js';
+import { AncientEgyptTheme } from './theme.js';
 
 // You can extend the base effect presets with Ancient Egypt-specific effects
 export const EffectPresets = {

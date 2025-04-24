@@ -18,12 +18,11 @@ export const FantasyForestTheme = {
         themeColor: "#8BC34A" // Light green
     },
     visualEffects: {
-        ...EffectPresets.magical,
         intensity: 0.95,
         reelEffects: {
             enabled: true,
             blurAmount: 4,
-            lightTrails: true,
+            lightTrails: false,
             spinningGlow: true,
             spinColor: '#76FF03' // Bright magical green
         },
@@ -36,11 +35,36 @@ export const FantasyForestTheme = {
                 enabled: true
             },
             pulsingSymbols: true,
-            winFrame: {
+        },
+        backgroundEffects: {
+            enabled: true,
+            particles: {
+                enabled: false,
+                count: 30,
+                color: '#FFD54F',
+                size: { min: 2, max: 4 }
+            },
+            pulse: {
                 enabled: true,
-                color: "#AEEA00", // Bright nature green
-                thickness: 4,
-                glowing: true
+                color: '#1a0038',
+                speed: 2000,
+                intensity: 0.3
+            }
+        },
+        themeSpecific: {
+            floatingLeaves: {
+                enabled: false,
+                count: 15,
+                rotationSpeed: 2,
+                fallSpeed: { min: 1, max: 3 },
+                colors: ['#8bc34a', '#4caf50', '#cddc39']
+            },
+            fireflies: {
+                enabled: true,
+                count: 25,
+                color: '#ffeb3b',
+                blinkRate: { min: 500, max: 2000 },
+                speed: { min: 0.2, max: 1 }
             }
         }
     },
