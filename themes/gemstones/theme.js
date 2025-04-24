@@ -23,7 +23,7 @@ export const GemstonesTheme = {
         reelEffects: {
             enabled: true,
             blurAmount: 3,
-            lightTrails: true,
+            lightTrails: false,
             spinningGlow: true,
             spinColor: '#00E5FF' // Bright cyan
         },
@@ -33,7 +33,17 @@ export const GemstonesTheme = {
             shockwave: true,
             flashingSymbols: true,
             spinEffect3d: {
-                enabled: true
+                enabled: false,
+                duration: 1000, // 1 second
+                rotations: 2, // Number of rotations
+                easing: 'easeInOutCubic', // Smooth easing
+            },
+            rotateEffect: {
+                enabled: true,
+                roations: 3, // Number of rotations
+                direction: 'clockwise', // Rotate clockwise for pirate theme
+                duration: 1000, // 1 second
+                easing: 'easeInOutCubic', // Smooth easing
             },
             pulsingSymbols: true,
         },

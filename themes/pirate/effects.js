@@ -11,16 +11,18 @@ export const EffectPresets = {
         glowIntensity: 0.7,
         colorShift: 0.4,
         blinkRate: 0.8,
-        // Additional Pirate-specific effect parameters
-        waterReflections: {
-            enabled: true,
-            intensity: 0.5,
-            speed: 0.7
-        },
-        cannonSmoke: {
-            enabled: true,
-            intensity: 0.6,
-            duration: 2000
+        themeSpecific: {
+            // Additional Pirate-specific effect parameters
+            waterReflections: {
+                enabled: true,
+                intensity: 0.5,
+                speed: 0.7
+            },
+            cannonSmoke: {
+                enabled: true,
+                intensity: 0.6,
+                duration: 2000
+            }
         }
     }
 };
@@ -152,7 +154,7 @@ export function renderThemeEffects(ctx, canvas, timestamp, specific) {
         ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
         // Note: Would need to restore context after drawing affected elements
-        // ctx.restore();
+        ctx.restore();
     }
 }
 

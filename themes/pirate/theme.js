@@ -18,7 +18,6 @@ export const PirateTheme = {
         themeColor: "#FF5722" // Pirate orange-red
     },
     visualEffects: {
-        ...EffectPresets.ocean,
         intensity: 0.9,
         reelEffects: {
             enabled: true,
@@ -70,7 +69,36 @@ export const PirateTheme = {
                 mode: 'gradient'
             }
         },
-
+        themeSpecific: {
+            waterReflections: {
+                enabled: true,
+                intensity: 0.5,
+                speed: 0.7
+            },
+            cannonSmoke: {
+                enabled: true,
+                intensity: 0.6,
+                duration: 2000
+            },
+            oceanWaves: {
+                enabled: true,
+                waveColor: '#1e90ff',
+                waveHeight: 10,
+                waveSpeed: 2000,
+                intensity: 0.5
+            },
+            shipRocking: {
+                enabled: true,
+                rockingAngle: 5, // Degrees
+                rockingSpeed: 3000
+            },
+            treasureGlow: {
+                enabled: true,
+                glowColor: '#ffd700',
+                intensity: 0.7,
+                pulseSpeed: 2500
+            }
+        }
     },
     // Audio configuration
     audio: {
@@ -87,7 +115,7 @@ export const PirateTheme = {
     // Symbols and visuals
     symbols: {
         // Sprite sheet configuration
-        useSprite: true, // Set to true to use sprite map, false to use individual images
+        useSprite: false, // Set to true to use sprite map, false to use individual images
         path: './themes/pirate/images/symbols.svg',
         spriteMap: symbolMap, // Import from symbolMap.js
         attributes: [
