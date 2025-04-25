@@ -1,8 +1,7 @@
 // theme.js for Space Adventure theme
-import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
 import * as themeConfig from './config.js'; // Import theme configuration
-import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import { EffectPresets, ThemeEffectsHelper, renderEpicWinAnimation } from './effects.js';
 
 export const SpaceAdventureTheme = {
     name: "Space Adventure",
@@ -18,70 +17,7 @@ export const SpaceAdventureTheme = {
         themeColor: "#651FFF" // Vibrant purple
     },
     visualEffects: {
-        ...EffectPresets.scifi,
-        intensity: 1.0,
-        reelEffects: {
-            enabled: true,
-            blurAmount: 7,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#00B0FF' // Bright blue
-        },
-        winEffects: {
-            enabled: false,
-            explosions: true,
-            shockwave: true,
-            flashingSymbols: true,
-            spinEffect3d: {
-                enabled: false,
-                duration: 1000, // 1 second
-                rotations: 2, // Number of rotations
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            rotateEffect: {
-                enabled: false,
-                roations: 3, // Number of rotations
-                direction: 'clockwise', // Rotate clockwise for pirate theme
-                duration: 1000, // 1 second
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            pulsingSymbols: true,
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 3,
-            separatorWidth: 3,
-            glowEffect: {
-                enabled: true,
-                color: '#fff', // Gold for pirate treasure
-                intensity: 0.2,
-                size: 1
-            },
-            pulseEffect: {
-                enabled: false,
-                speed: 2000,
-                minOpacity: 0.6,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: true,
-                colors: ['#333'], // Gold, Orange-red, Deep blue, Emerald, Gold
-                speed: 6000,
-                mode: 'gradient'
-            }
-        },
-        themeSpecific: {
-            spaceWarp: {
-                enabled: true,
-                speed: 1.5,
-                starCount: 200,
-                colorShift: true
-            },
-            planetGlow: {
-                enabled: true,
-                colors: ['#ff5500', '#00aaff', '#44ff44']
-            },
-        }
+        ...EffectPresets,
     },
     // Audio configuration
     audio: {
@@ -135,7 +71,7 @@ export const SpaceAdventureTheme = {
         ]
     },
     background: './themes/space-adventure/images/background.jpg',
-    renderThemeEffects,
+    ThemeEffectsHelper,
     renderEpicWinAnimation
 };
 

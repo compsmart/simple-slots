@@ -1,8 +1,7 @@
 // theme.js for Pirate theme
-import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
 import * as themeConfig from './config.js'; // Import theme configuration
-import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import { EffectPresets, ThemeEffectsHelper, renderEpicWinAnimation } from './effects.js';
 
 export const PirateTheme = {
     name: "Pirate",
@@ -18,87 +17,7 @@ export const PirateTheme = {
         themeColor: "#FF5722" // Pirate orange-red
     },
     visualEffects: {
-        intensity: 0.9,
-        reelEffects: {
-            enabled: true,
-            blurAmount: 5,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#FFD54F' // Gold coins
-        },
-        winEffects: {
-            enabled: true,
-            explosions: true,
-            shockwave: true,
-            flashingSymbols: true,
-            spinEffect3d: {
-                enabled: false,
-                duration: 1000, // 1 second
-                rotations: 2, // Number of rotations
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            rotateEffect: {
-                enabled: false,
-                roations: 3, // Number of rotations
-                direction: 'clockwise', // Rotate clockwise for pirate theme
-                duration: 1000, // 1 second
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            pulsingSymbols: true,
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 3,
-            separatorWidth: 3,
-            glowEffect: {
-                enabled: false,
-                color: '#431d08', // Gold for pirate treasure
-                intensity: 0.8,
-                size: 12
-            },
-            pulseEffect: {
-                enabled: false,
-                speed: 2000,
-                minOpacity: 0.6,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: true,
-                colors: ['#431d08'], // Gold, Orange-red, Deep blue, Emerald, Gold
-                speed: 6000,
-                mode: 'gradient'
-            }
-        },
-        themeSpecific: {
-            waterReflections: {
-                enabled: true,
-                intensity: 0.5,
-                speed: 0.7
-            },
-            cannonSmoke: {
-                enabled: true,
-                intensity: 0.6,
-                duration: 2000
-            },
-            oceanWaves: {
-                enabled: true,
-                waveColor: '#1e90ff',
-                waveHeight: 10,
-                waveSpeed: 2000,
-                intensity: 0.5
-            },
-            shipRocking: {
-                enabled: true,
-                rockingAngle: 5, // Degrees
-                rockingSpeed: 3000
-            },
-            treasureGlow: {
-                enabled: true,
-                glowColor: '#ffd700',
-                intensity: 0.7,
-                pulseSpeed: 2500
-            }
-        }
+        ...EffectPresets,
     },
     // Audio configuration
     audio: {
@@ -152,7 +71,7 @@ export const PirateTheme = {
         ]
     },
     background: './themes/pirate/images/background.jpg',
-    renderThemeEffects,
+    ThemeEffectsHelper,
     renderEpicWinAnimation
 };
 

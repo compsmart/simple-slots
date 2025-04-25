@@ -1,19 +1,95 @@
-// filepath: c:\projects\copilot-agent\theme-slots\themes\gemstones\effects.js
 // Gemstones theme specific effects
-import { EffectPresets as BaseEffectPresets, EffectsHelper } from '../../shared/effects.js';
+import { EffectDefaults, EffectsHelper } from '../../shared/effects.js';
 import { GemstonesTheme } from './theme.js';
 
 // You can extend the base effect presets with Gemstones-specific effects
 export const EffectPresets = {
-    ...BaseEffectPresets,
-    jeweled: {
-        ...BaseEffectPresets.sparkle,
+    ...EffectDefaults,
+    enabled: true,
+    enabled: true,
+    backgroundEffects: {
+        enabled: false
+    },
+    reelEffects: {
+        enabled: true,
+        blurAmount: 3,
+        lightTrails: false,
+        spinningGlow: true,
+        spinColor: '#00E5FF' // Bright cyan
+    },
+    winEffects: {
+        enabled: true,
+        explosions: true,
+        shockwave: true,
+        flashingSymbols: true,
+        spinEffect3d: {
+            enabled: false,
+            duration: 1000, // 1 second
+            rotations: 2, // Number of rotations
+            easing: 'easeInOutCubic', // Smooth easing
+        },
+        rotateEffect: {
+            enabled: true,
+            roations: 3, // Number of rotations
+            direction: 'clockwise', // Rotate clockwise for pirate theme
+            duration: 1000, // 1 second
+            easing: 'easeInOutCubic', // Smooth easing
+        },
+        pulsingSymbols: true,
+    },
+    neonGlow: {
+        enabled: true,
+        color: '#ff00ff', // Vibrant magenta
+        size: 12,
+        pulseSpeed: 600,
+        intensity: 0.9
+    },
+    backgroundEffects: {
+        enabled: true,
+        particles: {
+            enabled: false,
+            count: 60,
+            color: '#ffffff',
+            size: { min: 2, max: 7 },
+            sparkle: true
+        },
+        pulse: {
+            enabled: true,
+            color: '#220033',
+            speed: 1200,
+            intensity: 0.5
+        }
+    },
+    reelMask: {
+        enabled: true,
+        borderWidth: 4,
+        separatorWidth: 4,
+        glowEffect: {
+            enabled: true,
+            color: '#00ffff',
+            intensity: 0.9,
+            size: 15
+        },
+        pulseEffect: {
+            enabled: true,
+            speed: 15000,
+            minOpacity: 0.7,
+            maxOpacity: 1.0
+        },
+        colorTransition: {
+            enabled: true,
+            colors: ['#FFD700', '#228B22', '#c31120', '#660069', '#285cff'],
+            speed: 30000,
+            mode: 'gradient'
+        }
+    },
+    themeSpecific: {
         glowIntensity: 0.9,
         colorShift: 0.6,
         blinkRate: 1.2,
         // Additional Gemstones-specific effect parameters
         reflections: {
-            enabled: true,
+            enabled: false,
             intensity: 0.8,
             speed: 0.3
         },
@@ -21,6 +97,19 @@ export const EffectPresets = {
             enabled: true,
             intensity: 0.7,
             colors: ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff']
+        },
+        gemSparkle: {
+            enabled: true,
+            intensity: 0.9,
+            colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
+        },
+        epicWinAnimation: {
+            enabled: true,
+            name: "Gem Explosion",
+            duration: 8000, // 8 seconds
+            diamondShower: true,
+            prismaticRays: true,
+            jewelTransformation: true
         }
     }
 };
@@ -31,27 +120,30 @@ export const ThemeEffectsHelper = {
     ...EffectsHelper,
 
     // Add theme-specific effect methods with standardized naming pattern
-    applyThemeEffect(ctx, element, intensity = 1, theme) {
-        // Standard entry point for theme-specific effects
-        this.applyGemEffect(ctx, element, intensity, theme);
-    },
+    applyThemeEffect(ctx, element, intensity = 1, theme, timestamp) {
 
-    // Gemstones-specific methods
-    applyGemEffect(ctx, element, intensity = 1, theme) {
-        // Apply appropriate effects based on the theme parameter
-        if (theme?.visualEffects?.reflections?.enabled) {
+        const specific = theme?.visualEffects?.themeSpecific || {};
+        if (specific?.reflections?.enabled) {
             this.applyReflections(
                 ctx,
-                theme.visualEffects.reflections.intensity,
-                theme.visualEffects.reflections.speed
+                specific.reflections.intensity,
+                specific.reflections.speed
             );
-        }
-
-        if (theme?.visualEffects?.prismEffect?.enabled) {
+        } if (specific?.prismEffect?.enabled) {
             this.applyPrismEffect(
                 ctx,
-                theme.visualEffects.prismEffect.intensity,
-                theme.visualEffects.prismEffect.colors
+                element,
+                specific.prismEffect.intensity,
+                specific.prismEffect.colors,
+                timestamp
+            );
+        } if (specific?.gemSparkle?.enabled) {
+            this.applyGemSparkle(
+                ctx,
+                element,
+                specific.gemSparkle.intensity,
+                specific.gemSparkle.colors,
+                timestamp
             );
         }
     },
@@ -89,127 +181,11 @@ export const ThemeEffectsHelper = {
         ctx.fill();
 
         ctx.restore();
-    },
+    }, applyPrismEffect(ctx, canvas, intensity = 0.7, colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'], timestamp) {
+        const prismSettings = {
+            rainbowIntensity: intensity
+        };
 
-    applyPrismEffect(ctx, intensity = 0.7, colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff']) {
-        const { width, height } = ctx.canvas;
-        const time = Date.now() / 1000;
-
-        ctx.save();
-        ctx.globalAlpha = intensity * 0.3; // Keep it subtle
-
-        // Draw prism rainbow effect
-        const gradientHeight = height * 0.1;
-        const yOffset = (Math.sin(time * 0.2) * height * 0.05);
-
-        // Create rainbow gradient
-        const gradient = ctx.createLinearGradient(0, yOffset, width, yOffset + gradientHeight);
-
-        colors.forEach((color, index) => {
-            gradient.addColorStop(index / (colors.length - 1), color);
-        });
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, yOffset, width, gradientHeight);
-
-        ctx.restore();
-    }
-};
-
-export function renderThemeEffects(ctx, canvas, timestamp, specific) {
-    if (specific?.gemSparkle?.enabled) {
-        const sparkleSettings = specific.gemSparkle;
-        const intensity = sparkleSettings?.intensity || 0.9;
-        const colors = sparkleSettings?.colors || ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
-
-        // Initialize sparkles if they don't exist
-        if (!ctx.gemSparkles) {
-            ctx.gemSparkles = [];
-            const sparkleCount = Math.floor(30 * intensity);
-
-            // Create sparkles across the screen, focusing on reel areas
-            for (let i = 0; i < sparkleCount; i++) {
-                ctx.gemSparkles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 4 + 2,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    angle: Math.random() * Math.PI * 2,
-                    timeOffset: Math.random() * 2000,
-                    duration: Math.random() * 1000 + 500,
-                    active: true
-                });
-            }
-        }
-
-        // Update and draw sparkles
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-
-        ctx.gemSparkles.forEach(sparkle => {
-            // Calculate sparkle visibility based on time
-            const cycleTime = (timestamp + sparkle.timeOffset) % (sparkle.duration * 2);
-            const visible = cycleTime < sparkle.duration;
-
-            if (visible) {
-                // Calculate sparkle opacity based on its cycle
-                const progress = cycleTime / sparkle.duration;
-                const opacity = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
-
-                // Draw the sparkle
-                ctx.save();
-                ctx.translate(sparkle.x, sparkle.y);
-                ctx.rotate(sparkle.angle + timestamp / 1000);
-
-                // Create a star shape for the sparkle
-                ctx.fillStyle = sparkle.color;
-                ctx.globalAlpha = opacity * intensity;
-
-                // Draw a four-point star
-                ctx.beginPath();
-                for (let i = 0; i < 4; i++) {
-                    const angle = (i / 4) * Math.PI * 2;
-                    const innerRadius = sparkle.size * 0.4;
-                    const outerRadius = sparkle.size;
-
-                    // Outer point
-                    ctx.lineTo(
-                        Math.cos(angle) * outerRadius,
-                        Math.sin(angle) * outerRadius
-                    );
-
-                    // Inner point
-                    const innerAngle = angle + Math.PI / 4;
-                    ctx.lineTo(
-                        Math.cos(innerAngle) * innerRadius,
-                        Math.sin(innerAngle) * innerRadius
-                    );
-                }
-                ctx.closePath();
-                ctx.fill();
-
-                // Add a white center for extra shine
-                ctx.fillStyle = 'white';
-                ctx.beginPath();
-                ctx.arc(0, 0, sparkle.size * 0.2, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.restore();
-            }
-
-            // Occasionally move the sparkle to a new position for visual freshness
-            if (Math.random() < 0.002) {
-                sparkle.x = Math.random() * canvas.width;
-                sparkle.y = Math.random() * canvas.height;
-            }
-        });
-
-        ctx.restore();
-    }
-
-    // Prism Effect (Rainbow light refraction)
-    if (specific?.prismEffect?.enabled) {
-        const prismSettings = specific.prismEffect;
         const rainbowIntensity = prismSettings?.rainbowIntensity || 0.7;
 
         // Calculate the reel area dimensions
@@ -356,8 +332,99 @@ export function renderThemeEffects(ctx, canvas, timestamp, specific) {
         }
 
         ctx.restore();
-    }
-}
+    }, applyGemSparkle(ctx, canvas, intensity = 0.9, colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'], timestamp) {
+        const sparkleSettings = {
+            intensity: intensity,
+            colors: colors
+        };
+
+        // Initialize sparkles if they don't exist
+        if (!this._gemSparkles) {
+            this._gemSparkles = [];
+            const sparkleCount = Math.floor(30 * intensity);
+
+            // Create sparkles across the screen, focusing on reel areas
+            for (let i = 0; i < sparkleCount; i++) {
+                this._gemSparkles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 4 + 2,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    angle: Math.random() * Math.PI * 2,
+                    timeOffset: Math.random() * 2000,
+                    duration: Math.random() * 1000 + 500,
+                    active: true
+                });
+            }
+        }
+
+        // Update and draw sparkles
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+
+        this._gemSparkles.forEach(sparkle => {
+            // Calculate sparkle visibility based on time
+            const cycleTime = (timestamp + sparkle.timeOffset) % (sparkle.duration * 2);
+            const visible = cycleTime < sparkle.duration;
+
+            if (visible) {
+                // Calculate sparkle opacity based on its cycle
+                const progress = cycleTime / sparkle.duration;
+                const opacity = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
+
+                // Draw the sparkle
+                ctx.save();
+                ctx.translate(sparkle.x, sparkle.y);
+                ctx.rotate(sparkle.angle + timestamp / 1000);
+
+                // Create a star shape for the sparkle
+                ctx.fillStyle = sparkle.color;
+                ctx.globalAlpha = opacity * intensity;
+
+                // Draw a four-point star
+                ctx.beginPath();
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2;
+                    const innerRadius = sparkle.size * 0.4;
+                    const outerRadius = sparkle.size;
+
+                    // Outer point
+                    ctx.lineTo(
+                        Math.cos(angle) * outerRadius,
+                        Math.sin(angle) * outerRadius
+                    );
+
+                    // Inner point
+                    const innerAngle = angle + Math.PI / 4;
+                    ctx.lineTo(
+                        Math.cos(innerAngle) * innerRadius,
+                        Math.sin(innerAngle) * innerRadius
+                    );
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Add a white center for extra shine
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(0, 0, sparkle.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            // Occasionally move the sparkle to a new position for visual freshness
+            if (Math.random() < 0.002) {
+                sparkle.x = Math.random() * canvas.width;
+                sparkle.y = Math.random() * canvas.height;
+            }
+        });
+
+        ctx.restore();
+    },
+
+
+};
 
 export function renderEpicWinAnimation(ctx, canvas, elapsedTime, deltaTime, winAmount) {
     const config = GemstonesTheme.visualEffects.themeSpecific.epicWinAnimation;
@@ -372,6 +439,5 @@ export function renderEpicWinAnimation(ctx, canvas, elapsedTime, deltaTime, winA
 
 export default {
     ThemeEffectsHelper,
-    renderThemeEffects,
     renderEpicWinAnimation
 };

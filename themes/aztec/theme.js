@@ -1,8 +1,7 @@
 // theme.js for Aztec theme
-import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
 import * as themeConfig from './config.js'; // Import theme configuration
-import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import { EffectPresets, ThemeEffectsHelper, renderEpicWinAnimation } from './effects.js';
 
 export const AztecTheme = {
     name: "Aztec",
@@ -18,42 +17,7 @@ export const AztecTheme = {
         themeColor: "#C49C1A" // Golden Aztec color
     },
     visualEffects: {
-        ...EffectPresets.ancient,
-        intensity: 0.9,
-        reelEffects: {
-            enabled: true,
-            blurAmount: 5,
-            lightTrails: true,
-            spinningGlow: true,
-            spinColor: '#E6BB4C' // Aztec gold
-        },
-        winEffects: {
-            enabled: true,
-            explosions: true,
-            shockwave: true,
-            flashingSymbols: true,
-            spinEffect3d: {
-                enabled: true
-            },
-            pulsingSymbols: true,
-        },
-        themeSpecific: {
-            templeGlow: {
-                enabled: true,
-                intensity: 0.8,
-                glowColor: '#E6BB4C',
-                pulseSpeed: 3000
-            },
-            epicWinAnimation: {
-                enabled: true,
-                name: "Temple of Gold",
-                duration: 10000, // 10 seconds
-                goldParticles: true,
-                _bgLoadInitiated: false,
-                _particles: [],
-                _particlesInitialized: false
-            }
-        }
+        ...EffectPresets,
     },
     // Audio configuration
     audio: {
@@ -109,7 +73,7 @@ export const AztecTheme = {
     background: './themes/aztec/images/background.jpg',
 
     // Add rendering functions imported from effects.js
-    renderThemeEffects,
+    ThemeEffectsHelper,
     renderEpicWinAnimation
 };
 

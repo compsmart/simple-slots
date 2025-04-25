@@ -9,25 +9,50 @@ export const EffectDefaults = {
     enabled: false,       // Master switch for all effects
     intensity: 0.7,       // Overall intensity multiplier (0.0-1.0)
     framerate: 60,        // Target framerate for animations
-
-    // Individual effects
-    neonGlow: {
-        enabled: false,    // Enable neon glow around symbols
-        color: '#00ffff', // Default color for glow
-        size: 10,         // Glow size in pixels
-        pulseSpeed: 1000, // Pulse cycle in milliseconds
-        intensity: 0.8    // Specific effect intensity
+    intensity: 0.9,
+    reelEffects: {
+        enabled: true,
+        blurAmount: 5,
+        lightTrails: false,
+        spinningGlow: true,
+        spinColor: '#FFD54F' // Gold coins
     },
-
-    electricEdges: {
-        enabled: false,    // Enable electric effect on symbol edges
-        color: '#ffffff', // Color of the electric effect
-        arcs: 5,          // Number of electric arcs
-        speed: 800,       // Speed of movement in ms
-        intensity: 0.7    // Specific effect intensity
+    winEffects: {
+        enabled: true,
+        explosions: true,
+        shockwave: true,
+        flashingSymbols: true,
+        spinEffect3d: {
+            enabled: false,
+            duration: 1000, // 1 second
+            rotations: 2, // Number of rotations
+            easing: 'easeInOutCubic', // Smooth easing
+        },
+        rotateEffect: {
+            enabled: false,
+            roations: 3, // Number of rotations
+            direction: 'clockwise', // Rotate clockwise for pirate theme
+            duration: 1000, // 1 second
+            easing: 'easeInOutCubic', // Smooth easing
+        },
+        pulsingSymbols: true,
     },
-
-    // New reelMask effects configuration
+    symbolEffects: {
+        neonGlow: {
+            enabled: false,    // Enable neon glow around symbols
+            color: '#00ffff', // Default color for glow
+            size: 10,         // Glow size in pixels
+            pulseSpeed: 1000, // Pulse cycle in milliseconds
+            intensity: 0.8    // Specific effect intensity
+        },
+        electricEdges: {
+            enabled: false,    // Enable electric effect on symbol edges
+            color: '#ffffff', // Color of the electric effect
+            arcs: 5,          // Number of electric arcs
+            speed: 800,       // Speed of movement in ms
+            intensity: 0.7    // Specific effect intensity
+        },
+    },
     reelMask: {
         enabled: true,             // Enable special effects for reel mask
         borderWidth: 5,            // Width of the border in pixels
@@ -51,9 +76,8 @@ export const EffectDefaults = {
             mode: 'gradient'       // 'gradient' or 'solid'
         }
     },
-
     backgroundEffects: {
-        enabled: true,               // Master switch for background
+        enabled: false,               // Master switch for background
         particles: {
             enabled: true,           // Floating particles
             count: 50,               // Number of particles
@@ -267,269 +291,5 @@ export const EffectsHelper = {
         ctx.stroke();
 
         ctx.restore();
-    }
-};
-
-// Reusable effect configurations that themes can import
-export const EffectPresets = {
-    // Modern neon look with bright colors
-    neon: {
-        enabled: true,
-        intensity: 0.8,
-        neonGlow: {
-            enabled: true,
-            color: '#00ffff',
-            size: 12,
-            pulseSpeed: 800,
-            intensity: 0.9
-        },
-        electricEdges: {
-            enabled: true,
-            color: '#ffffff',
-            arcs: 3,
-            speed: 600,
-            intensity: 0.7
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 5,
-            separatorWidth: 2,
-            glowEffect: {
-                enabled: true,
-                color: '#00ffff',
-                intensity: 0.9,
-                size: 15
-            },
-            pulseEffect: {
-                enabled: false,
-                speed: 15000,
-                minOpacity: 0.7,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: false,
-                colors: ['#FFD700', '#228B22', '#DAA520', '#006400', '#FFD700'],
-                speed: 30000,
-                mode: 'gradient'
-            }
-        },
-        backgroundEffects: {
-            enabled: true,
-            particles: {
-                enabled: true,
-                count: 70,
-                color: '#80ffff',
-                size: { min: 1, max: 5 }
-            },
-            pulse: {
-                enabled: true,
-                color: '#001a3a',
-                speed: 1500,
-                intensity: 0.4
-            }
-        },
-        reelEffects: {
-            enabled: true,
-            blurAmount: 6,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#00ccff'
-        }
-    },
-
-    // Retro arcade style
-    retro: {
-        ...EffectDefaults,
-        enabled: true,
-        intensity: 0.7,
-        neonGlow: {
-            enabled: true,
-            color: '#ff00ff',
-            size: 8,
-            pulseSpeed: 1200,
-            intensity: 0.7
-        },
-        electricEdges: {
-            enabled: false
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 6,
-            separatorWidth: 3,
-            glowEffect: {
-                enabled: true,
-                color: '#ff00ff',
-                intensity: 0.8,
-                size: 12
-            },
-            pulseEffect: {
-                enabled: true,
-                speed: 1200,
-                minOpacity: 0.5,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: true,
-                colors: ['#ff00ff', '#ff44aa', '#ff0044', '#aa00ff', '#ff00ff'],
-                speed: 6000,
-                mode: 'solid'
-            }
-        },
-        backgroundEffects: {
-            enabled: true,
-            particles: {
-                enabled: true,
-                count: 30,
-                color: '#ff44ff',
-                size: { min: 2, max: 4 }
-            },
-            pulse: {
-                enabled: true,
-                color: '#1a0038',
-                speed: 2000,
-                intensity: 0.3
-            }
-        },
-        reelEffects: {
-            enabled: true,
-            blurAmount: 4,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#ff00ff'
-        }
-    },
-
-    // Electric energetic style
-    electric: {
-        ...EffectDefaults,
-        enabled: true,
-        intensity: 0.85,
-        neonGlow: {
-            enabled: true,
-            color: '#ffff00',
-            size: 10,
-            pulseSpeed: 500,
-            intensity: 0.8
-        },
-        electricEdges: {
-            enabled: false,
-            color: '#ffffff',
-            arcs: 8,
-            speed: 400,
-            intensity: 0.9
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 5,
-            separatorWidth: 2,
-            glowEffect: {
-                enabled: true,
-                color: '#ffff00',
-                intensity: 0.9,
-                size: 14
-            },
-            pulseEffect: {
-                enabled: true,
-                speed: 800,
-                minOpacity: 0.6,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: true,
-                colors: ['#ffff00', '#ffaa00', '#ff5500', '#ffdd00', '#ffff00'],
-                speed: 3000,
-                mode: 'gradient'
-            }
-        },
-        backgroundEffects: {
-            enabled: true,
-            particles: {
-                enabled: true,
-                count: 60,
-                color: '#ffff80',
-                size: { min: 1, max: 6 }
-            },
-            pulse: {
-                enabled: true,
-                color: '#1a1a00',
-                speed: 1000,
-                intensity: 0.5
-            }
-        },
-        reelEffects: {
-            enabled: true,
-            blurAmount: 7,
-            lightTrails: true,
-            spinningGlow: true,
-            spinColor: '#ffdd00'
-        }
-    },
-
-    // Subtle professional style
-    subtle: {
-        ...EffectDefaults,
-        enabled: true,
-        intensity: 0.4,
-        neonGlow: {
-            enabled: true,
-            color: '#4488ff',
-            size: 6,
-            pulseSpeed: 1500,
-            intensity: 0.5
-        },
-        electricEdges: {
-            enabled: false
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 3,
-            separatorWidth: 1,
-            glowEffect: {
-                enabled: true,
-                color: '#4488ff',
-                intensity: 0.6,
-                size: 10
-            },
-            pulseEffect: {
-                enabled: true,
-                speed: 2000,
-                minOpacity: 0.5,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: true,
-                colors: ['#4488ff', '#44aaff', '#44ccff', '#4488ff'],
-                speed: 6000,
-                mode: 'gradient'
-            }
-        },
-        backgroundEffects: {
-            enabled: true,
-            particles: {
-                enabled: true,
-                count: 25,
-                color: '#ffffff',
-                size: { min: 1, max: 3 }
-            },
-            pulse: {
-                enabled: true,
-                color: '#101020',
-                speed: 3000,
-                intensity: 0.2
-            }
-        },
-        reelEffects: {
-            enabled: true,
-            blurAmount: 3,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#4488ff'
-        }
-    },
-
-    // No effects - classic clean look
-    none: {
-        ...EffectDefaults,
-        enabled: false
     }
 };

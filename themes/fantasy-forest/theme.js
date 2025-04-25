@@ -1,8 +1,7 @@
 // theme.js for Fantasy Forest theme
-import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
 import * as themeConfig from './config.js'; // Import theme configuration
-import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import { EffectPresets, ThemeEffectsHelper, renderEpicWinAnimation } from './effects.js';
 
 export const FantasyForestTheme = {
     name: "Fantasy Forest",
@@ -18,55 +17,7 @@ export const FantasyForestTheme = {
         themeColor: "#8BC34A" // Light green
     },
     visualEffects: {
-        intensity: 0.95,
-        reelEffects: {
-            enabled: true,
-            blurAmount: 4,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#76FF03' // Bright magical green
-        },
-        winEffects: {
-            enabled: true,
-            explosions: true,
-            shockwave: true,
-            flashingSymbols: true,
-            spinEffect3d: {
-                enabled: true
-            },
-            pulsingSymbols: true,
-        },
-        backgroundEffects: {
-            enabled: true,
-            particles: {
-                enabled: false,
-                count: 30,
-                color: '#FFD54F',
-                size: { min: 2, max: 4 }
-            },
-            pulse: {
-                enabled: true,
-                color: '#1a0038',
-                speed: 2000,
-                intensity: 0.3
-            }
-        },
-        themeSpecific: {
-            floatingLeaves: {
-                enabled: false,
-                count: 15,
-                rotationSpeed: 2,
-                fallSpeed: { min: 1, max: 3 },
-                colors: ['#8bc34a', '#4caf50', '#cddc39']
-            },
-            fireflies: {
-                enabled: true,
-                count: 25,
-                color: '#ffeb3b',
-                blinkRate: { min: 500, max: 2000 },
-                speed: { min: 0.2, max: 1 }
-            }
-        }
+        ...EffectPresets,
     },
     // Audio configuration
     audio: {
@@ -121,7 +72,7 @@ export const FantasyForestTheme = {
     },
     background: './themes/fantasy-forest/images/background.jpg',
     // Add rendering functions imported from effects.js
-    renderThemeEffects,
+    ThemeEffectsHelper,
     renderEpicWinAnimation
 };
 

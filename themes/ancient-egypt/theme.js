@@ -1,7 +1,6 @@
 // theme.js for Ancient Egypt theme
-import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
-import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import { EffectPresets, ThemeEffectsHelper, renderEpicWinAnimation } from './effects.js';
 import * as themeConfig from './config.js'; // Import theme configuration
 
 export const AncientEgyptTheme = {
@@ -17,69 +16,7 @@ export const AncientEgyptTheme = {
         themeColor: "#FFD700" // Gold color for Egyptian theme
     },
     visualEffects: {
-        ...EffectPresets.ocean,
-        intensity: 0.9,
-        reelEffects: {
-            enabled: true,
-            blurAmount: 5,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#FFD54F' // Gold coins
-        },
-        winEffects: {
-            enabled: true,
-            explosions: true,
-            shockwave: true,
-            flashingSymbols: true,
-            spinEffect3d: {
-                enabled: false,
-                duration: 1000, // 1 second
-                rotations: 2, // Number of rotations
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            rotateEffect: {
-                enabled: false,
-                roations: 3, // Number of rotations
-                direction: 'clockwise', // Rotate clockwise for pirate theme
-                duration: 1000, // 1 second
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            pulsingSymbols: true,
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 3,
-            separatorWidth: 3,
-            glowEffect: {
-                enabled: false,
-                color: '#FFD700', // Gold for pirate treasure
-                intensity: 0.8,
-                size: 12
-            },
-            pulseEffect: {
-                enabled: false,
-                speed: 2000,
-                minOpacity: 0.6,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: true,
-                colors: ['#FFD700'], // Gold, Orange-red, Deep blue, Emerald, Gold
-                speed: 6000,
-                mode: 'gradient'
-            }
-        },
-        themeSpecific: {
-            sandStorm: {
-                enabled: false,
-                intensity: 1,
-                color: '#d4b683'
-            },
-            hieroglyphGlow: {
-                enabled: true,
-                color: '#ffcc00'
-            },
-        }
+        ...EffectPresets,
     },
     // Audio configuration
     audio: {
@@ -135,8 +72,7 @@ export const AncientEgyptTheme = {
     background: './themes/ancient-egypt/images/background2.jpg',
 
     // Add rendering functions imported from effects.js
-    renderThemeEffects,
-    renderEpicWinAnimation
+    ThemeEffectsHelper
 };
 
 export default AncientEgyptTheme;

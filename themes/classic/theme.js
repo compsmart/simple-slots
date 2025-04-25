@@ -1,7 +1,6 @@
 // theme.js for Classic theme
-import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
-import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import { EffectPresets, ThemeEffectsHelper, renderEpicWinAnimation } from './effects.js';
 import * as themeConfig from './config.js'; // Import the theme configuration
 
 export const ClassicTheme = {
@@ -18,25 +17,7 @@ export const ClassicTheme = {
         themeColor: "#d32f2f" // Classic red color for traditional slot feel
     },
     visualEffects: {
-        ...EffectPresets.retro,
-        intensity: 0.85,
-        reelEffects: {
-            enabled: true,
-            blurAmount: 6,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#ffd700' // Gold color for spin glow
-        },
-        winEffects: {
-            enabled: true,
-            explosions: false,
-            shockwave: false,
-            flashingSymbols: false,
-            spinEffect3d: {
-                enabled: false
-            },
-            pulsingSymbols: true,
-        }
+        ...EffectPresets,
     },
     // Audio configuration
     audio: {
@@ -109,7 +90,7 @@ export const ClassicTheme = {
     background: './themes/classic/images/background.jpg',
 
     // Add rendering functions imported from effects.js
-    renderThemeEffects,
+    ThemeEffectsHelper,
     renderEpicWinAnimation
 };
 

@@ -938,7 +938,6 @@ function drawBackground(timestamp) {
     // Check if current theme has visual effects enabled
     const themeEffects = THEMES[currentThemeName]?.visualEffects;
     const effectsEnabled = themeEffects?.enabled !== false;
-
     // Get background effect settings or use defaults
     const bgEffects = themeEffects?.backgroundEffects;
     const usePulse = effectsEnabled && bgEffects?.pulse?.enabled !== false;
@@ -1016,9 +1015,9 @@ function drawBackground(timestamp) {
         ctx.drawImage(img, x, y, drawWidth, drawHeight);
         ctx.globalAlpha = 1.0;
     }
-
     // Draw particles if enabled
     if (useParticles && bgEffects?.particles) {
+
         // Initialize particles if they don't exist or theme changed
         if (!backgroundParticles.length || backgroundParticles.themeId !== currentThemeName) {
             initBackgroundParticles(bgEffects.particles);
@@ -1139,17 +1138,17 @@ function drawBackgroundParticles(timestamp, settings = {}) {
 
 // Draw theme-specific background effects
 function drawThemeSpecificBackgroundEffects(timestamp, themeEffects) {
-    const specific = themeEffects.themeSpecific;
-
     // Get the current theme object
     const currentTheme = THEMES[currentThemeName];
 
     // First check if the theme has a custom renderer function
-    if (currentTheme && typeof currentTheme.renderThemeEffects === 'function') {
-        // Call the theme's own renderer if it exists
-        currentTheme.renderThemeEffects(ctx, canvas, timestamp, specific);
+    if (currentTheme && currentTheme.ThemeEffectsHelper &&
+        typeof currentTheme.ThemeEffectsHelper.applyThemeEffect === 'function') {
+        // Use ThemeEffectsHelper.applyThemeEffect as an alternative approach
+        currentTheme.ThemeEffectsHelper.applyThemeEffect(ctx, canvas, 1,
+            currentTheme, timestamp);
     } else {
-        console.warn("Theme has no renderThemeEffects implementation");
+        console.warn("Theme has no ThemeEffectsHelper.applyThemeEffect implementation");
     }
 }
 

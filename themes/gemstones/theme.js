@@ -1,8 +1,7 @@
 // theme.js for Gemstones theme
-import { EffectPresets, EffectsHelper } from '../../shared/effects.js';
 import symbolMap from './symbolMap.js';
 import * as themeConfig from './config.js'; // Import theme configuration
-import { renderThemeEffects, renderEpicWinAnimation } from './effects.js';
+import { EffectPresets, ThemeEffectsHelper, renderEpicWinAnimation } from './effects.js';
 
 export const GemstonesTheme = {
     name: "Gemstones",
@@ -18,100 +17,7 @@ export const GemstonesTheme = {
         themeColor: "#E91E63" // Pink/magenta
     },
     visualEffects: {
-        ...EffectPresets.sparkle,
-        intensity: 1.0,
-        reelEffects: {
-            enabled: true,
-            blurAmount: 3,
-            lightTrails: false,
-            spinningGlow: true,
-            spinColor: '#00E5FF' // Bright cyan
-        },
-        winEffects: {
-            enabled: true,
-            explosions: true,
-            shockwave: true,
-            flashingSymbols: true,
-            spinEffect3d: {
-                enabled: false,
-                duration: 1000, // 1 second
-                rotations: 2, // Number of rotations
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            rotateEffect: {
-                enabled: true,
-                roations: 3, // Number of rotations
-                direction: 'clockwise', // Rotate clockwise for pirate theme
-                duration: 1000, // 1 second
-                easing: 'easeInOutCubic', // Smooth easing
-            },
-            pulsingSymbols: true,
-        },
-        neonGlow: {
-            enabled: true,
-            color: '#ff00ff', // Vibrant magenta
-            size: 12,
-            pulseSpeed: 600,
-            intensity: 0.9
-        },
-        backgroundEffects: {
-            enabled: true,
-            particles: {
-                enabled: false,
-                count: 60,
-                color: '#ffffff',
-                size: { min: 2, max: 7 },
-                sparkle: true
-            },
-            pulse: {
-                enabled: true,
-                color: '#220033',
-                speed: 1200,
-                intensity: 0.5
-            }
-        },
-        reelMask: {
-            enabled: true,
-            borderWidth: 4,
-            separatorWidth: 4,
-            glowEffect: {
-                enabled: true,
-                color: '#00ffff',
-                intensity: 0.9,
-                size: 15
-            },
-            pulseEffect: {
-                enabled: true,
-                speed: 15000,
-                minOpacity: 0.7,
-                maxOpacity: 1.0
-            },
-            colorTransition: {
-                enabled: true,
-                colors: ['#FFD700', '#228B22', '#c31120', '#660069', '#285cff'],
-                speed: 30000,
-                mode: 'gradient'
-            }
-        },
-        themeSpecific: {
-            gemSparkle: {
-                enabled: true,
-                intensity: 0.9,
-                colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
-            },
-            prismEffect: {
-                enabled: true,
-                rainbowIntensity: 0.7
-            },
-            epicWinAnimation: {
-                enabled: true,
-                name: "Gem Explosion",
-                duration: 8000, // 8 seconds
-                diamondShower: true,
-                prismaticRays: true,
-                jewelTransformation: true
-            }
-        }
+        ...EffectPresets,
     },
     // Audio configuration
     audio: {
@@ -166,7 +72,7 @@ export const GemstonesTheme = {
     },
     background: null,
     // Add rendering functions imported from effects.js
-    renderThemeEffects,
+    ThemeEffectsHelper,
     renderEpicWinAnimation
 };
 

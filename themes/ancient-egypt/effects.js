@@ -1,22 +1,81 @@
 // Ancient Egypt theme specific effects
-import { EffectPresets as BaseEffectPresets, EffectsHelper } from '../../shared/effects.js';
+import { EffectDefaults, EffectsHelper } from '../../shared/effects.js';
 import { AncientEgyptTheme } from './theme.js';
 
 // You can extend the base effect presets with Ancient Egypt-specific effects
+
 export const EffectPresets = {
-    ...BaseEffectPresets,
-    desert: {
-        ...BaseEffectPresets.ancient,
+    ...EffectDefaults,
+    enabled: true,
+    backgroundEffects: {
+        enabled: false,
+    },
+    reelEffects: {
+        enabled: true,
+        blurAmount: 5,
+        lightTrails: false,
+        spinningGlow: true,
+        spinColor: '#FFD54F' // Gold coins
+    },
+    winEffects: {
+        enabled: true,
+        explosions: true,
+        shockwave: true,
+        flashingSymbols: true,
+        spinEffect3d: {
+            enabled: false,
+            duration: 1000, // 1 second
+            rotations: 2, // Number of rotations
+            easing: 'easeInOutCubic', // Smooth easing
+        },
+        rotateEffect: {
+            enabled: false,
+            roations: 3, // Number of rotations
+            direction: 'clockwise', // Rotate clockwise for pirate theme
+            duration: 1000, // 1 second
+            easing: 'easeInOutCubic', // Smooth easing
+        },
+        pulsingSymbols: true,
+    },
+    reelMask: {
+        enabled: true,
+        borderWidth: 3,
+        separatorWidth: 3,
+        glowEffect: {
+            enabled: false,
+            color: '#FFD700', // Gold for pirate treasure
+            intensity: 0.8,
+            size: 12
+        },
+        pulseEffect: {
+            enabled: false,
+            speed: 2000,
+            minOpacity: 0.6,
+            maxOpacity: 1.0
+        },
+        colorTransition: {
+            enabled: true,
+            colors: ['#FFD700'], // Gold, Orange-red, Deep blue, Emerald, Gold
+            speed: 6000,
+            mode: 'gradient'
+        }
+    },
+    themeSpecific: {
         sandStorm: true,
-        glowIntensity: 0.85,
-        colorShift: 0.4,
-        blinkRate: 1.2,
-        // Additional Ancient Egypt-specific effect parameters
         goldShimmer: {
             enabled: true,
             intensity: 0.7,
             frequency: 0.5
-        }
+        },
+        sandStorm: {
+            enabled: true,
+            intensity: 0.1,
+            color: '#d4b683'
+        },
+        hieroglyphGlow: {
+            enabled: true,
+            color: '#ffcc00'
+        },
     }
 };
 
@@ -24,347 +83,294 @@ export const EffectPresets = {
 // Using a standardized name that will be the same across all themes
 export const ThemeEffectsHelper = {
     // Include all methods from the base EffectsHelper
-    ...EffectsHelper,
-
-    // Add theme-specific effect methods with standardized naming
-    applyThemeEffect(ctx, element, intensity = 1, theme) {
-        // Apply base ancient effect if it exists
-        if (this.applyAncientEffect) {
-            this.applyAncientEffect(ctx, element, intensity);
-        }
+    ...EffectsHelper,    // Add theme-specific effect methods with standardized naming
+    applyThemeEffect(ctx, canvas, intensity = 1, theme, timestamp) {
+        // Standard entry point for theme-specific effects
+        const specific = theme?.visualEffects?.themeSpecific || {};
 
         // Add theme-specific gold shimmer effect if enabled
-        if (theme?.visualEffects?.goldShimmer?.enabled) {
-            this.applyGoldShimmer(ctx,
-                theme.visualEffects.goldShimmer.intensity,
-                theme.visualEffects.goldShimmer.frequency);
+        if (specific?.goldShimmer?.enabled) {
+            this.applyGoldShimmer(
+                ctx,
+                canvas,
+                specific.goldShimmer.intensity || 0.7,
+                specific.goldShimmer.frequency || 0.5,
+                timestamp
+            );
+        } if (specific?.sandStorm?.enabled) {
+            this.applySandStorm(
+                ctx,
+                canvas,
+                specific.sandStorm.intensity || 0.1,
+                specific.sandStorm.color || '#d4b683',
+                timestamp
+            );
+        }
+
+        // Add hieroglyph glow effect if enabled
+        if (specific?.hieroglyphGlow?.enabled) {
+            this.applyHieroglyphGlow(
+                ctx,
+                canvas,
+                intensity,
+                specific.hieroglyphGlow.color || '#ffcc00',
+                timestamp
+            );
+        }
+
+        // Add pyramid light beam effect if enabled
+        if (specific?.pyramidLight?.enabled) {
+            this.applyPyramidLight(
+                ctx,
+                canvas,
+                specific.pyramidLight?.intensity || 0.8,
+                specific.pyramidLight?.color || '#fff8dc',
+                timestamp
+            );
         }
     },
 
-    applyGoldShimmer(ctx, intensity = 0.7, frequency = 0.5) {
-        const { width, height } = ctx.canvas;
-        const time = Date.now() / 1000;
-
-        ctx.fillStyle = `rgba(255, 215, 0, ${0.2 * intensity * Math.sin(time * frequency)})`;
-        ctx.fillRect(0, 0, width, height);
-    }
-}
-
-export function renderThemeEffects(ctx, canvas, timestamp, specific) {
-    // Draw background image if configured
-    const bgEffects = AncientEgyptTheme.visualEffects.backgroundEffects;
-    if (bgEffects?.enabled && bgEffects?.backgroundImage?.enabled) {
-        // Check if we need to load the background image
-        if (!AncientEgyptTheme.bgImage) {
-            AncientEgyptTheme.bgImage = new Image();
-            AncientEgyptTheme.bgImage.src = bgEffects.backgroundImage.path;
-            AncientEgyptTheme.bgImageLoaded = false;
-            AncientEgyptTheme.bgImage.onload = () => {
-                AncientEgyptTheme.bgImageLoaded = true;
-            };
-        }
-
-        // Draw the background image if it's loaded
-        if (AncientEgyptTheme.bgImageLoaded) {
-            const opacity = bgEffects.backgroundImage.opacity || 1.0;
-
-            // Ensure the image covers the entire canvas while maintaining aspect ratio
-            const imgWidth = AncientEgyptTheme.bgImage.width;
-            const imgHeight = AncientEgyptTheme.bgImage.height;
-            const canvasRatio = canvas.width / canvas.height;
-            const imgRatio = imgWidth / imgHeight;
-
-            let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
-
-            // Calculate dimensions to cover the entire canvas
-            if (canvasRatio > imgRatio) {
-                // Canvas is wider than image aspect ratio
-                drawWidth = canvas.width;
-                drawHeight = canvas.width / imgRatio;
-                offsetY = (canvas.height - drawHeight) / 2;
-            } else {
-                // Canvas is taller than image aspect ratio
-                drawHeight = canvas.height;
-                drawWidth = canvas.height * imgRatio;
-                offsetX = (canvas.width - drawWidth) / 2;
-            }
-
-            if (opacity < 1.0) {
-                // If opacity is less than 1, need to use globalAlpha
-                ctx.save();
-                ctx.globalAlpha = opacity;
-                ctx.drawImage(AncientEgyptTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
-                ctx.restore();
-            } else {
-                // Full opacity, just draw directly
-                ctx.drawImage(AncientEgyptTheme.bgImage, offsetX, offsetY, drawWidth, drawHeight);
-            }
-        } else {
-            // Fallback if image isn't loaded yet
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#1f1a13'); // Dark sand color
-            gradient.addColorStop(0.5, '#544b34'); // Mid sand color
-            gradient.addColorStop(1, '#997f4e'); // Lighter sand color
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-    }
-
-    // Epic Win Animation for Ancient Egypt theme
-    if (specific?.epicWinAnimation?.enabled && window.isPlayingEpicWinAnimation) {
-        const epicWin = specific.epicWinAnimation;
-        const progress = Math.min(1, (timestamp - window.epicWinStartTime) / epicWin.duration);
+    applyGoldShimmer(ctx, canvas, intensity = 0.7, frequency = 0.5, timestamp) {
+        const { width, height } = canvas;
+        const time = timestamp / 1000;
 
         ctx.save();
 
-        // Big text announcement
-        const textProgress = Math.min(1, progress * 2);
-        const textSize = 60 + Math.sin(timestamp / 200) * 10;
-        ctx.font = `bold ${textSize}px "Papyrus", fantasy`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        // Create a shimmering gold overlay with more visual interest
+        ctx.globalCompositeOperation = 'overlay';
 
-        // Text with gold gradient
-        const gradient = ctx.createLinearGradient(
-            canvas.width / 2 - 200,
-            canvas.height / 2 - 100,
-            canvas.width / 2 + 200,
-            canvas.height / 2 - 100
-        );
-        gradient.addColorStop(0, '#ffd700');
-        gradient.addColorStop(0.5, '#ffffff');
-        gradient.addColorStop(1, '#ffd700');
+        // Create subtle gradient shimmer
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, `rgba(255, 215, 0, ${0.1 * intensity * (0.7 + Math.sin(time * frequency) * 0.3)})`);
+        gradient.addColorStop(0.5, `rgba(255, 223, 0, ${0.2 * intensity * (0.7 + Math.sin(time * frequency + 1) * 0.3)})`);
+        gradient.addColorStop(1, `rgba(255, 215, 0, ${0.1 * intensity * (0.7 + Math.sin(time * frequency + 2) * 0.3)})`);
 
         ctx.fillStyle = gradient;
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
+        ctx.fillRect(0, 0, width, height);
 
-        const scale = 0.5 + textProgress * 0.5;
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 3);
-        ctx.scale(scale, scale);
-        ctx.rotate(Math.sin(timestamp / 500) * 0.1);
-        ctx.fillText("PHARAOH'S FORTUNE!", 0, 0);
-        ctx.strokeText("PHARAOH'S FORTUNE!", 0, 0);
+        // Add shimmer particles (dust in the air catching sunlight)
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Draw shimmer particles
+        for (let i = 0; i < 50 * intensity; i++) {
+            const x = (Math.sin(i + time) * 0.5 + 0.5) * width;
+            const y = (Math.cos(i * 0.7 + time * 0.8) * 0.5 + 0.5) * height;
+            const size = 1 + Math.random() * 2;
+            const opacity = 0.1 + Math.random() * 0.3 * intensity * (0.5 + Math.sin(time * frequency + i) * 0.5);
+
+            ctx.fillStyle = `rgba(255, 245, 200, ${opacity})`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         ctx.restore();
+    },
 
-        // Win amount
-        ctx.font = 'bold 40px Arial';
-        ctx.fillStyle = '#ffd700';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.fillText(`${(window.betAmount * 100).toFixed(2)}`, canvas.width / 2, canvas.height / 2 - 50);
-        ctx.strokeText(`${(window.betAmount * 100).toFixed(2)}`, canvas.width / 2, canvas.height / 2 - 50); ctx.restore();
+    applySandStorm(ctx, canvas, intensity = 0.1, color = '#d4b683', timestamp) {
+        const { width, height } = canvas;
+        const time = timestamp / 1000;
 
-        // Golden rain effect - rendered last to appear on top of everything
-        if (epicWin.goldenRain) {
-            // Use the shared helper function for golden rain effect
-            EffectsHelper.renderGoldenRain(ctx, canvas, timestamp, {
-                count: 100,
-                coinSize: 5,
-                coinColor: '#ffd700',
-                outlineColor: '#b7950b',
-                speed: 3,
-                swayAmount: 30,
-                swaySpeed: 1000,
-                detailsEnabled: true
-            });
-        }
-
-        // End animation if complete
-        if (progress >= 1) {
-            window.isPlayingEpicWinAnimation = false;
-        }
-    }
-    // Sand Storm effect
-    if (specific?.sandStorm?.enabled) {
-        const sandSettings = specific.sandStorm;
-        const intensity = sandSettings?.intensity || 0.3;
-        const sandColor = sandSettings?.color || '#d4b683';
-
-        // Initialize sand particles if they don't exist
-        if (!ctx.sandParticles) {
-            ctx.sandParticles = [];
-            const particleCount = Math.floor(100 * intensity);
-
-            for (let i = 0; i < particleCount; i++) {
-                ctx.sandParticles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 3 + 1,
-                    speedX: (Math.random() - 0.3) * 2, // Mostly moving right
-                    speedY: (Math.random() - 0.5) * 1, // Slight vertical movement
-                    opacity: Math.random() * 0.5 + 0.2
+        // Create sand particles
+        if (!this._sandParticles) {
+            this._sandParticles = [];
+            for (let i = 0; i < 200; i++) {
+                this._sandParticles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: 1 + Math.random() * 2,
+                    speed: 1 + Math.random() * 3,
+                    opacity: 0.1 + Math.random() * 0.5
                 });
             }
         }
 
-        // Get the current wind intensity based on time
-        const windPulse = (Math.sin(timestamp / 5000) * 0.3 + 0.7); // 0.4 to 1.0
-
-        // Update and draw sand particles
         ctx.save();
-        ctx.sandParticles.forEach(particle => {
-            // Update position with wind effect
-            particle.x += particle.speedX * windPulse;
-            particle.y += particle.speedY;
 
-            // Wrap around screen edges
-            if (particle.x > canvas.width) particle.x = 0;
-            if (particle.x < 0) particle.x = canvas.width;
-            if (particle.y > canvas.height) particle.y = 0;
-            if (particle.y < 0) particle.y = canvas.height;
+        // First draw a subtle sand-colored overlay
+        const stormIntensity = intensity * (0.5 + Math.sin(time * 0.2) * 0.5);
+        ctx.fillStyle = `rgba(${parseInt(color.slice(1, 3), 16)}, ${parseInt(color.slice(3, 5), 16)}, ${parseInt(color.slice(5, 7), 16)}, ${stormIntensity * 0.2})`;
+        ctx.fillRect(0, 0, width, height);
 
-            // Draw the sand particle
-            ctx.fillStyle = sandColor;
-            ctx.globalAlpha = particle.opacity * intensity;
+        // Then draw sand particles
+        this._sandParticles.forEach(particle => {
+            // Update particle position - blow from right to left with slight downward motion
+            particle.x -= particle.speed;
+            particle.y += particle.speed * 0.2;
 
-            // Create elongated particle for sand/dust effect
+            // Reset particles that move off-screen
+            if (particle.x < 0) particle.x = width;
+            if (particle.y > height) particle.y = 0;
+
+            // Draw the sand particle with varying opacity based on time
+            const particleOpacity = particle.opacity * intensity * (0.7 + Math.sin(time + particle.x / 100) * 0.3);
+            ctx.fillStyle = `rgba(${parseInt(color.slice(1, 3), 16)}, ${parseInt(color.slice(3, 5), 16)}, ${parseInt(color.slice(5, 7), 16)}, ${particleOpacity})`;
             ctx.beginPath();
-            ctx.ellipse(
-                particle.x,
-                particle.y,
-                particle.size * 2, // Horizontal radius
-                particle.size, // Vertical radius
-                0, // Rotation
-                0,
-                Math.PI * 2
-            );
+            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
             ctx.fill();
         });
+
         ctx.restore();
+    },
 
-        // Add a subtle sand overlay across the screen
-        const overlayIntensity = intensity * 0.15 * windPulse;
-        ctx.fillStyle = `${sandColor}${Math.floor(overlayIntensity * 255).toString(16).padStart(2, '0')}`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    /**
+     * Random hyroglyph symbols will appear
+     * @param {*} ctx 
+     * @param {*} element 
+     * @param {*} intensity 
+     * @param {*} color 
+     */
+    applyHieroglyphGlow(ctx, canvas, intensity = 0.8, color = '#ffcc00', timestamp) {
+        const { width, height } = canvas;
+        const time = timestamp / 1000;        // Position hieroglyphs around the outside edge of the canvas, 20-50px from the edge
+        // This creates a frame-like effect around the game area
+        const edgeMargin = 30; // Distance from edge (between 20-50px)
 
-    // Hieroglyph Glow effect
-    if (specific?.hieroglyphGlow?.enabled) {
-        const glowSettings = specific.hieroglyphGlow;
-        const intensity = glowSettings?.intensity || 0.6;
-        const glowColor = glowSettings?.color || '#ffcc00';
+        // Store static positions for hieroglyphs if they haven't been initialized yet
+        if (!this._hieroglyphPositions) {
+            this._hieroglyphPositions = [
+                // Top edge
+                { x: edgeMargin + 15, y: edgeMargin + 10, symbol: '𓀀', scale: 1.2 },
+                { x: width * 0.25, y: edgeMargin, symbol: '𓁹', scale: 1.0 },
+                { x: width * 0.5, y: edgeMargin + 7, symbol: '𓀭', scale: 1.1 },
+                { x: width * 0.75, y: edgeMargin, symbol: '𓃾', scale: 0.9 },
+                { x: width - edgeMargin - 15, y: edgeMargin + 10, symbol: '𓅓', scale: 1.3 },
 
-        // Calculate the reel area dimensions
-        const SYMBOL_SIZE = 100;
-        const REEL_COUNT = 5;
-        const VISIBLE_ROWS = 3;
+                // Right edge
+                { x: width - edgeMargin, y: height * 0.25, symbol: '𓆣', scale: 1.0 },
+                { x: width - edgeMargin - 8, y: height * 0.5, symbol: '𓇯', scale: 1.2 },
+                { x: width - edgeMargin, y: height * 0.75, symbol: '𓉔', scale: 1.1 },
 
-        const reelWidth = SYMBOL_SIZE;
-        const reelSpacing = (canvas.width - (reelWidth * REEL_COUNT)) / (REEL_COUNT + 1);
-        const startX = reelSpacing;
-        const startY = 100;
-        const reelViewportHeight = SYMBOL_SIZE * VISIBLE_ROWS;
-        const totalWidth = REEL_COUNT * reelWidth + (REEL_COUNT - 1) * reelSpacing;
+                // Bottom edge
+                { x: width - edgeMargin - 15, y: height - edgeMargin - 10, symbol: '𓊽', scale: 1.3 },
+                { x: width * 0.75, y: height - edgeMargin, symbol: '𓋴', scale: 1.0 },
+                { x: width * 0.5, y: height - edgeMargin - 7, symbol: '𓌂', scale: 0.9 },
+                { x: width * 0.25, y: height - edgeMargin, symbol: '𓍯', scale: 1.1 },
+                { x: edgeMargin + 15, y: height - edgeMargin - 10, symbol: '𓎛', scale: 1.2 },
 
-        // Define Egyptian hieroglyphs as small path commands
-        const hieroglyphs = [
-            // Ankh symbol
-            (x, y, size) => {
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x, y + size * 0.7);
-                ctx.moveTo(x - size * 0.3, y + size * 0.3);
-                ctx.lineTo(x + size * 0.3, y + size * 0.3);
-                ctx.moveTo(x, y - size * 0.2);
-                ctx.arc(x, y, size * 0.2, 0, Math.PI * 2);
-                ctx.stroke();
-            },
-            // Eye of Horus simplified
-            (x, y, size) => {
-                ctx.beginPath();
-                ctx.moveTo(x - size * 0.3, y);
-                ctx.quadraticCurveTo(x, y - size * 0.2, x + size * 0.3, y);
-                ctx.quadraticCurveTo(x, y + size * 0.2, x - size * 0.3, y);
-                ctx.moveTo(x, y);
-                ctx.lineTo(x + size * 0.2, y + size * 0.2);
-                ctx.stroke();
-            },
-            // Pyramid symbol
-            (x, y, size) => {
-                ctx.beginPath();
-                ctx.moveTo(x - size * 0.3, y + size * 0.2);
-                ctx.lineTo(x, y - size * 0.3);
-                ctx.lineTo(x + size * 0.3, y + size * 0.2);
-                ctx.closePath();
-                ctx.stroke();
-            },
-            // Sun disc
-            (x, y, size) => {
-                ctx.beginPath();
-                ctx.arc(x, y, size * 0.15, 0, Math.PI * 2);
-                ctx.moveTo(x - size * 0.3, y);
-                ctx.lineTo(x + size * 0.3, y);
-                ctx.moveTo(x, y - size * 0.3);
-                ctx.lineTo(x, y + size * 0.3);
-                ctx.stroke();
-            },
-            // Wave pattern (water)
-            (x, y, size) => {
-                ctx.beginPath();
-                ctx.moveTo(x - size * 0.3, y);
-                ctx.quadraticCurveTo(x - size * 0.15, y - size * 0.2, x, y);
-                ctx.quadraticCurveTo(x + size * 0.15, y + size * 0.2, x + size * 0.3, y);
-                ctx.stroke();
-            }
-        ];
+                // Left edge
+                { x: edgeMargin, y: height * 0.75, symbol: '𓏜', scale: 1.0 },
+                { x: edgeMargin + 8, y: height * 0.5, symbol: '𓐍', scale: 1.1 },
+                { x: edgeMargin, y: height * 0.25, symbol: '𓁀', scale: 0.9 }
+            ];
+        }
 
-        // Calculate the glow pulse
-        const pulseSpeed = glowSettings?.pulseSpeed || 4000;
-        const pulseFactor = (Math.sin(timestamp / pulseSpeed) * 0.3 + 0.7) * intensity;
+        // Use the stored static positions
+        const hieroglyphPositions = this._hieroglyphPositions;
 
-        // Draw hieroglyphs around the reels
         ctx.save();
 
-        // Set style for hieroglyphs
-        ctx.strokeStyle = glowColor;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = pulseFactor;
+        // Calculate pulse for the glow effect
+        const pulse = 0.7 + Math.sin(time * 0.8) * 0.3;
+        const glowIntensity = intensity * pulse;
 
-        // Add a subtle golden glow effect behind the reels
-        const centerX = startX + totalWidth / 2;
-        const centerY = startY + reelViewportHeight / 2;
-        const gradient = ctx.createRadialGradient(
-            centerX, centerY, 10,
-            centerX, centerY, totalWidth / 1.5
+        // Set comp mode for better glow
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Draw each hieroglyph with glow
+        hieroglyphPositions.forEach(hiero => {
+            // Draw glow first
+            const glowRadius = 15 * hiero.scale * pulse;
+            const gradient = ctx.createRadialGradient(
+                hiero.x, hiero.y, 0,
+                hiero.x, hiero.y, glowRadius
+            );
+
+            gradient.addColorStop(0, `${color}${Math.floor(glowIntensity * 99).toString(16).padStart(2, '0')}`);
+            gradient.addColorStop(0.7, `${color}${Math.floor(glowIntensity * 40).toString(16).padStart(2, '0')}`);
+            gradient.addColorStop(1, `${color}00`);
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(hiero.x, hiero.y, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw the hieroglyph symbol
+            ctx.fillStyle = color;
+            ctx.font = `${30 * hiero.scale}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(hiero.symbol, hiero.x, hiero.y);
+        });
+
+        ctx.restore();
+    },
+
+    /**
+     * Creates a light beam effect emanating from a pyramid
+     */
+    applyPyramidLight(ctx, canvas, intensity = 0.8, color = '#fff8dc', timestamp) {
+        const { width, height } = canvas;
+        const time = timestamp / 1000;
+
+        // Define pyramid position (typically at the bottom center of the screen)
+        const pyramidX = width * 0.5;
+        const pyramidBaseY = height * 0.8;
+        const pyramidHeight = height * 0.3;
+        const pyramidWidth = width * 0.4;
+
+        ctx.save();
+
+        // Create the light beam effect
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Calculate beam intensity with time-based variation
+        const beamIntensity = intensity * (0.7 + Math.sin(time * 0.2) * 0.3);
+
+        // Draw light beam emanating from pyramid peak
+        const beamGradient = ctx.createRadialGradient(
+            pyramidX, pyramidBaseY - pyramidHeight, 0,
+            pyramidX, pyramidBaseY - pyramidHeight, height
         );
-        gradient.addColorStop(0, `${glowColor}${Math.floor(pulseFactor * 30).toString(16).padStart(2, '0')}`);
-        gradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw hieroglyphs along the borders
-        const hieroglyphSize = 20;
-        const spacing = 50; // Distance between hieroglyphs
+        beamGradient.addColorStop(0, `${color}${Math.floor(beamIntensity * 99).toString(16).padStart(2, '0')}`);
+        beamGradient.addColorStop(0.1, `${color}${Math.floor(beamIntensity * 70).toString(16).padStart(2, '0')}`);
+        beamGradient.addColorStop(0.5, `${color}${Math.floor(beamIntensity * 20).toString(16).padStart(2, '0')}`);
+        beamGradient.addColorStop(1, `${color}00`);
 
-        // Draw hieroglyphs at the top
-        for (let x = hieroglyphSize; x < canvas.width; x += spacing) {
-            const index = Math.floor(x / spacing) % hieroglyphs.length;
-            hieroglyphs[index](x, hieroglyphSize, hieroglyphSize);
+        // Draw the beam as a triangle emanating upward from pyramid tip
+        ctx.fillStyle = beamGradient;
+        ctx.beginPath();
+        ctx.moveTo(pyramidX, pyramidBaseY - pyramidHeight); // Pyramid peak
+        ctx.lineTo(pyramidX - pyramidWidth * 0.3, 0); // Top left of screen
+        ctx.lineTo(pyramidX + pyramidWidth * 0.3, 0); // Top right of screen
+        ctx.closePath();
+        ctx.fill();
+
+        // Add some rays within the beam for extra effect
+        ctx.globalAlpha = beamIntensity * 0.7;
+
+        // Draw multiple light rays
+        for (let i = 0; i < 5; i++) {
+            const rayWidth = pyramidWidth * 0.03 * (1 + Math.sin(time + i));
+            const rayOffset = pyramidWidth * 0.2 * Math.sin(time * 0.5 + i * 0.7);
+
+            ctx.beginPath();
+            ctx.moveTo(pyramidX, pyramidBaseY - pyramidHeight);
+            ctx.lineTo(pyramidX + rayOffset - rayWidth, 0);
+            ctx.lineTo(pyramidX + rayOffset + rayWidth, 0);
+            ctx.closePath();
+            ctx.fillStyle = `rgba(255, 248, 220, ${0.3 * beamIntensity})`;
+            ctx.fill();
         }
 
-        // Draw hieroglyphs at the bottom
-        for (let x = hieroglyphSize + spacing / 2; x < canvas.width; x += spacing) {
-            const index = Math.floor(x / spacing) % hieroglyphs.length;
-            hieroglyphs[index](x, canvas.height - hieroglyphSize, hieroglyphSize);
-        }
+        // Add some small shimmering particles in the beam
+        for (let i = 0; i < 40; i++) {
+            const particleX = pyramidX + (Math.random() - 0.5) * pyramidWidth * 0.5;
+            const particleY = (pyramidBaseY - pyramidHeight) * Math.random();
+            const particleSize = 1 + Math.random() * 2;
+            const particleOpacity = 0.1 + Math.random() * 0.4 * beamIntensity;
 
-        // Draw hieroglyphs on the left
-        for (let y = hieroglyphSize * 2; y < canvas.height - hieroglyphSize; y += spacing) {
-            const index = Math.floor(y / spacing) % hieroglyphs.length;
-            hieroglyphs[index](hieroglyphSize, y, hieroglyphSize);
-        }
-
-        // Draw hieroglyphs on the right
-        for (let y = hieroglyphSize * 2 + spacing / 2; y < canvas.height - hieroglyphSize; y += spacing) {
-            const index = Math.floor(y / spacing) % hieroglyphs.length;
-            hieroglyphs[index](canvas.width - hieroglyphSize, y, hieroglyphSize);
+            ctx.fillStyle = `rgba(255, 255, 220, ${particleOpacity})`;
+            ctx.beginPath();
+            ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         ctx.restore();
     }
 }
+
 /**
      * Renders the Fantasy Forest Epic Win Animation.
      * Assumes this is called repeatedly within an animation loop.
@@ -590,6 +596,5 @@ export function renderEpicWinAnimation(ctx, canvas, elapsedTime, deltaTime, winA
 }
 
 export default {
-    renderThemeEffects,
     renderEpicWinAnimation
 };
