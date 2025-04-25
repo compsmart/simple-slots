@@ -1,6 +1,74 @@
 // Import themes FIRST
 import { THEMES } from './themes/index.js'; // <-- Import themes from refactored structure
-import { EffectsHelper } from './shared/effects.js'; // <-- Import EffectsHelper from shared// Game constants and variables
+import { EffectsHelper } from './shared/effects.js'; // <-- Import EffectsHelper from shared
+
+// Loading screen constants
+const MINIMUM_LOADING_TIME = 3000; // Minimum time to show loading screen (3 seconds)
+let loadingStartTime = 0;
+let loadingScreenActive = false;
+let themeLoadPromise = null;
+
+// Loading screen functions
+function showLoadingScreen(themeName) {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (!loadingScreen) return false;
+
+    // Get theme-specific loading background if available
+    const theme = THEMES[themeName];
+    if (theme && theme.loadingBackground) {
+        loadingScreen.style.backgroundImage = `url(${theme.loadingBackground})`;
+    } else if (theme && theme.background) {
+        // Fall back to regular theme background if loading background isn't specified
+        loadingScreen.style.backgroundImage = `url(${theme.background})`;
+    } else {
+        // Default fallback
+        loadingScreen.style.backgroundImage = 'none';
+        loadingScreen.style.backgroundColor = '#0f172a';
+    }
+
+    // Set theme color for spinner
+    if (theme && theme.layout && theme.layout.themeColor) {
+        document.documentElement.style.setProperty('--theme-color', theme.layout.themeColor);
+    }
+
+    loadingScreen.style.display = 'flex';
+    loadingScreen.style.opacity = '1';
+    loadingStartTime = Date.now();
+    loadingScreenActive = true;
+    return true;
+}
+
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (!loadingScreen) return false;
+
+    const currentTime = Date.now();
+    const elapsedTime = currentTime - loadingStartTime;
+
+    // Ensure the loading screen displays for at least MINIMUM_LOADING_TIME
+    if (elapsedTime < MINIMUM_LOADING_TIME) {
+        setTimeout(() => {
+            completeHideLoadingScreen();
+        }, MINIMUM_LOADING_TIME - elapsedTime);
+    } else {
+        completeHideLoadingScreen();
+    }
+
+    return true;
+}
+
+function completeHideLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (!loadingScreen) return;
+
+    loadingScreen.style.opacity = '0';
+    setTimeout(() => {
+        loadingScreen.style.display = 'none';
+        loadingScreenActive = false;
+    }, 500); // Wait for fade out transition
+}
+
+// Game constants and variables
 const REEL_COUNT = 5;
 // const SYMBOL_COUNT = 5; // No longer needed directly, derived from theme
 const SYMBOL_SIZE = 100; // Pixel size of each symbol
@@ -194,9 +262,7 @@ function initGame() {
 
     // Set up the theme switcher UI
     console.log("[DEBUG] initGame - Setting up theme switcher...");
-    setupThemeSwitcher();
-
-    // 1. Validate shared config first
+    setupThemeSwitcher();    // 1. Validate shared config first
     console.log("[DEBUG] initGame - Validating configuration...");
     const isConfigValid = validateConfiguration();
     console.log(`[DEBUG] initGame - Configuration valid: ${isConfigValid}`); // <-- Log validation result
@@ -208,6 +274,10 @@ function initGame() {
         }
         return; // Stop initialization
     }
+
+    // Show loading screen before loading theme assets
+    console.log("[DEBUG] initGame - Showing loading screen...");
+    showLoadingScreen(currentThemeName);
 
     // 2. Load initial theme's VISUALS
     console.log(`[DEBUG] initGame - Loading visuals for theme: ${currentThemeName}...`);
@@ -515,9 +585,7 @@ async function loadThemeVisuals(themeName) {
         });
     });
 
-    await Promise.all(symbolPromises);
-
-    // Ensure symbols array has 5 elements, even if some failed loading
+    await Promise.all(symbolPromises);    // Ensure symbols array has 5 elements, even if some failed loading
     for (let i = 0; i < 5; i++) {
         if (!symbols[i]) {
             console.warn(`Symbol visual for index ${i} was missing after loading theme ${themeName}. Creating placeholder.`);
@@ -526,6 +594,9 @@ async function loadThemeVisuals(themeName) {
     }
 
     console.log(`Finished loading visuals for theme: ${themeName}. ${symbols.length} visual maps ready.`);
+
+    // Hide the loading screen after all assets are loaded
+    hideLoadingScreen();
 }
 
 // --- Sound Loading and Playing (Using Web Audio API) ---
