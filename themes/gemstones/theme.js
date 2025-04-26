@@ -78,9 +78,9 @@ export const GemstonesTheme = {
     background: null,
     // Bonus game configuration
     bonusGame: {
-        boardLayout: 'circle',
+        boardLayout: 'square',
         assets: {
-            background: './themes/gemstones/images/bonus-bg.png',
+            background: './themes/gemstones/images/bonus-bg.jpg',
             player: './themes/gemstones/images/diamond.png',
             dice: [
                 './themes/gemstones/images/dice1.png',

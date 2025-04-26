@@ -247,6 +247,34 @@ function initGame() {
     themeSwitcherElement = document.getElementById('themeSwitcher');
     console.log("[DEBUG] initGame - DOM elements retrieved.");
 
+    // Check for saved bonus game state
+    const savedBonusGameState = localStorage.getItem('bonusGameState');
+    let bonusStateToRestore = null;
+
+    if (savedBonusGameState) {
+        try {
+            bonusStateToRestore = JSON.parse(savedBonusGameState);
+            console.log("[DEBUG] initGame - Found saved bonus game state:", bonusStateToRestore);
+
+            // Check if the saved state is not too old (e.g., 1 hour max)
+            const MAX_BONUS_STATE_AGE = 60 * 60 * 1000; // 1 hour in milliseconds
+            if (Date.now() - bonusStateToRestore.timestamp > MAX_BONUS_STATE_AGE) {
+                console.log("[DEBUG] initGame - Saved bonus state is too old, discarding");
+                localStorage.removeItem('bonusGameState');
+                bonusStateToRestore = null;
+            } else if (bonusStateToRestore.active) {
+                // Set the current theme to the one that had the bonus game
+                currentThemeName = bonusStateToRestore.theme || currentThemeName;
+                // Set the bet amount to match the saved state
+                betAmount = bonusStateToRestore.betAmount || DEFAULT_BET;
+            }
+        } catch (e) {
+            console.error("[DEBUG] initGame - Error parsing saved bonus game state:", e);
+            localStorage.removeItem('bonusGameState');
+            bonusStateToRestore = null;
+        }
+    }
+
     // Load sound effects
     console.log("[DEBUG] initGame - Loading sounds...");
     loadSounds(); // Assuming this doesn't block indefinitely
@@ -1821,6 +1849,7 @@ function checkWinAndFinalize() {
 
             // Set bonus game as active to prevent retriggering
             bonusGameActive = true;
+            localStorage.setItem('bonusGameState', true); // Store in local storage
 
             // Load bonus game configuration and start it
             loadBonusGameConfig(currentTheme, audioContext).then(bonusConfig => {
@@ -3704,23 +3733,28 @@ function applyWinEffects(ctx, winningLine, timestamp) {
                 ctx.save();
                 ctx.translate(centerX, centerY); // Move origin to symbol center
                 ctx.rotate(angle);              // Rotate
-                ctx.translate(-centerX, -centerY); // Move origin back
+                ctx.translate(-centerX, -centerY); // Move origin back                // Get the actual symbol data for this position
+                const symbolData = symbols[winningLine.symbolIndex];
+                if (!symbolData) {
+                    console.warn(`rotateEffect: No symbolData found for index ${winningLine.symbolIndex}`);
+                    return; // Skip if no valid symbol data
+                }
 
                 // Draw the symbol content (sprite or image) WITHOUT background fill
                 let drawnFromSprite = false;
-                if (svgLoaded && svgSymbolSheet && pos.symbolName && SYMBOL_MAPS[themeKey]?.[pos.symbolName.toLowerCase()]) {
+                if (svgLoaded && svgSymbolSheet && symbolData.name && SYMBOL_MAPS[themeKey]?.[symbolData.name.toLowerCase()]) {
                     // Use drawSymbol function which draws ONLY the sprite portion
-                    drawnFromSprite = drawSymbol(pos.symbolName, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                    drawnFromSprite = drawSymbol(symbolData.name, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                     if (!drawnFromSprite) {
-                        console.warn(`rotateEffect: drawSymbol failed for ${pos.symbolName}`);
+                        console.warn(`rotateEffect: drawSymbol failed for ${symbolData.name}`);
                     }
                 }
 
                 // Fallback if not drawn from sprite (e.g., PNG image)
                 if (!drawnFromSprite) {
-                    if (pos.image && pos.image.complete && pos.image.naturalHeight !== 0) {
+                    if (symbolData.image && symbolData.image.complete && symbolData.image.naturalHeight !== 0) {
                         // Draw the image directly. Assumes image has transparency if needed.
-                        ctx.drawImage(pos.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                        ctx.drawImage(symbolData.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                     } else {
                         // Last resort fallback: Draw a character representation (optional)
                         // This will rotate the character within the static background square
@@ -3728,12 +3762,8 @@ function applyWinEffects(ctx, winningLine, timestamp) {
                         ctx.font = 'bold 24px Arial';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText(pos.symbolName ? pos.symbolName.substring(0, 1) : '?', centerX, centerY); // Draw at center
+                        ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', centerX, centerY); // Draw at center
                     }
-                } else {
-                    // Fallback: just draw a simple rect if symbolData is missing
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * Math.abs(1 - scaleX)})`;
-                    ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                 }
 
                 ctx.restore();
@@ -4038,3 +4068,22 @@ function updateVolumeGainNodes() {
         effectsGainNode.gain.value = muteState ? 0 : themeVolumeSettings.master * themeVolumeSettings.effects;
     }
 }
+
+function onBonusGameComplete(bonusWin) {
+    // Reset bonus game active flag
+    bonusGameActive = false;
+
+    // Clear bonus game state from localStorage
+    localStorage.removeItem('bonusGameState');
+
+    // When bonus game completes, add the win to balance
+    if (bonusWin > 0) {
+        balance += bonusWin;
+        updateBalanceDisplay();
+        playSound('win'); // Play win sound
+    }
+
+    // Optionally, trigger a bonus win animation or effect here
+    triggerBonusWinAnimation(bonusWin);
+}
+
