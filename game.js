@@ -118,8 +118,7 @@ let svgSymbolSheet; // Hold the SVG sprite sheet Image object
 let svgLoaded = false; // Track if the SVG has been loaded
 let warpStars = []; // For space theme star warping effect
 let lastTime = 0;
-let winAnimationActive = false;
-let confettiParticles = [];
+let winAnimationActive = false; // State tracking for win celebrations
 let buttonEffects = {
     spin: { scale: 1, active: false, pressed: false },
     bet: { scale: 1, active: false, pressed: false, decreaseActive: false, increaseActive: false }
@@ -344,8 +343,8 @@ function validateConfiguration() {
             }
         });
     }
-    if (!symbolNumberMultipliers || Object.keys(symbolNumberMultipliers).length !== 5) { // Assuming 5 unique symbols 0-4
-        console.error("Config Error: symbolNumberMultipliers is missing or doesn't define multipliers for numbers 0-4.");
+    if (!symbolNumberMultipliers || Object.keys(symbolNumberMultipliers).length !== currentTheme.symbols.attributes.length) { // Assuming 5 unique symbols 0-4
+        console.error("Config Error: symbolNumberMultipliers is missing or doesnt match the number of symbols.");
         isValid = false;
     } if (!themeConfig.PAYOUT_RULES) {
         console.error("Config Error: PAYOUT_RULES are missing or incomplete (need entries for 3, 4, 5).");
@@ -403,8 +402,8 @@ async function loadThemeVisuals(themeName) {
     let spriteMapPath = null;
     let symbolMapData = null;    // Handle different theme symbol formats
     if (themeVisuals.symbols) {
-        if (themeVisuals.symbols.attributes && Array.isArray(themeVisuals.symbols.attributes) && themeVisuals.symbols.attributes.length === 5) {
-            console.log(`Theme ${themeName} using new attributes array format`);
+        if (themeVisuals.symbols.attributes && Array.isArray(themeVisuals.symbols.attributes) && themeVisuals.symbols.attributes.length > 0) {
+            console.log(`Theme ${themeName} using new attributes array format with ${themeVisuals.symbols.attributes.length} symbols`);
 
             // Using the new attributes array directly
             themeVisuals.symbols.attributes.forEach(symbolAttr => {
@@ -915,11 +914,9 @@ function drawGame(timestamp) {
 
     if (showPaylines) {
         drawAllPaylines(timestamp); // Draw all paylines if toggled on
-    }
-
-    if (winAnimationActive) {
-        drawWinCelebration(deltaTime); // Draw confetti etc.
-    }
+    }    // Always call drawWinCelebration to update the animation state
+    // even if winAnimationActive is false (to clean up any remaining particles)
+    drawWinCelebration(deltaTime); // Draw confetti etc.
 
     drawPaytableModal(); // Draw Pay Table modal if active
     drawHistoryModal(); // Draw History modal if active
@@ -1593,12 +1590,10 @@ function spinReels() {
     }
 
     balance -= betAmount;
-    updateBalanceDisplay();
-
-    spinning = true;
+    updateBalanceDisplay(); spinning = true;
     winningLines = [];
     winAnimationActive = false;
-    confettiParticles = [];
+    // No need to reset confetti particles here - now managed by EffectsHelper
     buttonEffects.spin.pressed = false;
 
     let maxDuration = 0;
@@ -1839,9 +1834,8 @@ function checkWin() {    // Basic validation
     if (!currentReelResults || currentReelResults.length !== REEL_COUNT || !currentReelResults[0]) {
         console.error("Win check called with invalid results grid.");
         return null;
-    }
-    if (symbols.length !== 5) {
-        console.error("Win check called but theme visuals (symbols array) not correctly loaded.");
+    } if (!symbols || !symbols.length) {
+        console.error("Win check called but theme visuals (symbols array) not loaded.");
         return null;
     }
 
@@ -2690,78 +2684,62 @@ function drawAllPaylines(timestamp) {
 // --- Win Celebration ---
 // ... (triggerWinCelebration, drawWinCelebration functions remain the same) ...
 function triggerWinCelebration(amount) {
+    // Get the current theme's configuration for win effects
+    const currentTheme = THEMES[currentThemeName];
+    const themeEffects = currentTheme?.visualEffects || {};
+    const winEffectsConfig = themeEffects.winEffects || {};
+    const celebrationConfig = winEffectsConfig.celebration || {};
+
+    // Check if win celebration is enabled in the theme configuration
+    const celebrationEnabled = winEffectsConfig.enabled !== false && celebrationConfig.enabled !== false;
+
+    // If not enabled, don't trigger celebration
+    if (!celebrationEnabled) return;
+
+    // Set global state for tracking
     winAnimationActive = true;
-    confettiParticles = []; // Clear existing
-    // More particles for bigger wins relative to bet, capped
-    const particleCount = Math.min(150, Math.max(30, Math.floor(amount / (betAmount * 0.1))));
 
-    for (let i = 0; i < particleCount; i++) {
-        confettiParticles.push({
-            x: Math.random() * canvas.width,
-            y: -Math.random() * canvas.height * 0.3 - 20, // Start further above screen
-            size: Math.random() * 10 + 5, // Slightly larger confetti
-            color: `hsl(${Math.random() * 360}, 90%, 65%)`, // Brighter colors
-            speedX: (Math.random() - 0.5) * 8, // Faster horizontal spread
-            speedY: Math.random() * 6 + 3, // Initial downward speed
-            rotation: Math.random() * 360,
-            rotSpeed: (Math.random() - 0.5) * 15, // Faster rotation
-            opacity: 1,
-            life: 1.0 // Lifetime factor (1 = full life)
-        });
+    // Use the shared implementation from EffectsHelper
+    EffectsHelper.triggerWinCelebration(ctx, canvas, amount, betAmount, {
+        particleCount: Math.min(
+            celebrationConfig.maxParticles || 150,
+            Math.max(celebrationConfig.minParticles || 30,
+                Math.floor(amount / (betAmount * 0.1))
+            )
+        ),
+        duration: celebrationConfig.duration || 5000,
+        intensity: celebrationConfig.intensity || 0.7
+    });
+
+    // If the theme has its own custom win celebration method, call that too
+    if (currentTheme.ThemeEffectsHelper &&
+        typeof currentTheme.ThemeEffectsHelper.triggerThemeWinCelebration === 'function') {
+        currentTheme.ThemeEffectsHelper.triggerThemeWinCelebration(ctx, canvas, amount, betAmount);
     }
-
-    // Auto-stop after a reasonable duration
-    setTimeout(() => {
-        winAnimationActive = false;
-        // Particles will fade out naturally based on their life
-    }, 5000); // Longer celebration
 }
 
 function drawWinCelebration(deltaTime) {
-    if (!winAnimationActive && confettiParticles.length === 0) return; // Stop drawing if not active and no particles left
+    // Use the shared implementation from EffectsHelper
+    const isActive = EffectsHelper.drawWinCelebration(ctx, canvas, deltaTime);
 
-    const gravity = 250 * deltaTime; // Slightly stronger gravity
+    // Update global state if needed
+    winAnimationActive = isActive || winAnimationActive;
 
-    let activeParticles = false; // Flag to check if any particles are still visible
+    // Get the current theme
+    const currentTheme = THEMES[currentThemeName];
 
-    confettiParticles.forEach((p, index) => {
-        // Update position
-        p.x += p.speedX * deltaTime;
-        p.y += p.speedY * deltaTime;
-        p.speedY += gravity; // Apply gravity
-        p.rotation += p.rotSpeed * deltaTime;
-        p.speedX *= 0.99; // Air resistance for horizontal movement
+    // If the theme has its own custom win celebration drawing method, call that too
+    if (currentTheme && currentTheme.ThemeEffectsHelper &&
+        typeof currentTheme.ThemeEffectsHelper.drawThemeWinCelebration === 'function') {
+        const themeStillActive = currentTheme.ThemeEffectsHelper.drawThemeWinCelebration(
+            ctx, canvas, deltaTime, timestamp
+        );
 
-        // Fade out based on lifetime or position
-        if (p.y > canvas.height + p.size) { // Check if fully off screen
-            p.life -= deltaTime * 1.5; // Fade out faster once below screen
-        } else {
-            p.life -= deltaTime * 0.20; // Slower fade while visible
-        }
-        p.opacity = Math.max(0, p.life);
-
-        // Remove dead particles immediately
-        if (p.opacity <= 0) {
-            confettiParticles.splice(index, 1);
-            return; // Skip drawing this particle
-        }
-
-        activeParticles = true; // Mark that there are still active particles
-
-        // Draw particle
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rotation * Math.PI / 180);
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.opacity;
-        // Simple rectangle shape for confetti
-        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-        ctx.restore();
-    });
-
-    // If the animation timed out and particles finished, ensure state is off
-    if (!activeParticles) {
-        winAnimationActive = false;
+        // Combined activity state
+        winAnimationActive = winAnimationActive || themeStillActive;
+    }    // If all animations are finished, set global state to inactive
+    if (!winAnimationActive) {
+        // No cleanup needed - particles are now managed in EffectsHelper
     }
 }
 

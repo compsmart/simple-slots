@@ -119,6 +119,232 @@ export const ThemeEffectsHelper = {
     // Include all methods from the base EffectsHelper
     ...EffectsHelper,
 
+    // Theme-specific win celebration particles and state
+    gemParticles: [],
+    gemAnimationActive: false,
+    lastSparkleTime: 0,
+
+    // Trigger theme-specific win celebration
+    triggerThemeWinCelebration(ctx, canvas, amount, betAmount) {
+        // Initialize gemstone-specific celebration effects
+        this.gemAnimationActive = true;
+        this.gemParticles = [];
+        this.lastSparkleTime = Date.now();
+
+        // Create gem particles based on win amount
+        const particleCount = Math.min(100, Math.max(20, Math.floor(amount / (betAmount * 0.1))));
+
+        // Create a mix of different gem types
+        const gemColors = [
+            '#FF0000', // Ruby
+            '#0000FF', // Sapphire
+            '#50C878', // Emerald
+            '#FFBF00', // Amber
+            '#E6E6FA', // Diamond
+            '#EE82EE'  // Amethyst
+        ];
+
+        for (let i = 0; i < particleCount; i++) {
+            this.gemParticles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height * 0.3 - 20, // Start above the screen
+                size: Math.random() * 15 + 10, // Larger gems
+                color: gemColors[Math.floor(Math.random() * gemColors.length)],
+                speedX: (Math.random() - 0.5) * 6,
+                speedY: Math.random() * 5 + 2,
+                rotation: Math.random() * 360,
+                rotSpeed: (Math.random() - 0.5) * 10,
+                opacity: 1,
+                life: 1.0,
+                sparkleIntensity: Math.random() * 0.5 + 0.5,
+                sparkleSpeed: Math.random() * 5 + 5,
+                gemType: Math.floor(Math.random() * 5), // Different gem shapes
+                reflectionAngle: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Auto-stop after duration
+        setTimeout(() => {
+            this.gemAnimationActive = false;
+        }, 6000);
+
+        return true;
+    },
+
+    // Draw theme-specific win celebration
+    drawThemeWinCelebration(ctx, canvas, deltaTime, timestamp) {
+        if (!this.gemAnimationActive && this.gemParticles.length === 0) return false;
+
+        const gravity = 200 * deltaTime;
+        let activeParticles = false;
+        const currentTime = Date.now();
+
+        ctx.save();
+        // Set blend mode to make gems look shiny
+        ctx.globalCompositeOperation = 'lighter';
+
+        this.gemParticles.forEach((p, index) => {
+            // Update position
+            p.x += p.speedX * deltaTime;
+            p.y += p.speedY * deltaTime;
+            p.speedY += gravity;
+            p.rotation += p.rotSpeed * deltaTime;
+
+            // Fade out based on lifetime
+            p.life -= deltaTime * 0.15;
+            p.opacity = Math.max(0, p.life);
+
+            // Remove dead particles
+            if (p.opacity <= 0 || p.y > canvas.height + p.size) {
+                this.gemParticles.splice(index, 1);
+                return;
+            }
+
+            activeParticles = true;
+
+            // Draw gem
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rotation * Math.PI / 180);
+            ctx.globalAlpha = p.opacity;
+
+            // Draw gem based on type
+            switch (p.gemType) {
+                case 0: // Diamond
+                    this.drawDiamond(ctx, 0, 0, p.size, p.color);
+                    break;
+                case 1: // Emerald
+                    this.drawEmerald(ctx, 0, 0, p.size, p.color);
+                    break;
+                case 2: // Ruby
+                    this.drawRuby(ctx, 0, 0, p.size, p.color);
+                    break;
+                case 3: // Sapphire
+                    this.drawSapphire(ctx, 0, 0, p.size, p.color);
+                    break;
+                default: // Round gem
+                    this.drawRoundGem(ctx, 0, 0, p.size, p.color);
+                    break;
+            }
+
+            // Add sparkle effect
+            const sparklePhase = (timestamp / 100 * p.sparkleSpeed) % (Math.PI * 2);
+            const sparkleSize = p.size * 0.6 * (0.5 + Math.sin(sparklePhase) * 0.5);
+
+            // Draw sparkle
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            for (let i = 0; i < 4; i++) {
+                const angle = (Math.PI / 2) * i;
+                ctx.moveTo(0, 0);
+                ctx.lineTo(
+                    Math.cos(angle) * sparkleSize,
+                    Math.sin(angle) * sparkleSize
+                );
+            }
+            ctx.fill();
+
+            ctx.restore();
+        });
+
+        ctx.restore();
+
+        // If the animation timed out and particles finished, ensure state is off
+        if (!activeParticles) {
+            this.gemAnimationActive = false;
+            return false;
+        }
+
+        return true;
+    },
+
+    // Gem drawing helpers
+    drawDiamond(ctx, x, y, size, color) {
+        const s = size / 2;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x, y - s); // Top
+        ctx.lineTo(x + s, y);  // Right
+        ctx.lineTo(x, y + s);  // Bottom
+        ctx.lineTo(x - s, y);  // Left
+        ctx.closePath();
+        ctx.fill();
+
+        // Add highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.beginPath();
+        ctx.moveTo(x, y - s / 2);
+        ctx.lineTo(x + s / 4, y);
+        ctx.lineTo(x, y + s / 4);
+        ctx.lineTo(x - s / 4, y);
+        ctx.closePath();
+        ctx.fill();
+    },
+
+    drawEmerald(ctx, x, y, size, color) {
+        const s = size / 2;
+        ctx.fillStyle = color;
+        ctx.fillRect(x - s * 0.7, y - s, s * 1.4, s * 2);
+
+        // Add highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillRect(x - s * 0.3, y - s * 0.8, s * 0.6, s * 1.6);
+    },
+
+    drawRuby(ctx, x, y, size, color) {
+        const s = size / 2;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x - s, y - s * 0.7);
+        ctx.lineTo(x + s, y - s * 0.7);
+        ctx.lineTo(x + s * 0.7, y + s);
+        ctx.lineTo(x - s * 0.7, y + s);
+        ctx.closePath();
+        ctx.fill();
+
+        // Add highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.beginPath();
+        ctx.moveTo(x - s * 0.3, y - s * 0.5);
+        ctx.lineTo(x + s * 0.3, y - s * 0.5);
+        ctx.lineTo(x + s * 0.2, y + s * 0.3);
+        ctx.lineTo(x - s * 0.2, y + s * 0.3);
+        ctx.closePath();
+        ctx.fill();
+    },
+
+    drawSapphire(ctx, x, y, size, color) {
+        const s = size / 2;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, s, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Add geometric facets
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.moveTo(x, y - s * 0.7);
+        ctx.lineTo(x + s * 0.5, y);
+        ctx.lineTo(x, y + s * 0.5);
+        ctx.lineTo(x - s * 0.5, y);
+        ctx.closePath();
+        ctx.fill();
+    },
+
+    drawRoundGem(ctx, x, y, size, color) {
+        const s = size / 2;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, s, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Add highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.beginPath();
+        ctx.arc(x - s * 0.3, y - s * 0.3, s * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
     // Add theme-specific effect methods with standardized naming pattern
     applyThemeEffect(ctx, element, intensity = 1, theme, timestamp) {
 

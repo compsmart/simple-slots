@@ -36,6 +36,14 @@ export const EffectDefaults = {
             easing: 'easeInOutCubic', // Smooth easing
         },
         pulsingSymbols: true,
+        celebrations: {
+            confetti: {
+                enabled: true,
+            },
+            fireworks: {
+                enabled: false,       // Enable fireworks effect
+            },
+        },
     },
     symbolEffects: {
         neonGlow: {
@@ -91,18 +99,6 @@ export const EffectDefaults = {
             intensity: 0.3           // How strong the pulse is
         }
     },
-    winEffects: {
-        enabled: false,           // Special effects for wins
-        explosions: false,        // Explosive particle effects on wins
-        shockwave: false,         // Shockwave effect
-        flashingSymbols: false,   // Make winning symbols flash
-        spinEffect3d: {
-            enabled: false,       // 3D rotation effect on win
-            rotations: 1,        // Number of full rotations
-            duration: 1000,      // Duration in ms
-            easing: 'easeOutBack'// Easing function
-        }
-    },
     reelEffects: {
         enabled: false,           // Effects during reel spin
         blurAmount: 5,           // Motion blur intensity
@@ -147,9 +143,7 @@ export const EffectsHelper = {
 
         this.imageCache[src] = promise; // Cache the promise while loading
         return promise;
-    },
-
-    // Convert hex color to RGB object
+    },    // Convert hex color to RGB object
     hexToRgb(hex) {
         // Remove '#' if present
         hex = hex.replace(/^#/, '');
@@ -191,6 +185,334 @@ export const EffectsHelper = {
             s: Math.round(s * 100),
             l: Math.round(l * 100)
         };
+    },    // Win Celebration effects
+    winCelebrationParticles: [],
+    fireworkRockets: [],
+    fireworkParticles: [],
+    winAnimationActive: false,
+    fireworksActive: false,
+
+    // Function to trigger win celebration
+    triggerWinCelebration(ctx, canvas, amount, betAmount, options = {}) {
+        // Check configuration to determine which celebrations to activate
+        const config = options || {};
+        const themeEffects = config.themeEffects || {};
+        const winEffects = themeEffects.winEffects || {};
+
+        // Get celebration settings
+        const celebrationConfig = winEffects.celebration || {};
+        const confettiEnabled = celebrationConfig.confetti?.enabled;
+        const fireworksEnabled = celebrationConfig.fireworks?.enabled;
+        console.log(confettiEnabled, fireworksEnabled);
+        // Only proceed if at least one celebration type is enabled
+        if (!confettiEnabled && !fireworksEnabled) return false;
+
+        // Set global state for tracking
+        this.winAnimationActive = true;
+
+        // Duration for auto-stopping celebrations
+        const duration = config.duration || 3000;
+
+        // Trigger confetti if enabled
+        if (confettiEnabled) {
+            this.triggerConfettiCelebration(ctx, canvas, amount, betAmount, {
+                ...config,
+                confettiConfig: celebrationConfig.confetti || {},
+                duration: duration
+            });
+        }
+
+        // Trigger fireworks if enabled
+        if (fireworksEnabled) {
+            this.triggerFireworksCelebration(ctx, canvas, amount, betAmount, {
+                ...config,
+                fireworksConfig: celebrationConfig.fireworks || {},
+                duration: duration
+            });
+        }
+
+        // Auto-stop all celebrations after the specified duration
+        setTimeout(() => {
+            this.winAnimationActive = false;
+        }, duration);
+
+        return true;
+    },
+
+    // Confetti celebration implementation
+    triggerConfettiCelebration(ctx, canvas, amount, betAmount, options = {}) {
+        // Clear existing
+        this.winCelebrationParticles = [];
+
+        const confettiConfig = options.confettiConfig || {};
+
+        // Configure particle count based on win amount and configuration
+        const minParticles = confettiConfig.minParticles || 30;
+        const maxParticles = confettiConfig.maxParticles || 150;
+        const particleCount = Math.min(
+            maxParticles,
+            Math.max(minParticles, Math.floor(amount / (betAmount * 0.1)))
+        );
+
+        // Apply intensity setting
+        const intensity = confettiConfig.intensity || 0.7;
+        const actualParticleCount = Math.floor(particleCount * intensity);
+
+        // Create particles
+        for (let i = 0; i < actualParticleCount; i++) {
+            this.winCelebrationParticles.push({
+                x: Math.random() * canvas.width,
+                y: -Math.random() * canvas.height * 0.3 - 20, // Start above screen
+                size: Math.random() * 10 + 5, // Slightly larger confetti
+                color: `hsl(${Math.random() * 360}, 90%, 65%)`, // Brighter colors
+                speedX: (Math.random() - 0.5) * 8, // Horizontal spread
+                speedY: Math.random() * 6 + 3, // Initial downward speed
+                rotation: Math.random() * 360,
+                rotSpeed: (Math.random() - 0.5) * 15, // Rotation speed
+                opacity: 1,
+                life: 1.0 // Lifetime factor (1 = full life)
+            });
+        }
+    },
+
+    // Fireworks celebration implementation
+    triggerFireworksCelebration(ctx, canvas, amount, betAmount, options = {}) {
+        // Clear existing
+        this.fireworkRockets = [];
+        this.fireworkParticles = [];
+        this.fireworksActive = true;
+
+        const fireworksConfig = options.fireworksConfig || {};
+
+        // Configure rocket count based on win amount and configuration
+        const minRockets = fireworksConfig.minRockets || 5;
+        const maxRockets = fireworksConfig.maxRockets || 20;
+        const rocketCount = Math.min(
+            maxRockets,
+            Math.max(minRockets, Math.floor(amount / (betAmount * 0.2)))
+        );
+
+        // Apply intensity setting
+        const intensity = fireworksConfig.intensity || 0.8;
+        const actualRocketCount = Math.floor(rocketCount * intensity);
+
+        // Default colors if not specified
+        const defaultColors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
+        const colors = fireworksConfig.colors || defaultColors;
+
+        // Create initial rockets with staggered launch times
+        for (let i = 0; i < actualRocketCount; i++) {
+            const launchDelay = i * 300 + Math.random() * 100;
+
+            setTimeout(() => {
+                if (!this.fireworksActive) return; // Don't create if no longer active
+
+                this.fireworkRockets.push({
+                    x: canvas.width * (0.2 + Math.random() * 0.6), // Launch from middle 60% of screen
+                    y: canvas.height + 10, // Start off screen at bottom
+                    targetY: canvas.height * (0.2 + Math.random() * 0.5), // Target in upper half
+                    speedY: -(10 + Math.random() * 8), // Upward speed
+                    size: 3 + Math.random() * 2,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    trailFrequency: 0.1, // How often to leave a trail particle (0-1)
+                    lastTrail: 0,
+                    exploded: false
+                });
+            }, launchDelay);
+        }
+
+        // Auto-stop rockets after duration
+        setTimeout(() => {
+            this.fireworksActive = false;
+        }, options.duration || 6000);
+    },
+
+    // Draw the win celebration animation
+    drawWinCelebration(ctx, canvas, deltaTime, timestamp) {
+        // Check if any animations are active
+        const confettiActive = this.winCelebrationParticles.length > 0;
+        const fireworksActive = this.fireworksActive || this.fireworkRockets.length > 0 || this.fireworkParticles.length > 0;
+
+        // If nothing is active, return false to indicate no more animations
+        if (!this.winAnimationActive && !confettiActive && !fireworksActive) {
+            return false;
+        }
+
+        // Draw confetti if present
+        if (confettiActive) {
+            this.drawConfetti(ctx, canvas, deltaTime);
+        }
+
+        // Draw fireworks if active
+        if (fireworksActive) {
+            this.drawFireworks(ctx, canvas, deltaTime, timestamp);
+        }
+
+        return true;
+    },
+
+    // Draw confetti animation
+    drawConfetti(ctx, canvas, deltaTime) {
+        const gravity = 250 * deltaTime; // Gravity constant
+        let activeParticles = false; // Flag to check if any particles are still visible
+
+        // Process each confetti particle
+        for (let i = this.winCelebrationParticles.length - 1; i >= 0; i--) {
+            const p = this.winCelebrationParticles[i];
+
+            // Update position
+            p.x += p.speedX * deltaTime;
+            p.y += p.speedY * deltaTime;
+            p.speedY += gravity; // Apply gravity
+            p.rotation += p.rotSpeed * deltaTime;
+            p.speedX *= 0.99; // Air resistance for horizontal movement
+
+            // Fade out based on lifetime or position
+            if (p.y > canvas.height + p.size) { // Check if fully off screen
+                p.life -= deltaTime * 1.5; // Fade out faster once below screen
+            } else {
+                p.life -= deltaTime * 0.20; // Slower fade while visible
+            }
+            p.opacity = Math.max(0, p.life);
+
+            // Remove dead particles
+            if (p.opacity <= 0) {
+                this.winCelebrationParticles.splice(i, 1);
+                continue;
+            }
+
+            activeParticles = true; // Mark that there are still active particles
+
+            // Draw particle
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rotation * Math.PI / 180);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.opacity;
+            // Simple rectangle shape for confetti
+            ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+            ctx.restore();
+        }
+
+        return activeParticles;
+    },
+
+    // Draw fireworks animation
+    drawFireworks(ctx, canvas, deltaTime, timestamp) {
+        // Process rockets first
+        for (let i = this.fireworkRockets.length - 1; i >= 0; i--) {
+            const rocket = this.fireworkRockets[i];
+
+            // Move rocket upward
+            rocket.y += rocket.speedY * deltaTime * 60;
+
+            // Create trail particles
+            rocket.lastTrail += deltaTime;
+            if (rocket.lastTrail > rocket.trailFrequency) {
+                rocket.lastTrail = 0;
+
+                // Add a trail particle
+                this.fireworkParticles.push({
+                    x: rocket.x,
+                    y: rocket.y,
+                    size: rocket.size * 0.6,
+                    color: rocket.color,
+                    opacity: 0.7,
+                    speedX: (Math.random() - 0.5) * 0.5,
+                    speedY: Math.random() * 0.5 + 1, // Slight downward drift
+                    life: 0.8 // Shorter life for trail particles
+                });
+            }
+
+            // Check if rocket should explode
+            if (rocket.y <= rocket.targetY && !rocket.exploded) {
+                // Rocket has reached target height, create explosion
+                rocket.exploded = true;
+
+                // Create explosion particles
+                const particleCount = 80 + Math.floor(Math.random() * 40);
+                const explosionColor = rocket.color;
+
+                for (let j = 0; j < particleCount; j++) {
+                    // Calculate random direction and speed
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 4 + Math.random() * 7;
+
+                    this.fireworkParticles.push({
+                        x: rocket.x,
+                        y: rocket.y,
+                        size: 1 + Math.random() * 2,
+                        color: explosionColor,
+                        speedX: Math.cos(angle) * speed,
+                        speedY: Math.sin(angle) * speed,
+                        opacity: 1,
+                        life: 0.7 + Math.random() * 0.5,
+                        gravity: 2 + Math.random() * 1
+                    });
+                }
+
+                // Remove the exploded rocket
+                this.fireworkRockets.splice(i, 1);
+            } else if (rocket.exploded || rocket.y > canvas.height) {
+                // Remove rockets that have exploded or gone off screen
+                this.fireworkRockets.splice(i, 1);
+            } else {
+                // Draw the rocket
+                ctx.fillStyle = rocket.color;
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.arc(rocket.x, rocket.y, rocket.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Process explosion and trail particles
+        const gravity = 30 * deltaTime;
+
+        for (let i = this.fireworkParticles.length - 1; i >= 0; i--) {
+            const p = this.fireworkParticles[i];
+
+            // Update position
+            p.x += p.speedX * deltaTime * 60;
+            p.y += p.speedY * deltaTime * 60;
+
+            // Apply gravity if specified
+            if (p.gravity) {
+                p.speedY += p.gravity * deltaTime;
+            }
+
+            // Reduce life/opacity
+            p.life -= deltaTime * 0.5;
+            p.opacity = Math.max(0, p.life);
+
+            // Remove dead particles
+            if (p.opacity <= 0) {
+                this.fireworkParticles.splice(i, 1);
+                continue;
+            }
+
+            // Draw particle with glow effect for better visibility
+            ctx.save();
+
+            // Add glow
+            ctx.globalAlpha = p.opacity * 0.4;
+            ctx.fillStyle = p.color;
+            ctx.filter = 'blur(3px)';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw actual particle
+            ctx.filter = 'none';
+            ctx.globalAlpha = p.opacity;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        return this.fireworksActive || this.fireworkRockets.length > 0 || this.fireworkParticles.length > 0;
     },
 
     // Render golden rain/coins falling effect

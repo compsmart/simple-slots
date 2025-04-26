@@ -26,9 +26,9 @@ export const PirateTheme = {
         win: './themes/pirate/sounds/win.mp3',
         jackpot: './themes/pirate/sounds/jackpot.mp3',
         volume: {
-            master: 0.1,
-            background: 0.1,
-            effects: 0.1
+            master: 0.5,
+            background: 0.5,
+            effects: 0.7
         }
     },
     // Symbols and visuals
@@ -52,7 +52,7 @@ export const PirateTheme = {
             },
             {
                 id: 2,
-                name: 'Skull',
+                name: 'CrossBones',
                 imagePath: './themes/pirate/images/skull.png',
                 backgroundColor: null, // Orange for Skull
             },
@@ -67,6 +67,23 @@ export const PirateTheme = {
                 name: 'Pirate',
                 imagePath: './themes/pirate/images/pirate.png',
                 backgroundColor: null, // Yellow for Parrot
+            },
+            {
+                id: 5,
+                name: 'Anchor',
+                imagePath: './themes/pirate/images/anchor.png',
+                backgroundColor: null,
+            },
+            {
+                id: 6,
+                name: 'Compass',
+                imagePath: './themes/pirate/images/compass.png',
+                backgroundColor: null,
+            }, {
+                id: 7,
+                name: 'Skull',
+                imagePath: './themes/pirate/images/skull2.png',
+                backgroundColor: null,
             }
         ]
     },

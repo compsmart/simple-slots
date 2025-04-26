@@ -21,7 +21,7 @@ export const symbolNumberMultipliers = {
     1: { 3: 20, 4: 75, 5: 500 },   // Better payouts for Aztec Mask
     2: { 3: 15, 4: 50, 5: 200 },   // Aztec Totem
     3: { 3: 10, 4: 25, 5: 100 },   // Aztec Calendar
-    4: { 3: 5, 4: 15, 5: 50 }      // Aztec Pattern
+    4: { 3: 5, 4: 15, 5: 50 },      // Aztec Pattern
 };
 
 // Aztec-specific paylines
