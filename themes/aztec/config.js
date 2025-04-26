@@ -50,4 +50,4 @@ export const PAYOUT_RULES = {
     bonusRequirement: 3 // How many bonus symbols needed to trigger bonus
 };
 
-export const scatterSymbolId = 1;
+export const scatterSymbolId = null;
