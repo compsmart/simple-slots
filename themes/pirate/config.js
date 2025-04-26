@@ -1,4 +1,4 @@
-// Aztec theme specific configuration
+// Gemstone theme specific configuration
 // No shared imports - each theme has its own complete config
 
 // Pirate-specific reel configurations with extended symbols (0-7)
@@ -27,7 +27,7 @@ export const symbolNumberMultipliers = {
     7: { 3: 4, 4: 12, 5: 40 }      // Skull2 (new symbol)
 };
 
-// Aztec-specific paylines
+// Gemstone-specific paylines
 export const PAYLINES = [
     [1, 1, 1, 1, 1], // Middle row
     [0, 0, 0, 0, 0], // Top row
@@ -39,14 +39,14 @@ export const PAYLINES = [
     [0, 0, 1, 2, 2], // Diagonal top-left to bottom-right
     [2, 2, 1, 0, 0], // Diagonal bottom-left to top-right
     [0, 1, 0, 1, 0], // Zigzag top
-    [2, 1, 2, 1, 2]  // Zigzag bottom - two extra paylines for Aztec theme
+    [2, 1, 2, 1, 2]  // Zigzag bottom - two extra paylines for Gemstone theme
 ];
 
-// Aztec-specific payout rules
+// Gemstone-specific payout rules
 export const PAYOUT_RULES = {
     minWinLength: 3, // Minimum symbols in a row for a win
     scatterPayouts: {
-        3: 8,  // 3 scatters pays 8x bet (higher scatter pays for Aztec)
+        3: 8,  // 3 scatters pays 8x bet (higher scatter pays for Gemstone)
         4: 15, // 4 scatters pays 15x bet
         5: 75  // 5 scatters pays 75x bet
     },

@@ -3,7 +3,7 @@
 
 // Aztec-specific reel configurations
 export const reelStrips = [
-    // Reel 1 (Aztec configuration)
+    // Reel 1 
     [4, 3, 4, 2, 4, 1, 4, 3, 4, 2, 4, 0, 4, 3, 4, 2, 4, 1, 4, 3, 4, 2, 4, 4, 3, 4, 1, 4, 2, 4],
     // Reel 2 
     [4, 2, 3, 4, 1, 4, 2, 4, 3, 4, 1, 4, 2, 4, 0, 4, 1, 4, 2, 3, 4, 1, 4, 4, 2, 3, 4, 3, 4, 3],
@@ -49,3 +49,5 @@ export const PAYOUT_RULES = {
     },
     bonusRequirement: 3 // How many bonus symbols needed to trigger bonus
 };
+
+export const scatterSymbolId = 1;

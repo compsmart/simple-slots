@@ -45,27 +45,57 @@ export const AncientEgyptTheme = {
             },
             {
                 id: 1,
+                name: 'queen',
+                imagePath: './themes/ancient-egypt/images/queen.png',
+                backgroundColor: null, // Gold for Sun God
+            },
+            {
+                id: 2,
                 name: 'ankh',
                 imagePath: './themes/ancient-egypt/images/ankh.png',
                 backgroundColor: null, // Red for Mask
             },
             {
-                id: 2,
+                id: 3,
                 name: 'scarab',
                 imagePath: './themes/ancient-egypt/images/scarab.png',
                 backgroundColor: null, // Orange for Temple
             },
             {
-                id: 3,
+                id: 4,
                 name: 'eye',
                 imagePath: './themes/ancient-egypt/images/eye.png',
                 backgroundColor: null, // Pink for Jaguar
             },
             {
-                id: 4,
+                id: 5,
                 name: 'pyramid',
                 imagePath: './themes/ancient-egypt/images/pyramid.png',
                 backgroundColor: null, // Yellow for Calendar
+            },
+            {
+                id: 6,
+                name: 'ace',
+                imagePath: './themes/ancient-egypt/images/a.png',
+                backgroundColor: null,
+            },
+            {
+                id: 7,
+                name: 'king',
+                imagePath: './themes/ancient-egypt/images/k.png',
+                backgroundColor: null,
+            },
+            {
+                id: 8,
+                name: 'queen',
+                imagePath: './themes/ancient-egypt/images/q.png',
+                backgroundColor: null,
+            },
+            {
+                id: 9,
+                name: 'jack',
+                imagePath: './themes/ancient-egypt/images/j.png',
+                backgroundColor: null,
             }
         ]
     },

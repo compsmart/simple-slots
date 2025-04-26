@@ -89,7 +89,45 @@ export const PirateTheme = {
     },
     background: './themes/pirate/images/background.jpg',
     ThemeEffectsHelper,
-    renderEpicWinAnimation
+    renderEpicWinAnimation,
+    bonusGame: {
+        boardLayout: 'circle',
+        assets: {
+            background: './themes/pirate/images/bonus-bg.jpg',
+            player: './themes/pirate/images/ship.png',
+            dice: [
+                './themes/pirate/images/dice1.png',
+                './themes/pirate/images/dice2.png',
+                './themes/pirate/images/dice3.png',
+                './themes/pirate/images/dice4.png',
+                './themes/pirate/images/dice5.png',
+                './themes/pirate/images/dice6.png'
+            ],
+            tiles: {
+                win: './themes/pirate/images/chest.png',
+                moveForward: './themes/pirate/images/map.png',
+                moveBackward: './themes/pirate/images/skull.png',
+                collect: './themes/pirate/images/anchor.png',
+            },
+            sounds: {
+                start: './themes/pirate/sounds/bonus-start.mp3',
+                roll: './themes/pirate/sounds/dice-roll.mp3',
+                move: './themes/pirate/sounds/ship-move.mp3',
+                win: './themes/pirate/sounds/win.mp3',
+                collect: './themes/pirate/sounds/collect.mp3'
+            }
+        },
+        text: {
+            title: "Pirate Treasure Hunt",
+            instructions: "Roll the dice to navigate the seas!",
+            winPrefix: "Treasure: ",
+            forward: "Tailwind: +",
+            backward: "Headwind: -",
+            collect: "Port",
+            gameOver: "Voyage Complete!",
+            totalWin: "Total Treasure: "
+        }
+    }
 };
 
 export default PirateTheme;

@@ -34,7 +34,7 @@ export const GemstonesTheme = {
     // Symbols and visuals
     symbols: {
         // Sprite sheet configuration
-        useSprite: true, // Set to true to use sprite map, false to use individual images
+        useSprite: false, // Set to true to use sprite map, false to use individual images
         path: './themes/gemstones/images/symbols.svg',
         spriteMap: symbolMap, // Import from symbolMap.js
         attributes: [
@@ -42,35 +42,79 @@ export const GemstonesTheme = {
                 id: 0,
                 name: 'Diamond',
                 imagePath: './themes/gemstones/images/diamond.png',
-                backgroundColor: "#FFD700", // Gold for Diamond
+                backgroundColor: "#959495", // Gold for Diamond
             },
             {
                 id: 1,
                 name: 'Ruby',
                 imagePath: './themes/gemstones/images/ruby.png',
-                backgroundColor: "#FF0000", // Red for Ruby
+                backgroundColor: "#680000", // Red for Ruby
             },
             {
                 id: 2,
                 name: 'Emerald',
                 imagePath: './themes/gemstones/images/emerald.png',
-                backgroundColor: "#FFA500", // Orange for Emerald
+                backgroundColor: "#005c00", // green for Emerald
             },
             {
                 id: 3,
                 name: 'Sapphire',
                 imagePath: './themes/gemstones/images/sapphire.png',
-                backgroundColor: "#FF69B4", // Pink for Sapphire
-            },
-            {
+                backgroundColor: "#00007c", // blue for Sapphire
+            }, {
                 id: 4,
                 name: 'Amethyst',
                 imagePath: './themes/gemstones/images/amethyst.png',
-                backgroundColor: "#FFFF00", // Yellow for Amethyst
+                backgroundColor: "#540d56", // purple for Amethyst
+            },
+            {
+                id: 5,
+                name: 'Scatter',
+                imagePath: './themes/gemstones/images/scatter.png',
+                backgroundColor: "#ffb0b9", // Violet for Scatter symbol
             }
         ]
     },
     background: null,
+    // Bonus game configuration
+    bonusGame: {
+        boardLayout: 'circle',
+        assets: {
+            background: './themes/gemstones/images/bonus-bg.png',
+            player: './themes/gemstones/images/diamond.png',
+            dice: [
+                './themes/gemstones/images/dice1.png',
+                './themes/gemstones/images/dice2.png',
+                './themes/gemstones/images/dice3.png',
+                './themes/gemstones/images/dice4.png',
+                './themes/gemstones/images/dice5.png',
+                './themes/gemstones/images/dice6.png'
+            ],
+            tiles: {
+                win: './themes/gemstones/images/ruby.png',
+                moveForward: './themes/gemstones/images/emerald.png',
+                moveBackward: './themes/gemstones/images/sapphire.png',
+                collect: './themes/gemstones/images/amethyst.png',
+            },
+            sounds: {
+                start: './themes/gemstones/sounds/bonus-start.mp3',
+                roll: './themes/gemstones/sounds/roll.mp3',
+                move: './themes/gemstones/sounds/move.mp3',
+                win: './themes/gemstones/sounds/win.mp3',
+                collect: './themes/gemstones/sounds/collect.mp3'
+            }
+        },
+        text: {
+            title: "Gemstone Treasure Hunt",
+            instructions: "Roll the dice to collect precious gems!",
+            winPrefix: "Win: ",
+            forward: "Forward: +",
+            backward: "Back: -",
+            collect: "Collect",
+            gameOver: "Treasure Collected!",
+            totalWin: "Total Gems: "
+        }
+    },
     // Add rendering functions imported from effects.js
     ThemeEffectsHelper,
     renderEpicWinAnimation

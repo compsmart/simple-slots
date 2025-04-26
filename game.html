@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Games</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="loading-screen.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+</head>
+
+<body> <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading</div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <div class="theme-switcher-container">
+
+            <div id="themeSwitcher" class="theme-switcher">
+                <!-- Buttons will be added by JavaScript -->
+            </div>
+        </div>
+        <div class="game-area">
+            <div class="canvas-container">
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
+            </div>
+
+            <div class="game-controls">
+                <div class="balance-section">
+                    <button id="addCreditBtn">Add Credit</button>
+                    <a href="test.html" target="_blank"><button>RTP Check</button></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="game.js"></script>
+
+</body>
+
+</html>

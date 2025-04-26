@@ -1,6 +1,7 @@
 // Import themes FIRST
 import { THEMES } from './themes/index.js'; // <-- Import themes from refactored structure
 import { EffectsHelper } from './shared/effects.js'; // <-- Import EffectsHelper from shared
+import { checkBonusTrigger, loadBonusGameConfig, startBonusGame } from './shared/bonus-games/index.js'; // <-- Import bonus game functions
 
 // Loading screen constants
 const MINIMUM_LOADING_TIME = 3000; // Minimum time to show loading screen (3 seconds)
@@ -107,6 +108,7 @@ let ctx;
 let balance = DEFAULT_BALANCE;
 let betAmount = DEFAULT_BET;
 let spinning = false;
+let bonusGameActive = false; // Track when a bonus game is in progress
 let reels = []; // Holds reel state objects { position, symbols[], targetPosition, spinning, ... }
 let currentReelResults = []; // Stores final symbol IDs [reelIndex][rowIndex] after spin
 let winningLines = []; // Tracks which paylines resulted in wins
@@ -722,6 +724,19 @@ function loadThemeSounds(themeName) {    // Reset theme sound tracking
                 .catch(fallbackError => {
                     console.warn(`Could not load fallback jackpot sound: ${fallbackError}`);
                 });
+        });
+}
+
+// Helper function to load audio for bonus games
+function loadAudio(context, url) {
+    // Generate a unique ID for this audio
+    const id = `bonus-${url.split('/').pop()}`;
+
+    // Use our existing audio loading infrastructure
+    return loadAudioBuffer(id, url)
+        .then(buffer => {
+            // Just return the decoded buffer as the bonus game code expects
+            return buffer;
         });
 }
 
@@ -1713,7 +1728,7 @@ function spinCompleted() {
         // (because drawReels uses floor(position) as the top visible index)
         const finalTopIndex = Math.round(reel.targetPosition) % reelLength; // Index T
 
-        // Calculate indices for middle and bottom rows relative to the top row index
+        // Calculate indices for middle andbottom rows relative to the top row index
         const finalMiddleIndex = (finalTopIndex + 1) % reelLength;        // Index T+1
         const finalBottomIndex = (finalTopIndex + 2) % reelLength;        // Index T+2
 
@@ -1796,15 +1811,90 @@ function checkWinAndFinalize() {
     };
 
     // Add to game history for the history modal
-    addSpinToHistory(spinResult);
+    addSpinToHistory(spinResult);    // Check for bonus game trigger (scatter symbols)
+    const currentTheme = THEMES[currentThemeName];
+    if (currentTheme && !bonusGameActive) { // Only check for bonus trigger if no bonus game is currently active
+        // Check if there are enough scatter symbols to trigger the bonus game
+        const scatterCount = checkBonusTrigger(currentReelResults, currentTheme);
+        if (scatterCount >= 3) {
+            console.log(`Bonus game triggered with ${scatterCount} scatter symbols!`);
 
+            // Set bonus game as active to prevent retriggering
+            bonusGameActive = true;
+
+            // Load bonus game configuration and start it
+            loadBonusGameConfig(currentTheme, audioContext).then(bonusConfig => {
+                // Stop any background music
+                stopBackgroundMusic();
+
+                // Play bonus start sound if available
+                if (bonusConfig?.assets?.sounds?.start) {
+                    playSound('bonus-start');
+                }// Start the bonus game (will handle its own completion)
+                startBonusGame(currentTheme, canvas, ctx, {
+                    config: bonusConfig,
+                    betAmount,
+                    scatter: scatterCount,
+                    audioContext,
+                    masterGainNode,
+                    soundEnabled, onComplete: (bonusWin) => {
+                        // Reset bonus game active flag
+                        bonusGameActive = false;
+
+                        // When bonus game completes, add the win to balance
+                        if (bonusWin > 0) {
+                            balance += bonusWin;
+                            updateBalanceDisplay();
+
+                            // Play win sound
+                            playSound('win');
+
+                            // Add to history
+                            addToHistory(true, "Bonus Game", 1, bonusWin);
+
+                            // Trigger celebration for significant wins
+                            if (bonusWin >= betAmount * 10) {
+                                triggerEpicWinAnimation(bonusWin);
+                            } else if (bonusWin >= betAmount * 3) {
+                                triggerWinCelebration(bonusWin);
+                            }
+                        }
+
+                        // Restart background music
+                        playBackgroundMusic(currentThemeName);
+                    }
+                });
+                return; // Exit early as bonus game is handling the flow
+            }).catch(error => {
+                console.error("Error starting bonus game:", error);
+                // Continue with normal win processing
+                processNormalWin(winInfo);
+            });
+        } else {
+            // No bonus, process normal win
+            processNormalWin(winInfo);
+        }
+    } else {
+        // Theme not found, process normal win
+        processNormalWin(winInfo);
+    }
+
+    // Ensure button states are reset visually if needed
+    buttonEffects.spin.pressed = false;
+    // Hover states will be updated by mousemove
+}
+
+// Helper function to process normal wins (extracted from above)
+function processNormalWin(winInfo) {
     if (winInfo && winInfo.totalAmount > 0) {
         balance += winInfo.totalAmount;
         updateBalanceDisplay();
         playSound('win');
         // Add to history display (use info from winInfo or winningLines)
         // Pass the number of winning paylines instead of symbol count
-        addToHistory(true, winInfo.bestMatch.symbolName, winInfo.allLines.length, winInfo.totalAmount);        // Check if this is a 5-of-a-kind win and trigger epic animation
+        addToHistory(true, winInfo.bestMatch.symbolName, winInfo.allLines.length, winInfo.totalAmount);
+
+        // Check if this is a 5-of-a-kind win and trigger epic animation
         if (winInfo.allLines.some(line => line.count >= 7)) {
             triggerEpicWinAnimation(winInfo.totalAmount);
         }
@@ -1822,10 +1912,6 @@ function checkWinAndFinalize() {
             addToHistory(false, "Spin finished", 0, 0);
         }
     }
-
-    // Ensure button states are reset visually if needed
-    buttonEffects.spin.pressed = false;
-    // Hover states will be updated by mousemove
 }
 
 
@@ -1996,6 +2082,10 @@ function checkWin() {    // Basic validation
     }
 }
 
+// Using checkBonusTrigger imported from shared/bonus-games/index.js
+
+// Function to load and prepare bonus game configuration
+// Using loadBonusGameConfig imported from shared/bonus-games/index.js
 
 // --- UI Drawing and Interaction ---
 // ... (drawUIElements, drawText, drawRoundedRect functions remain the same) ...
@@ -2120,13 +2210,11 @@ function drawUIElements() {
     drawText('BET:', betX + padding, betY + betHeight / 2, 'bold 18px Arial', '#ffcc00', 'left', 'middle');
     drawText(betAmount.toString(), betX + betWidth - padding, betY + betHeight / 2, 'bold 22px Arial', '#ffffff', 'right', 'middle');
 
-    // Decrease Bet Button (-) - Only draw if not spinning
     const decColor = buttonEffects.bet.decreaseActive ? '#cc9900' : '#ffcc00';
     const decFill = spinning ? '#555555' : decColor; // Grey out if spinning
     const decStroke = spinning ? '#888888' : '#ffffff';
     drawRoundedRect(decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize, 5, decFill, decStroke, 2);
     drawText('-', decreaseBtnX + adjustBtnSize / 2, adjustBtnY + adjustBtnSize / 2 + 1, 'bold 30px Arial', spinning ? '#aaaaaa' : '#1a1a2e', 'center', 'middle');
-
     // Increase Bet Button (+) - Only draw if not spinning
     const incColor = buttonEffects.bet.increaseActive ? '#cc9900' : '#ffcc00';
     const incFill = spinning ? '#555555' : incColor; // Grey out if spinning
@@ -2273,10 +2361,10 @@ function handleMouseMove(e) {
     const betX = canvas.width / 2 - betWidth / 2;
     const betY = canvas.height - 80;
     const adjustBtnSize = 40;
-    const betHeight = 50;
+    const topBtnHeight = 40; // Renamed from btnHeight to avoid conflict
     const decreaseBtnX = betX - adjustBtnSize - 10;
     const increaseBtnX = betX + betWidth + 10;
-    const adjustBtnY = betY + (betHeight - adjustBtnSize) / 2;
+    const adjustBtnY = betY + (topBtnHeight - adjustBtnSize) / 2;
     buttonEffects.bet.decreaseActive = isMouseOver(mouseX, mouseY, decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize);
     buttonEffects.bet.increaseActive = isMouseOver(mouseX, mouseY, increaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize);
 }
@@ -2350,14 +2438,14 @@ function handleMouseDown(e) {
     }
 
     // Button measurements for all top buttons
-    const btnHeight = 40;
+    const topBtnHeight = 40; // Renamed from btnHeight to avoid conflict
     const btnY = 20;
     const btnSpacing = 10;
 
     // Check Paylines Button Click
     const paylinesBtnWidth = 130;
     const paylinesBtnX = canvas.width - paylinesBtnWidth - 10;
-    if (isMouseOver(mouseX, mouseY, paylinesBtnX, btnY, paylinesBtnWidth, btnHeight)) {
+    if (isMouseOver(mouseX, mouseY, paylinesBtnX, btnY, paylinesBtnWidth, topBtnHeight)) {
         playSound('click');
         showPaylines = !showPaylines; // Toggle paylines visibility
         return;
@@ -2366,7 +2454,7 @@ function handleMouseDown(e) {
     // Check Pay Table Button Click
     const paytableBtnWidth = 110;
     const paytableBtnX = paylinesBtnX - paytableBtnWidth - btnSpacing;
-    if (isMouseOver(mouseX, mouseY, paytableBtnX, btnY, paytableBtnWidth, btnHeight)) {
+    if (isMouseOver(mouseX, mouseY, paytableBtnX, btnY, paytableBtnWidth, topBtnHeight)) {
         playSound('click');
         showPaytable = true;
         showHistory = false; // Close other modal if open
@@ -2376,7 +2464,7 @@ function handleMouseDown(e) {
     // Check History Button Click
     const historyBtnWidth = 90;
     const historyBtnX = paytableBtnX - historyBtnWidth - btnSpacing;
-    if (isMouseOver(mouseX, mouseY, historyBtnX, btnY, historyBtnWidth, btnHeight)) {
+    if (isMouseOver(mouseX, mouseY, historyBtnX, btnY, historyBtnWidth, topBtnHeight)) {
         playSound('click');
         showHistory = true;
         showPaytable = false; // Close other modal if open
@@ -2403,10 +2491,10 @@ function handleMouseDown(e) {
     const betX = canvas.width / 2 - betWidth / 2;
     const betY = canvas.height - 80;
     const adjustBtnSize = 40;
-    const betHeight = 50;
+    // Remove the duplicate declaration of topBtnHeight here
     const decreaseBtnX = betX - adjustBtnSize - 10;
     const increaseBtnX = betX + betWidth + 10;
-    const adjustBtnY = betY + (betHeight - adjustBtnSize) / 2;
+    const adjustBtnY = betY + (topBtnHeight - adjustBtnSize) / 2;
 
     if (isMouseOver(mouseX, mouseY, decreaseBtnX, adjustBtnY, adjustBtnSize, adjustBtnSize)) {
         playSound('click');
@@ -2429,7 +2517,6 @@ function handleMouseDown(e) {
         triggerEpicWinAnimation(winAmount);
     }
 }
-
 function handleMouseUp(e) {
     // Reset pressed state for the spin button when mouse is released, *if* not spinning
     if (buttonEffects.spin.pressed && !spinning) {
@@ -2731,13 +2818,17 @@ function drawWinCelebration(deltaTime) {
     // If the theme has its own custom win celebration drawing method, call that too
     if (currentTheme && currentTheme.ThemeEffectsHelper &&
         typeof currentTheme.ThemeEffectsHelper.drawThemeWinCelebration === 'function') {
+        // Pass performance.now() as timestamp since it's not provided as a parameter
+        const currentTimestamp = performance.now();
         const themeStillActive = currentTheme.ThemeEffectsHelper.drawThemeWinCelebration(
-            ctx, canvas, deltaTime, timestamp
+            ctx, canvas, deltaTime, currentTimestamp
         );
 
         // Combined activity state
         winAnimationActive = winAnimationActive || themeStillActive;
-    }    // If all animations are finished, set global state to inactive
+    }
+
+    // If all animations are finished, set global state to inactive
     if (!winAnimationActive) {
         // No cleanup needed - particles are now managed in EffectsHelper
     }
@@ -2885,7 +2976,7 @@ async function loadThemeSymbols(themeName) {
         // Potentially reject promise or set a flag to prevent game start
         return Promise.reject(new Error(`No symbols loaded for theme ${themeName}`));
     } else if (symbols.length !== themeSymbolsData.length) {
-        console.warn(`Loaded ${symbols.length} symbols, but theme definition has ${themeSymbolsData.length}. Some may have failed.`);
+        console.warn(`Loaded ${symbols.length} symbols, but theme definition has ${themeSymbolsData.length}. Some may have failed loading.`);
     }
 
     console.log(`Finished loading symbols for theme: ${themeName}. ${symbols.length} symbols ready.`);
@@ -3121,10 +3212,10 @@ function drawHistoryModal() {
     ctx.strokeStyle = '#ffcc00';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(contentX, contentY + 10);
-    ctx.lineTo(contentX + 700, contentY + 10);
+    ctx.moveTo(contentX, contentY + 20);
+    ctx.lineTo(contentX + 700, contentY + 20);
     ctx.stroke();    // Draw history entries
-    let currentY = contentY + 40;
+    let currentY = contentY + 60;
 
     if (gameHistory.length === 0) {
         drawText('No game history available', contentX + modalWidth / 2 - 100, currentY + 50, '20px Arial', '#ffffff', 'left', 'middle');
@@ -3610,11 +3701,6 @@ function applyWinEffects(ctx, winningLine, timestamp) {
                 const centerX = symbolX + SYMBOL_SIZE / 2;
                 const centerY = symbolY + SYMBOL_SIZE / 2;
 
-                const symbolData = symbols[winningLine.symbolIndex];
-                if (!symbolData) return;
-
-
-                // 2. Apply Rotation and Draw ONLY the Symbol Content (Rotated)
                 ctx.save();
                 ctx.translate(centerX, centerY); // Move origin to symbol center
                 ctx.rotate(angle);              // Rotate
@@ -3622,19 +3708,19 @@ function applyWinEffects(ctx, winningLine, timestamp) {
 
                 // Draw the symbol content (sprite or image) WITHOUT background fill
                 let drawnFromSprite = false;
-                if (svgLoaded && svgSymbolSheet && symbolData.name && SYMBOL_MAPS[currentThemeName.toLowerCase().replace(/\s+/g, '')]?.[symbolData.name.toLowerCase()]) {
+                if (svgLoaded && svgSymbolSheet && pos.symbolName && SYMBOL_MAPS[themeKey]?.[pos.symbolName.toLowerCase()]) {
                     // Use drawSymbol function which draws ONLY the sprite portion
-                    drawnFromSprite = drawSymbol(symbolData.name, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                    drawnFromSprite = drawSymbol(pos.symbolName, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                     if (!drawnFromSprite) {
-                        console.warn(`rotateEffect: drawSymbol failed for ${symbolData.name}`);
+                        console.warn(`rotateEffect: drawSymbol failed for ${pos.symbolName}`);
                     }
                 }
 
                 // Fallback if not drawn from sprite (e.g., PNG image)
                 if (!drawnFromSprite) {
-                    if (symbolData.image && symbolData.image.complete && symbolData.image.naturalHeight !== 0) {
+                    if (pos.image && pos.image.complete && pos.image.naturalHeight !== 0) {
                         // Draw the image directly. Assumes image has transparency if needed.
-                        ctx.drawImage(symbolData.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                        ctx.drawImage(pos.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                     } else {
                         // Last resort fallback: Draw a character representation (optional)
                         // This will rotate the character within the static background square
@@ -3642,17 +3728,15 @@ function applyWinEffects(ctx, winningLine, timestamp) {
                         ctx.font = 'bold 24px Arial';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', centerX, centerY); // Draw at center
+                        ctx.fillText(pos.symbolName ? pos.symbolName.substring(0, 1) : '?', centerX, centerY); // Draw at center
                     }
+                } else {
+                    // Fallback: just draw a simple rect if symbolData is missing
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * Math.abs(1 - scaleX)})`;
+                    ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                 }
 
-                // Optional: Add a highlight effect that also rotates (applied within the rotated context)
-                const highlightProgress = Math.sin(progress * Math.PI); // Example pulse
-                const highlightIntensity = 0.5 + 0.5 * highlightProgress;
-                ctx.strokeStyle = `rgba(255, 255, 180, ${highlightIntensity * 0.8})`; // Yellowish glow
-                ctx.lineWidth = 2 + highlightProgress * 2; // Pulsing width
-                ctx.restore(); // Restore from rotation transformation
-
+                ctx.restore();
             });
         } else if (progress >= 1.0) { // Check if animation just finished
             // Reset animation start time once it completes fully
@@ -3669,20 +3753,23 @@ function applyWinEffects(ctx, winningLine, timestamp) {
 
                 // Draw background
                 ctx.fillStyle = symbolData.backgroundColor || symbolData.color || '#cccccc';
-                ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE); // Draw background first
 
                 // Draw content (non-rotated)
                 let drawnFromSprite = false;
-                if (svgLoaded && svgSymbolSheet && symbolData.name && SYMBOL_MAPS[currentThemeName.toLowerCase().replace(/\s+/g, '')]?.[symbolData.name.toLowerCase()]) {
+                if (svgLoaded && svgSymbolSheet && symbolData.name && SYMBOL_MAPS[themeKey]?.[symbolData.name.toLowerCase()]) {
                     drawnFromSprite = drawSymbol(symbolData.name, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                 }
                 if (!drawnFromSprite) {
                     if (symbolData.image && symbolData.image.complete && symbolData.image.naturalHeight !== 0) {
                         ctx.drawImage(symbolData.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                     } else {
-                        ctx.fillStyle = '#000';
+                        // Last resort fallback: Draw a character representation (optional)
+                        // This will rotate the character within the static background square
+                        ctx.fillStyle = '#000'; // Contrasting color
                         ctx.font = 'bold 24px Arial';
-                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
                         ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', symbolX + SYMBOL_SIZE / 2, symbolY + SYMBOL_SIZE / 2);
                     }
                 }
@@ -3754,19 +3841,23 @@ function applyWinEffects(ctx, winningLine, timestamp) {
                         ctx.fillStyle = symbolData.backgroundColor || symbolData.color || '#cccccc';
                         ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE); // Draw background first
                         drawnFromSprite = drawSymbol(symbolData.name, ctx, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
+                        if (!drawnFromSprite) {
+                            console.warn(`spinEffect3d: drawSymbol failed for ${symbolData.name}`);
+                        }
                     }
+
+                    // Fallback if not drawn from sprite (e.g., PNG image)
                     if (!drawnFromSprite) {
                         if (symbolData.image && symbolData.image.complete && symbolData.image.naturalHeight !== 0) {
-                            if (symbolData.imagePath) { // Draw background for transparent PNGs
-                                ctx.fillStyle = symbolData.backgroundColor || symbolData.color || '#cccccc';
-                                ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
-                            }
                             ctx.drawImage(symbolData.image, symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
                         } else {
-                            ctx.fillStyle = symbolData.color || '#cccccc';
-                            ctx.fillRect(symbolX, symbolY, SYMBOL_SIZE, SYMBOL_SIZE);
-                            ctx.fillStyle = '#000000'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                            ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', centerX, centerY);
+                            // Last resort fallback: Draw a character representation (optional)
+                            // This will rotate the character within the static background square
+                            ctx.fillStyle = '#000'; // Contrasting color
+                            ctx.font = 'bold 24px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(symbolData.name ? symbolData.name.substring(0, 1) : '?', centerX, centerY); // Draw at center
                         }
                     }
                 } else {
@@ -3777,9 +3868,10 @@ function applyWinEffects(ctx, winningLine, timestamp) {
 
                 ctx.restore();
             });
-        } else {
-            // Reset timestamp after animation completes if needed for looping/retriggering
-            // delete winningLine.animationStartTime;
+        } else if (progress >= 1.0) { // Check if animation just finished
+            // Reset animation start time once it completes fully
+            // This ensures the symbol snaps back to non-rotated state if drawWinLines stops being called
+            delete winningLine.animationStartTime;
         }
     }
 

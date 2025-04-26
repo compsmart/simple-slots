@@ -1,4 +1,4 @@
-// symbolMap.js for Classic theme
+// symbolMap.js for fantasy forest theme
 // Defines the sprite map coordinates for symbols in symbols.svg
 
 export const symbolMap = {
